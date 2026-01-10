@@ -1,0 +1,7 @@
+{
+  "name": "senatla-ops",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
