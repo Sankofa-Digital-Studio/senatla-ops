@@ -1,0 +1,35 @@
+ <div class="flex flex-col items-center justify-center h-full bg-slate-900 text-white p-6 space-y-8 animate-fade-in">
+      <div class="text-center">
+        <div class="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center text-slate-900 text-2xl font-bold mb-4 mx-auto shadow-lg shadow-yellow-500/20">S</div>
+        <h1 class="text-3xl font-bold tracking-tight">Senatla Ops</h1>
+        <p class="text-slate-400 mt-2 text-sm">Secure Access Portal</p>
+      </div>
+      <div class="w-full max-w-sm bg-slate-800 p-8 rounded-xl border border-slate-700 shadow-2xl">
+        <form (submit)="handleLogin()" class="space-y-4">
+          <div>
+            <label class="block text-xs uppercase font-bold text-slate-500 mb-1">Username</label>
+            <input type="text" [(ngModel)]="username" name="username" class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-sm focus:border-yellow-500 focus:outline-none transition-colors" placeholder="e.g. site, admin, director">
+          </div>
+          <div>
+            <label class="block text-xs uppercase font-bold text-slate-500 mb-1">Password</label>
+            <input type="password" [(ngModel)]="password" name="password" class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-sm focus:border-yellow-500 focus:outline-none transition-colors" placeholder="••••••••">
+          </div>
+          <div *ngIf="errorMsg" class="text-red-400 text-xs bg-red-400/10 p-2 rounded border border-red-400/20">
+            {{ errorMsg }}
+          </div>
+          <button type="submit" class="w-full bg-yellow-500 text-slate-900 font-bold py-3 rounded hover:bg-yellow-400 transition-colors shadow-lg mt-4">
+            Secure Login
+          </button>
+        </form>
+        <div class="mt-6 pt-6 border-t border-slate-700 text-center">
+          <p class="text-[10px] text-slate-500 uppercase tracking-widest">Demo Credentials</p>
+          <div class="flex justify-center gap-2 mt-2 text-xs text-slate-400">
+            <span (click)="username='site'" class="cursor-pointer hover:text-white border-b border-dashed border-slate-600">site</span>
+            <span>•</span>
+            <span (click)="username='admin'" class="cursor-pointer hover:text-white border-b border-dashed border-slate-600">admin</span>
+            <span>•</span>
+            <span (click)="username='director'" class="cursor-pointer hover:text-white border-b border-dashed border-slate-600">director</span>
+          </div>
+        </div>
+      </div>
+    </div>

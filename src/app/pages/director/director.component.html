@@ -1,0 +1,23 @@
+ <div class="h-full bg-slate-100 p-8 flex flex-col">
+      <div class="mb-8 flex justify-between items-end">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Executive Overview</h2>
+          <p class="text-sm text-slate-500">Site: {{ service.siteName() }}</p>
+        </div>
+        <button class="bg-slate-900 text-white px-6 py-2 rounded shadow hover:bg-slate-800 text-sm font-bold">Generate Payroll</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+           <h3 class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-2">Daily Burn Rate</h3>
+           <p class="text-3xl font-bold text-slate-900">R {{ service.totalPayroll() | number:'1.2-2' }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+           <h3 class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-2">Unpaid Absences</h3>
+           <p class="text-3xl font-bold text-slate-900">{{ service.totalAbsent() }} <span class="text-lg text-slate-400 font-normal">staff</span></p>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200 flex-1 p-4 flex items-center justify-center text-slate-400 italic">
+          Full Payroll view available
+      </div>
+    </div>
+  

@@ -1,0 +1,27 @@
+  <div class="flex flex-col items-center justify-center h-full bg-slate-900 text-white p-6 space-y-8 animate-fade-in">
+      <div class="text-center">
+        <div class="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center text-slate-900 text-2xl font-bold mb-4 mx-auto">S</div>
+        <h1 class="text-3xl font-bold tracking-tight">Senatla Ops</h1>
+        <p class="text-slate-400 mt-2">Select your role to begin</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+        <button (click)="selectRole.emit('site')" class="group p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-yellow-500 transition-all text-left">
+          <div class="text-2xl mb-2">👷‍♂️</div>
+          <h3 class="font-bold text-lg group-hover:text-yellow-500">Site Manager</h3>
+          <p class="text-xs text-slate-400 mt-1">Mobile View • Roll Call • Safety</p>
+        </button>
+
+        <button (click)="selectRole.emit('office')" class="group p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-blue-500 transition-all text-left">
+          <div class="text-2xl mb-2">👩‍💻</div>
+          <h3 class="font-bold text-lg group-hover:text-blue-500">Office Admin</h3>
+          <p class="text-xs text-slate-400 mt-1">Desktop View • Timesheets • Export</p>
+        </button>
+
+        <button (click)="selectRole.emit('director')" class="group p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-green-500 transition-all text-left">
+          <div class="text-2xl mb-2">🔒</div>
+          <h3 class="font-bold text-lg group-hover:text-green-500">Director</h3>
+          <p class="text-xs text-slate-400 mt-1">Secure View • Payroll • Audits</p>
+        </button>
+      </div>
+    </div>

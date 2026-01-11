@@ -1,0 +1,90 @@
+<div class="h-full bg-white flex flex-col">
+      <header class="bg-white border-b p-6 flex justify-between items-center">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Office Dashboard</h2>
+          <div class="flex items-center gap-2 text-sm text-slate-500">
+             <span>Site: <strong class="text-slate-900">{{ service.siteName() }}</strong></span>
+          </div>
+        </div>
+      </header>
+
+      <div class="p-6 overflow-auto space-y-8">
+        
+        <!-- COMPLIANCE LOG -->
+        <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
+           <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Sync Compliance Log</h3>
+           <div *ngIf="service.syncHistory().length === 0" class="text-sm text-slate-400 italic">No sync activity yet.</div>
+           <div class="space-y-3">
+              <div *ngFor="let log of service.syncHistory()" class="bg-white border rounded shadow-sm p-4">
+                 <div class="flex justify-between items-start mb-2">
+                    <div>
+                       <p class="text-sm font-bold text-slate-800">{{ log.syncTime | date:'medium' }}</p>
+                       <p class="text-[10px] text-slate-500">Site: {{ log.siteId }}</p>
+                       <div *ngIf="log.safetyTopic" class="mt-1">
+                          <span class="text-[10px] bg-blue-100 text-blue-800 px-1 rounded">🦺 ToolBox Talk: {{ log.safetyTopic }}</span>
+                       </div>
+                    </div>
+                    <div class="text-right">
+                       <span class="inline-block px-2 py-1 rounded text-xs font-bold uppercase"
+                             [class.bg-green-100]="log.status === 'On Time'" [class.text-green-700]="log.status === 'On Time'"
+                             [class.bg-orange-100]="log.status === 'Late'" [class.text-orange-700]="log.status === 'Late'"
+                             [class.bg-red-100]="log.status === 'Critical' || log.status === 'Rollover'" [class.text-red-700]="log.status === 'Critical' || log.status === 'Rollover'">
+                          {{ log.status }}
+                       </span>
+                    </div>
+                 </div>
+                 
+                 <!-- SIGNATURE DISPLAY -->
+                 <div *ngIf="log.signatureData" class="mt-2 pt-2 border-t border-slate-100">
+                    <p class="text-[9px] text-slate-400 uppercase font-bold mb-1">Signed By Manager</p>
+                    <img [src]="log.signatureData" class="h-10 border border-slate-100 rounded bg-white" alt="Signature">
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        <!-- EMPLOYEE TABLE -->
+        <div>
+           <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Daily Attendance</h3>
+           <table class="w-full text-left border-collapse">
+             <thead>
+               <tr class="text-xs uppercase text-slate-400 border-b">
+                 <th class="py-3 font-medium">Employee</th>
+                 <th class="py-3 font-medium text-center">Todays Status</th>
+                 <th class="py-3 font-medium">Latest Comment</th>
+                 <th class="py-3 font-medium text-right">Flags</th>
+               </tr>
+             </thead>
+             <tbody class="text-sm">
+               <tr *ngFor="let emp of service.employees()" class="border-b hover:bg-slate-50 group">
+                 <td class="py-4 font-bold text-slate-800">
+                    {{ emp.name }}
+                    <span class="block text-[10px] font-normal text-slate-400">{{ emp.role }}</span>
+                 </td>
+                 <td class="py-4 text-center">
+                   <span class="inline-block px-2 py-1 rounded text-xs font-bold uppercase" 
+                         [class.bg-green-100]="getTodayLog(emp).status === 'present'" [class.text-green-700]="getTodayLog(emp).status === 'present'"
+                         [class.bg-red-100]="getTodayLog(emp).status === 'absent'" [class.text-red-700]="getTodayLog(emp).status === 'absent'">
+                         {{ getTodayLog(emp).status || 'Pending' }}
+                   </span>
+                   <div *ngIf="getTodayLog(emp).reason === 'Confirm in Office'" class="mt-1">
+                     <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-100 text-purple-700 border border-purple-200">
+                       Investigate
+                     </span>
+                   </div>
+                 </td>
+                 <td class="py-4">
+                   <span *ngIf="getTodayLog(emp).comment" class="text-xs bg-yellow-50 p-2 rounded border border-yellow-100 text-slate-700 italic">"{{ getTodayLog(emp).comment }}"</span>
+                   <span *ngIf="!getTodayLog(emp).comment" class="text-slate-300 text-xs">-</span>
+                 </td>
+                 <td class="py-4 text-right">
+                   <div *ngIf="getTodayLog(emp).isFlagged" class="inline-flex items-center gap-1 text-[10px] bg-orange-100 text-orange-700 px-2 py-1 rounded font-bold">
+                      <span>⚠️ Modified Retroactively</span>
+                   </div>
+                 </td>
+               </tr>
+             </tbody>
+           </table>
+        </div>
+      </div>
+    </div>

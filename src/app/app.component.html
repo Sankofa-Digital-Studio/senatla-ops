@@ -1,3 +1,19 @@
-<ion-app>
-  <ion-router-outlet></ion-router-outlet>
-</ion-app>
+ <div class="h-screen w-full flex flex-col font-sans text-slate-900 bg-slate-50 overflow-hidden relative">
+      <!-- TIME TRAVEL DEBUGGER -->
+      <app-time-controls></app-time-controls>
+
+      <nav *ngIf="currentView() !== 'login'" class="bg-slate-900 text-white p-2 flex justify-between items-center text-xs z-50">
+         <div class="flex items-center gap-2">
+            <span class="font-bold text-yellow-500">Senatla Ops Manager</span>
+         </div>
+         <div class="flex gap-2">
+            <button (click)="logout()" class="px-2 hover:text-red-400 transition-colors">Logout</button>
+         </div>
+      </nav>
+      <div class="flex-1 relative overflow-hidden">
+        <app-login *ngIf="currentView() === 'login'" (loginSuccess)="navigate($event)" class="absolute inset-0"></app-login>
+        <app-site-manager *ngIf="currentView() === 'site'" class="absolute inset-0"></app-site-manager>
+        <app-office-admin *ngIf="currentView() === 'office'" class="absolute inset-0"></app-office-admin>
+        <app-director *ngIf="currentView() === 'director'" class="absolute inset-0"></app-director>
+      </div>
+    </div>

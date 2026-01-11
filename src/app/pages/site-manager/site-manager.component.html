@@ -1,0 +1,287 @@
+<div class="h-full flex flex-col bg-slate-50 relative">
+      <!-- HEADER -->
+      <header class="bg-slate-900 text-white p-4 sticky top-0 z-20 shadow-md">
+        <div class="flex justify-between items-start mb-4">
+           <div class="flex-1">
+             <label class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Site Name</label>
+             <input [(ngModel)]="localSiteName" (blur)="updateSiteName()" class="bg-transparent border-b border-slate-600 w-full text-lg font-bold focus:outline-none focus:border-yellow-500 text-white placeholder-slate-600" placeholder="Enter Site Name">
+           </div>
+           
+           <!-- SYNC STATUS INDICATOR -->
+           <div class="flex flex-col items-end">
+              <span *ngIf="service.unsyncedChanges()" class="text-[10px] bg-yellow-500 text-slate-900 px-2 rounded font-bold animate-pulse mb-1">UNSYNCED</span>
+              <span *ngIf="!service.unsyncedChanges()" class="text-[10px] text-green-400 font-bold mb-1">SYNCED</span>
+              <span class="text-[10px] text-slate-500">{{ service.lastSyncTime() | date:'HH:mm' }}</span>
+           </div>
+        </div>
+        
+        <!-- STATUS BANNERS -->
+        <div *ngIf="service.safetyTalkCompleted()" class="bg-green-700 text-white text-[10px] p-1 rounded mb-2 font-bold flex items-center justify-between px-2">
+           <span>🦺 Safety Talk: {{ service.currentSafetyTopic() }}</span>
+           <span>✓</span>
+        </div>
+        <div *ngIf="service.timeStatus() === 'warning_1'" class="bg-yellow-600 text-white text-xs p-2 rounded mb-2 font-bold flex items-center gap-2">
+           <span>⏰</span> REMINDER: Daily sync required by 17:00.
+        </div>
+        <div *ngIf="service.timeStatus() === 'warning_2'" class="bg-red-600 text-white text-xs p-2 rounded mb-2 font-bold flex items-center gap-2 animate-pulse">
+           <span>⏳</span> URGENT: Sync immediately! Blocking in 5 mins.
+        </div>
+        <div *ngIf="service.timeStatus() === 'blocked'" class="bg-slate-800 border border-red-500 text-red-400 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2">
+           <span>⛔️</span> SYSTEM LOCKED: Missed deadline. Reopens 06:00.
+        </div>
+
+        <!-- Date Selector -->
+        <div class="flex justify-between items-center mb-2 bg-slate-800 p-2 rounded-lg">
+           <button (click)="changeDate(-1)" class="text-slate-400 hover:text-white">←</button>
+           <div class="text-center">
+             <span class="block text-xs font-bold text-yellow-500 uppercase">{{ selectedDate | date:'EEEE' }}</span>
+             <span class="block text-sm font-bold">{{ selectedDate | date:'mediumDate' }}</span>
+             <span *ngIf="isFuture" class="text-[10px] text-red-400 bg-red-900/30 px-2 rounded mt-1">FUTURE (Read Only)</span>
+           </div>
+           <button (click)="changeDate(1)" class="text-slate-400 hover:text-white" [disabled]="isFutureLimit">→</button>
+        </div>
+
+        <!-- Filters -->
+         <div class="flex gap-2">
+            <input [(ngModel)]="searchTerm" placeholder="Search..." class="flex-1 bg-slate-800 text-xs text-white p-2 rounded border border-slate-700 focus:border-yellow-500 outline-none">
+            <select title="createGroup" [(ngModel)]="filterGroup" class="bg-slate-800 text-xs text-white p-2 rounded border border-slate-700 outline-none max-w-[100px]">
+               <option [ngValue]="null">All Groups</option>
+               <option *ngFor="let g of service.groups()" [ngValue]="g.id">{{ g.name }}</option>
+            </select>
+            <button (click)="showGroupModal = true" class="bg-yellow-500 text-slate-900 px-3 rounded font-bold text-lg">+</button>
+         </div>
+      </header>
+
+      <!-- EMPLOYEES LIST -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-3 pb-24" [class.opacity-50]="service.timeStatus() === 'blocked'" [class.pointer-events-none]="service.timeStatus() === 'blocked'">
+        <div *ngFor="let emp of filteredEmployees()" 
+             class="bg-white p-4 rounded-lg shadow-sm border-l-4 transition-all touch-manipulation relative"
+             [class.border-l-green-500]="getLog(emp).status === 'present'"
+             [class.border-l-red-500]="getLog(emp).status === 'absent'"
+             [class.border-l-slate-300]="getLog(emp).status === 'pending'">
+
+          <div *ngIf="getLog(emp).isFlagged" class="absolute top-2 right-2 text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold border border-orange-200 flex items-center gap-1">
+             <span>⚠️ Flagged</span>
+          </div>
+          
+          <div class="flex justify-between items-start mb-3 mt-2">
+            <div (click)="toggleGroupSelect(emp)">
+              <h3 class="font-bold text-slate-800 text-sm">{{ emp.name }}</h3>
+              <div class="flex items-center gap-2">
+                 <span class="text-[10px] text-slate-500 uppercase tracking-wider bg-slate-100 px-1 rounded">{{ emp.role }}</span>
+                 <span *ngIf="emp.groupId" class="text-[10px] text-blue-600 bg-blue-50 px-1 rounded font-bold">{{ getGroupName(emp.groupId) }}</span>
+              </div>
+            </div>
+
+            <button (click)="toggleStatus(emp.id)" 
+                    [disabled]="isFuture || service.timeStatus() === 'blocked'"
+                    class="px-4 py-2 rounded-full text-xs font-bold uppercase transition-all shadow-sm"
+                    [class.opacity-50]="isFuture"
+                    [class.bg-green-100]="getLog(emp).status === 'present'" [class.text-green-700]="getLog(emp).status === 'present'"
+                    [class.bg-red-100]="getLog(emp).status === 'absent'" [class.text-red-700]="getLog(emp).status === 'absent'"
+                    [class.bg-slate-100]="getLog(emp).status === 'pending'" [class.text-slate-500]="getLog(emp).status === 'pending'">
+              {{ getLog(emp).status === 'pending' ? 'Mark' : getLog(emp).status }}
+            </button>
+          </div>
+
+          <div *ngIf="getLog(emp).status !== 'pending'" class="animate-fade-in pt-3 border-t border-slate-100">
+             <div *ngIf="getLog(emp).status === 'absent'" class="mb-3">
+               <p class="text-[10px] uppercase text-slate-400 font-bold mb-1">Reason</p>
+               <div class="flex flex-wrap gap-2">
+                 <button *ngFor="let r of reasonsList"
+                         (click)="service.updateReason(emp.id, selectedDateStr, r)"
+                         [disabled]="isFuture || service.timeStatus() === 'blocked'"
+                         class="flex-1 min-w-[60px] py-1 text-[10px] border rounded transition-colors whitespace-nowrap"
+                         [class.bg-slate-900]="getLog(emp).reason === r"
+                         [class.text-white]="getLog(emp).reason === r"
+                         [class.bg-white]="getLog(emp).reason !== r"
+                         [class.border-purple-500]="r === 'Confirm in Office' && getLog(emp).reason === r"
+                         [class.text-purple-300]="r === 'Confirm in Office' && getLog(emp).reason === r">
+                   {{ r }}
+                 </button>
+               </div>
+               <p *ngIf="getLog(emp).reason === 'Confirm in Office'" class="text-[10px] text-purple-600 mt-1 italic">
+                 ℹ️ Alerting Office Admin to investigate.
+               </p>
+             </div>
+             <div>
+                <p class="text-[10px] uppercase text-slate-400 font-bold mb-1">Daily Comment</p>
+                <div class="flex gap-2">
+                   <input type="text" 
+                          [ngModel]="getLog(emp).comment" 
+                          (change)="updateComment(emp.id, $event)"
+                          [disabled]="isFuture || service.timeStatus() === 'blocked'"
+                          placeholder="Add note for office..." 
+                          class="w-full text-xs border-b border-slate-200 focus:border-yellow-500 outline-none py-1 bg-transparent">
+                </div>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOOTER SYNC BAR -->
+      <div class="bg-white border-t p-4 pb-8 safe-area-pb shadow-[0_-5px_15px_rgba(0,0,0,0.1)] z-30">
+        <button (click)="handleSync()" 
+                [disabled]="service.timeStatus() === 'blocked' || !service.unsyncedChanges()"
+                class="w-full py-4 rounded-xl font-bold text-sm uppercase flex items-center justify-center gap-3 transition-all transform active:scale-95"
+                [class.bg-slate-900]="service.timeStatus() !== 'blocked'"
+                [class.text-white]="service.timeStatus() !== 'blocked'"
+                [class.bg-slate-300]="service.timeStatus() === 'blocked' || !service.unsyncedChanges()"
+                [class.text-slate-500]="service.timeStatus() === 'blocked' || !service.unsyncedChanges()">
+           <span class="text-lg">
+             {{ service.timeStatus() === 'blocked' ? '🚫' : service.unsyncedChanges() ? '📡' : '✅' }}
+           </span>
+           <span>
+             {{ service.timeStatus() === 'blocked' ? 'Sync Locked (Wait for 06:00)' : service.unsyncedChanges() ? 'Sync to Server' : 'All Data Synced' }}
+           </span>
+        </button>
+      </div>
+
+      <!-- SAFETY GATEKEEPER MODAL -->
+      <div *ngIf="!service.safetyTalkCompleted()" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-6 backdrop-blur-sm animate-fade-in">
+         <div class="w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-orange-500/30">
+            <span class="text-4xl">🦺</span>
+         </div>
+         <h2 class="text-2xl font-bold text-white text-center mb-2">Safety Protocol Lock</h2>
+         <p class="text-slate-400 text-center mb-8 text-sm max-w-xs">
+            Attendance registers are locked until a daily Toolbox Talk is confirmed.
+         </p>
+         
+         <div class="w-full max-w-sm bg-slate-800 p-6 rounded-xl border border-slate-700">
+            
+            <!-- VIEW MODE: SELECT -->
+            <ng-container *ngIf="!isManagingTopics">
+              <label class="block text-xs uppercase font-bold text-slate-500 mb-2">Select Today's Topic</label>
+              
+              <div class="flex gap-2 mb-6">
+                 <select title="selectedSafetyTopic" [(ngModel)]="selectedSafetyTopic" class="flex-1 bg-slate-900 text-white p-3 rounded border border-slate-600 text-sm outline-none focus:border-orange-500">
+                    <option [ngValue]="null">-- Select Topic --</option>
+                    <option *ngFor="let topic of service.safetyTopics()" [value]="topic">{{ topic }}</option>
+                 </select>
+                 <button (click)="toggleManageTopics()" class="bg-slate-700 px-3 rounded border border-slate-600 hover:bg-slate-600 text-white" title="Manage Topics">
+                    ⚙️
+                 </button>
+              </div>
+
+              <button (click)="confirmSafetyTalk()" 
+                      [disabled]="!selectedSafetyTopic"
+                      class="w-full bg-orange-600 text-white py-4 rounded-lg font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed">
+                 Confirm & Unlock
+              </button>
+            </ng-container>
+
+            <!-- EDIT MODE: MANAGE -->
+            <ng-container *ngIf="isManagingTopics">
+               <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                  <h3 class="text-white font-bold text-sm">Manage Topics</h3>
+                  <button (click)="toggleManageTopics()" class="text-slate-400 hover:text-white text-xs">Done</button>
+               </div>
+               
+               <div class="max-h-60 overflow-y-auto mb-4 space-y-2 pr-1">
+                  <div *ngFor="let topic of service.safetyTopics(); let i = index" class="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700">
+                     
+                     <!-- Normal Row -->
+                     <ng-container *ngIf="editingTopicIndex !== i">
+                        <span class="text-slate-300 text-xs truncate mr-2">{{ topic }}</span>
+                        <div class="flex gap-1">
+                           <button (click)="startEditingTopic(i, topic)" class="text-blue-400 hover:text-blue-300 p-1">✏️</button>
+                           <button (click)="deleteTopic(topic)" class="text-red-400 hover:text-red-300 p-1">🗑</button>
+                        </div>
+                     </ng-container>
+
+                     <!-- Editing Row -->
+                     <ng-container *ngIf="editingTopicIndex === i">
+                        <input title="editedTopicName" [(ngModel)]="editedTopicName" class="flex-1 bg-slate-800 text-white text-xs p-1 rounded border border-slate-600 mr-2 outline-none">
+                        <div class="flex gap-1">
+                           <button (click)="saveEditedTopic(topic)" class="text-green-400 hover:text-green-300 p-1">✓</button>
+                           <button (click)="cancelEdit()" class="text-slate-400 hover:text-slate-300 p-1">✕</button>
+                        </div>
+                     </ng-container>
+
+                  </div>
+               </div>
+
+               <!-- Add New -->
+               <div class="flex gap-2">
+                  <input [(ngModel)]="newTopicName" placeholder="New Topic Name..." class="flex-1 bg-slate-900 text-white p-2 rounded border border-slate-600 text-xs outline-none">
+                  <button (click)="addTopic()" [disabled]="!newTopicName" class="bg-green-600 text-white px-3 rounded font-bold disabled:opacity-50 text-xs">+</button>
+               </div>
+            </ng-container>
+         </div>
+         <p class="mt-8 text-[10px] text-slate-500 uppercase tracking-widest">Senatla Safety First</p>
+      </div>
+
+      <!-- SIGNATURE MODAL -->
+      <div *ngIf="showSignatureModal" class="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-end md:justify-center animate-fade-in">
+         <div class="bg-white w-full md:w-[500px] md:rounded-2xl rounded-t-2xl p-6 flex flex-col h-[80vh] md:h-auto">
+            <div class="flex justify-between items-center mb-4">
+               <h3 class="font-bold text-xl text-slate-900">Sign-Off Required</h3>
+               <button (click)="showSignatureModal = false" class="text-slate-400 hover:text-red-500">✕</button>
+            </div>
+            
+            <p class="text-xs text-slate-500 mb-2">
+               I certify that the attendance data is accurate and the safety talk was conducted.
+            </p>
+            
+            <!-- CANVAS CONTAINER -->
+            <div class="flex-1 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 relative touch-none mb-4" #canvasContainer>
+               <canvas #sigCanvas 
+                       (mousedown)="startDrawing($event)" 
+                       (mousemove)="draw($event)" 
+                       (mouseup)="stopDrawing()" 
+                       (mouseleave)="stopDrawing()"
+                       (touchstart)="startDrawing($event)" 
+                       (touchmove)="draw($event)" 
+                       (touchend)="stopDrawing()"
+                       class="w-full h-full block cursor-crosshair">
+               </canvas>
+               <div *ngIf="!hasSigned" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span class="text-slate-300 font-bold text-2xl rotate-[-15deg] opacity-50">SIGN HERE</span>
+               </div>
+            </div>
+
+            <div class="flex gap-3">
+               <button (click)="clearSignature()" class="px-4 py-3 rounded-lg border border-slate-200 text-slate-600 font-bold text-xs uppercase">Clear</button>
+               <button (click)="submitSyncWithSignature()" 
+                       [disabled]="!hasSigned"
+                       class="flex-1 bg-slate-900 text-white py-3 rounded-lg font-bold text-sm uppercase disabled:opacity-50">
+                  Confirm & Sync
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ROLLOVER ACKNOWLEDGEMENT MODAL -->
+      <div *ngIf="showRolloverModal" class="fixed inset-0 bg-red-900/90 z-50 flex items-center justify-center p-6 backdrop-blur-sm animate-fade-in">
+         <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl border-t-8 border-red-600">
+            <div class="text-4xl mb-4 text-center">⚠️</div>
+            <h2 class="text-2xl font-bold text-red-700 text-center mb-2">Protocol Breach: Late Submission</h2>
+            <p class="text-slate-600 text-center mb-6 leading-relaxed">
+               You are attempting to submit data outside of the authorized window (06:00 - 07:00). You are handling multiple timesheets which creates payroll risk.
+            </p>
+            <div class="bg-red-50 p-4 rounded border border-red-100 mb-6">
+               <label class="flex items-start gap-3">
+                  <input type="checkbox" [(ngModel)]="rolloverAcknowledged" class="mt-1 w-5 h-5 accent-red-600">
+                  <span class="text-xs font-bold text-red-800">I acknowledge this breach and understand it will be logged with the Office Admin for disciplinary review.</span>
+               </label>
+            </div>
+            <button (click)="confirmRollover()" 
+                    [disabled]="!rolloverAcknowledged"
+                    class="w-full bg-red-700 text-white py-4 rounded-xl font-bold uppercase disabled:opacity-50 disabled:cursor-not-allowed">
+               Submit & Log Breach
+            </button>
+         </div>
+      </div>
+      
+      <!-- Group Modal -->
+      <div *ngIf="showGroupModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+         <div class="bg-white rounded-lg p-6 w-full max-w-xs shadow-xl">
+            <h3 class="font-bold text-lg mb-4">Create New Group</h3>
+            <input [(ngModel)]="newGroupName" placeholder="e.g., Night Shift" class="w-full border p-2 rounded mb-4 text-sm">
+            <div class="flex gap-2">
+               <button (click)="createGroup()" class="flex-1 bg-slate-900 text-white py-2 rounded font-bold text-sm">Create</button>
+               <button (click)="showGroupModal = false" class="flex-1 bg-slate-200 text-slate-700 py-2 rounded font-bold text-sm">Cancel</button>
+            </div>
+         </div>
+      </div>
+    </div>
