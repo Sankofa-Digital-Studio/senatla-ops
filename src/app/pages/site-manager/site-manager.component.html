@@ -66,7 +66,7 @@
           
           <div class="flex justify-between items-start mb-3 mt-2">
             <div (click)="toggleGroupSelect(emp)">
-              <h3 class="font-bold text-slate-800 text-sm">{{ emp.name }}</h3>
+              <h3 class="font-bold text-slate-800 text-sm">{{ emp.firstName }}</h3>
               <div class="flex items-center gap-2">
                  <span class="text-[10px] text-slate-500 uppercase tracking-wider bg-slate-100 px-1 rounded">{{ emp.role }}</span>
                  <span *ngIf="emp.groupId" class="text-[10px] text-blue-600 bg-blue-50 px-1 rounded font-bold">{{ getGroupName(emp.groupId) }}</span>
