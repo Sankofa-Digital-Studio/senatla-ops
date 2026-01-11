@@ -164,7 +164,7 @@ export class SiteManagerComponent  {
   
   filteredEmployees() {
      return this.service.employees().filter(e => {
-        const matchesSearch = e.name.toLowerCase().includes(this.searchTerm.toLowerCase()) || e.role.toLowerCase().includes(this.searchTerm.toLowerCase());
+        const matchesSearch = e.firstName.toLowerCase().includes(this.searchTerm.toLowerCase()) || e.role.toLowerCase().includes(this.searchTerm.toLowerCase());
         const matchesGroup = this.filterGroup ? e.groupId === this.filterGroup : true;
         return matchesSearch && matchesGroup;
      });
