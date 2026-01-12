@@ -1,23 +1,186 @@
- <div class="h-full bg-slate-100 p-8 flex flex-col">
-      <div class="mb-8 flex justify-between items-end">
+<div class="h-full bg-gray-900 text-gray-200 flex flex-col font-sans overflow-y-auto">
+      
+      <!-- EXECUTIVE HEADER -->
+      <div class="bg-gray-800 border-b border-gray-700 px-6 py-6 shadow-md">
+        <div class="flex flex-col md:flex-row justify-between md:items-end gap-4">
+          <div>
+            <h1 class="text-2xl font-black text-white tracking-tight">EXECUTIVE OVERVIEW</h1>
+            <p class="text-xs text-yellow-500 font-bold uppercase tracking-widest mt-1">Financial & Compliance Audit</p>
+          </div>
+          
+          <!-- VIEW MODE TOGGLES -->
+          <div class="flex gap-2">
+             <button (click)="viewMode.set('day')" 
+                     class="px-4 py-1 rounded text-xs font-bold uppercase tracking-wider border transition-all" 
+                     [class.bg-yellow-500]="viewMode()==='day'" 
+                     [class.text-black]="viewMode()==='day'" 
+                     [class.border-yellow-500]="viewMode()==='day'" 
+                     [class.text-gray-400]="viewMode()!=='day'" 
+                     [class.border-gray-600]="viewMode()!=='day'">Daily</button>
+             
+             <button (click)="viewMode.set('month')" 
+                     class="px-4 py-1 rounded text-xs font-bold uppercase tracking-wider border transition-all" 
+                     [class.bg-yellow-500]="viewMode()==='month'" 
+                     [class.text-black]="viewMode()==='month'" 
+                     [class.border-yellow-500]="viewMode()==='month'" 
+                     [class.text-gray-400]="viewMode()!=='month'" 
+                     [class.border-gray-600]="viewMode()!=='month'">Monthly</button>
+             
+             <button (click)="viewMode.set('year')" 
+                     class="px-4 py-1 rounded text-xs font-bold uppercase tracking-wider border transition-all" 
+                     [class.bg-yellow-500]="viewMode()==='year'" 
+                     [class.text-black]="viewMode()==='year'" 
+                     [class.border-yellow-500]="viewMode()==='year'" 
+                     [class.text-gray-400]="viewMode()!=='year'" 
+                     [class.border-gray-600]="viewMode()!=='year'">Yearly</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 md:p-8 space-y-8">
+
+        <!-- 1. HIGH-LEVEL KPI CARDS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+           
+           <!-- COMPLIANCE SCORE -->
+           <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 relative overflow-hidden group hover:border-gray-600 transition-colors">
+              <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                 <span class="text-6xl">⚖️</span>
+              </div>
+              <p class="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">Ops Compliance Score</p>
+              <div class="flex items-end gap-2">
+                 <span class="text-4xl font-bold text-white" 
+                       [class.text-red-500]="complianceScore() < 80" 
+                       [class.text-green-400]="complianceScore() >= 80">
+                    {{ complianceScore() | number:'1.0-0' }}%
+                 </span>
+                 <span class="text-xs text-gray-500 mb-1">On-Time Syncs</span>
+              </div>
+              <!-- Visual Gauge -->
+              <div class="w-full bg-gray-900 h-2 mt-4 rounded-full overflow-hidden">
+                 <div class="h-full transition-all duration-1000" 
+                      [style.width.%]="complianceScore()"
+                      [class.bg-red-500]="complianceScore() < 80" 
+                      [class.bg-green-500]="complianceScore() >= 80"></div>
+              </div>
+           </div>
+
+           <!-- COST METRICS -->
+           <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 relative overflow-hidden group hover:border-gray-600 transition-colors border-l-4 border-l-yellow-500">
+              <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                 <span class="text-6xl">💰</span>
+              </div>
+              <p class="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">
+                 {{ viewMode() === 'day' ? 'Daily Burn Rate' : viewMode() === 'month' ? 'Monthly Cost' : 'YTD Cost' }}
+              </p>
+              <div class="flex items-end gap-2">
+                 <span class="text-3xl font-bold text-white font-mono">
+                    R {{ displayedCost() | number:'1.0-0' }}
+                 </span>
+              </div>
+              <p class="text-[10px] text-gray-500 mt-4">
+                 {{ viewMode() === 'day' ? 'Based on today\'s attendance' : viewMode() === 'month' ? 'Projected Total (22 Shifts)' : 'Actual Year-To-Date' }}
+              </p>
+           </div>
+
+           <!-- HEADCOUNT METRICS -->
+           <div class="bg-gray-800 p-5 rounded-xl border border-gray-700 relative overflow-hidden group hover:border-gray-600 transition-colors">
+              <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                 <span class="text-6xl">👷‍♂️</span>
+              </div>
+              <p class="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">Workforce Stats</p>
+              <div class="flex items-end gap-2">
+                 <span class="text-4xl font-bold text-white">{{ service.employees().length }}</span>
+                 <span class="text-xs text-gray-500 mb-1">Total Active</span>
+              </div>
+              <div class="mt-4 flex gap-4 text-xs">
+                 <div><span class="text-green-400 font-bold">{{ presentCount() }}</span> Present</div>
+                 <div><span class="text-red-500 font-bold">{{ absentCount() }}</span> Absent</div>
+              </div>
+           </div>
+        </div>
+
+        <!-- 2. TREND GRAPH (Visual Only for Month/Year) -->
+        <div *ngIf="viewMode() !== 'day'" class="animate-fade-in">
+           <h2 class="text-sm font-bold text-white uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">Spending Trend Analysis</h2>
+           <div class="h-40 flex items-end gap-2 p-4 bg-gray-800 rounded-xl border border-gray-700">
+              <!-- Simulated bars for trend visualization -->
+              <div *ngFor="let h of trendData()" 
+                   class="flex-1 bg-gray-700 hover:bg-yellow-500 transition-all duration-300 rounded-t relative group" 
+                   [style.height.%]="h">
+                 <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 text-[10px] font-mono text-white bg-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                    R {{ h }}k
+                 </div>
+              </div>
+           </div>
+           <div class="flex justify-between text-[10px] text-gray-500 px-4 mt-2 font-mono uppercase">
+              <span>Start of Period</span>
+              <span>End of Period</span>
+           </div>
+        </div>
+
+        <!-- 3. SITE PERFORMANCE BREAKDOWN -->
         <div>
-          <h2 class="text-2xl font-bold text-slate-900">Executive Overview</h2>
-          <p class="text-sm text-slate-500">Site: {{ service.siteName() }}</p>
+           <h2 class="text-sm font-bold text-white uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">Site Performance Analysis</h2>
+           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div *ngFor="let site of siteStats()" class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-gray-600 transition-colors">
+                 <div>
+                    <h3 class="font-bold text-lg text-white">{{ site.name }}</h3>
+                    <p class="text-xs text-gray-400 flex items-center gap-1">📍 {{ site.location }}</p>
+                 </div>
+                 <div class="flex flex-col items-end gap-1 w-full md:w-auto">
+                    <div class="flex justify-between w-full md:w-auto gap-8 text-xs border-b border-gray-700 pb-1 mb-1">
+                       <span class="text-gray-500">Staff Count</span>
+                       <span class="font-mono text-white font-bold">{{ site.staffCount }}</span>
+                    </div>
+                    <div class="flex justify-between w-full md:w-auto gap-8 text-xs">
+                       <span class="text-gray-500">Cost Contribution</span>
+                       <span class="font-mono text-yellow-500 font-bold">R {{ site.dailyCost | number:'1.0-0' }}</span>
+                    </div>
+                 </div>
+              </div>
+           </div>
         </div>
-        <button class="bg-slate-900 text-white px-6 py-2 rounded shadow hover:bg-slate-800 text-sm font-bold">Generate Payroll</button>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-           <h3 class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-2">Daily Burn Rate</h3>
-           <p class="text-3xl font-bold text-slate-900">R {{ service.totalPayroll() | number:'1.2-2' }}</p>
+
+        <!-- 4. RECENT COMPLIANCE ALERTS -->
+        <div>
+           <h2 class="text-sm font-bold text-white uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">Recent Compliance Activity</h2>
+           <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+              <table class="w-full text-left text-xs">
+                 <thead class="bg-gray-900 text-gray-500 uppercase font-bold">
+                    <tr>
+                       <th class="p-4">Time</th>
+                       <th class="p-4">Site</th>
+                       <th class="p-4">Status</th>
+                       <th class="p-4 text-right">Action</th>
+                    </tr>
+                 </thead>
+                 <tbody class="divide-y divide-gray-700">
+                    <tr *ngFor="let log of recentSyncs()" class="hover:bg-gray-700/30 transition-colors">
+                       <td class="p-4 font-mono text-gray-300">{{ log.syncTime | date:'shortTime' }}</td>
+                       <td class="p-4 font-bold text-white">{{ log.siteId }}</td>
+                       <td class="p-4">
+                          <span class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest border" 
+                                [class.bg-green-900]="log.status === 'On Time'" [class.text-green-400]="log.status === 'On Time'" [class.border-green-800]="log.status === 'On Time'"
+                                [class.bg-orange-900]="log.status === 'Late'" [class.text-orange-400]="log.status === 'Late'" [class.border-orange-800]="log.status === 'Late'"
+                                [class.bg-red-900]="log.status === 'Critical' || log.status === 'Rollover'" [class.text-red-400]="log.status === 'Critical' || log.status === 'Rollover'" [class.border-red-800]="log.status === 'Critical' || log.status === 'Rollover'">
+                             {{ log.status }}
+                          </span>
+                       </td>
+                       <td class="p-4 text-right">
+                          <span *ngIf="log.acknowledgedWarning" class="text-red-400 font-bold flex items-center justify-end gap-1 bg-red-900/20 px-2 py-1 rounded border border-red-900/50">
+                             ⚠️ Breach Ack.
+                          </span>
+                          <span *ngIf="!log.acknowledgedWarning" class="text-gray-600 italic">Routine</span>
+                       </td>
+                    </tr>
+                    <tr *ngIf="recentSyncs().length === 0">
+                       <td colspan="4" class="p-8 text-center text-gray-500 italic">No sync activity recorded today.</td>
+                    </tr>
+                 </tbody>
+              </table>
+           </div>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-           <h3 class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-2">Unpaid Absences</h3>
-           <p class="text-3xl font-bold text-slate-900">{{ service.totalAbsent() }} <span class="text-lg text-slate-400 font-normal">staff</span></p>
-        </div>
-      </div>
-      <div class="bg-white rounded-lg shadow-sm border border-slate-200 flex-1 p-4 flex items-center justify-center text-slate-400 italic">
-          Full Payroll view available
+
       </div>
     </div>
-  

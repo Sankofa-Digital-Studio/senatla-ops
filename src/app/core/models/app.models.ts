@@ -20,7 +20,7 @@ export interface Site {
   id: string;
   name: string;
   location: string;
-  managerId?: string; // Links to an employee
+  managerId?: string;
   isActive: boolean;
 }
 
@@ -30,21 +30,26 @@ export interface Employee {
   // Personal
   firstName: string;
   surname: string;
-  idNumber: string; // SA ID
+  idNumber: string; 
   
   // Employment
   role: 'General Worker' | 'Safety Rep' | 'Operator' | 'Driver' | 'Foreman';
-  siteId: string; // Links to Site
+  siteId: string; 
   groupId?: string; 
-  startDate: string; // YYYY-MM-DD
+  startDate: string; 
   taxRefNumber?: string;
   
   // Financials (ZAR)
-  basicRate: number; // Daily Rate
+  basicRate: number; 
   travelAllowance: number;
   housingAllowance: number;
+  salaryAdvances: number; // Added field
   
   logs: Record<string, DailyLog>; 
+  
+  // New: Manual Adjustments Record
+  // Key: "YYYY-MM-WeekIndex" -> Value: Number of days added/removed
+  adjustments: Record<string, number>; 
 }
 
 export interface Issue {
@@ -61,4 +66,12 @@ export interface Issue {
 export interface Group {
   id: string;
   name: string;
+}
+
+export interface SafetyTalkRecord {
+  id: string;
+  date: Date;
+  topic: string;
+  notes?: string;
+  photoUrl?: string; // Base64 or URL
 }

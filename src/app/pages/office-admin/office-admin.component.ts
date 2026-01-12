@@ -47,20 +47,65 @@ export class OfficeAdminComponent  {
   isSiteEditMode = false;
   tempSite: Partial<Site> = { name: '', location: '' };
 
+   showAdjustmentModal = false;
+  adjustmentEmpId: string | null = null;
+  adjustmentEmpName = '';
+sortBy = signal<'surname' | 'firstName'>('surname');
+  sortDir = signal<'asc' | 'desc'>('asc');
+
+  // Financials Modal State
+  showFinancialsModal = false;
+
+
   // Computed Stats
   openIssuesCount = computed(() => this.service.issues().filter(i => i.status === 'Open').length);
 
-  // Workforce Filter Logic
+ // Updated Filter Logic with Sort
   filteredEmployees = computed(() => {
     const term = this.searchTerm().toLowerCase();
     const site = this.filterSiteId();
-    return this.service.employees().filter(e => {
-      const nameMatch = (e.firstName + ' ' + e.surname).toLowerCase().includes(term);
+    const employees = this.service.employees().filter(e => {
+      const nameMatch = (e.firstName.toLowerCase().includes(term) || e.surname.toLowerCase().includes(term));
       const idMatch = e.idNumber.includes(term);
       const siteMatch = site ? e.siteId === site : true;
       return (nameMatch || idMatch) && siteMatch;
     });
+    
+    // Sort logic
+    return employees.sort((a, b) => {
+       const fieldA = a[this.sortBy()].toLowerCase();
+       const fieldB = b[this.sortBy()].toLowerCase();
+       if (fieldA < fieldB) return this.sortDir() === 'asc' ? -1 : 1;
+       if (fieldA > fieldB) return this.sortDir() === 'asc' ? 1 : -1;
+       return 0;
+    });
   });
+
+  // ... existing helpers ...
+
+  // Sorting Toggle
+  toggleSort(field: 'surname' | 'firstName') {
+     if (this.sortBy() === field) {
+        this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
+     } else {
+        this.sortBy.set(field);
+        this.sortDir.set('asc');
+     }
+  }
+
+  // Financials Modal Actions
+  openFinancialsModal(emp: Employee) {
+     this.tempEmp = { ...emp }; // Clone for editing
+     this.showFinancialsModal = true;
+  }
+
+  saveFinancials() {
+     if (this.tempEmp.id) {
+        // Use existing update logic from service
+        this.service.updateEmployee(this.tempEmp.id, this.tempEmp);
+     }
+     this.showFinancialsModal = false;
+  }
 
   // --- HELPERS ---
   getSiteName(id: string) {
@@ -138,4 +183,47 @@ export class OfficeAdminComponent  {
     a.download = `Senatla_Payroll_${this.months[this.selectedMonth]}_${this.selectedYear}.csv`;
     a.click();
   }
+
+  openAdjustmentModal(emp: Employee) {
+    this.adjustmentEmpId = emp.id;
+    this.adjustmentEmpName = `${emp.firstName} ${emp.surname}`;
+    this.showAdjustmentModal = true;
+  }
+
+  getAdjustmentValue(week: number) {
+    if (!this.adjustmentEmpId) return 0;
+    return this.service.getManualAdjustment(this.adjustmentEmpId, this.selectedMonth, this.selectedYear, week);
+  }
+
+  updateAdjustment(week: number, change: number) {
+    if (!this.adjustmentEmpId) return;
+    const current = this.getAdjustmentValue(week);
+    const newValue = current + change;
+    this.service.setManualAdjustment(this.adjustmentEmpId, this.selectedMonth, this.selectedYear, week, newValue);
+  }
+
+  setAdjustment(week: number, value: number) {
+    if (!this.adjustmentEmpId) return;
+    this.service.setManualAdjustment(this.adjustmentEmpId, this.selectedMonth, this.selectedYear, week, value);
+  }
+
+    getWeekLabel(week: number): string {
+    const startDay = (week - 1) * 7 + 1;
+    const startDate = new Date(this.selectedYear, this.selectedMonth, startDay);
+    
+    // If week starts in next month, it's invalid
+    if (startDate.getMonth() !== this.selectedMonth) return '';
+
+    const lastDayOfMonth = new Date(this.selectedYear, this.selectedMonth + 1, 0).getDate();
+    const endDay = Math.min(week * 7, lastDayOfMonth);
+    const endDate = new Date(this.selectedYear, this.selectedMonth, endDay);
+
+    const startFmt = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endFmt = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    
+    return `Week ${week} (${startFmt} - ${endFmt})`;
+  }
+
+  
+  
 }
