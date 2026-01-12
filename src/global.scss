@@ -1,43 +1,56 @@
-/*
- * App Global CSS
- * ----------------------------------------------------------------------------
- * Put style rules here that you want to apply globally. These styles are for
- * the entire app and not just one component. Additionally, this file can be
- * used as an entry point to import other CSS/Sass files to be included in the
- * output CSS.
- * For more information on global stylesheets, visit the documentation:
- * https://ionicframework.com/docs/layout/global-stylesheets
- */
-
-/* Core CSS required for Ionic components to work properly */
-@import "@ionic/angular/css/core.css";
-
-/* Basic CSS for apps built with Ionic */
-@import "@ionic/angular/css/normalize.css";
-@import "@ionic/angular/css/structure.css";
-@import "@ionic/angular/css/typography.css";
-@import "@ionic/angular/css/display.css";
-
-/* Optional CSS utils that can be commented out */
-@import "@ionic/angular/css/padding.css";
-@import "@ionic/angular/css/float-elements.css";
-@import "@ionic/angular/css/text-alignment.css";
-@import "@ionic/angular/css/text-transformation.css";
-@import "@ionic/angular/css/flex-utils.css";
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ... existing ionic imports ... */
+/* --- INDUSTRIAL OBSIDIAN THEME --- */
 
-/**
- * Ionic Dark Mode
- * -----------------------------------------------------
- * For more info, please see:
- * https://ionicframework.com/docs/theming/dark-mode
- */
+body {
+  @apply bg-gray-900 text-gray-200 font-sans antialiased;
+  overscroll-behavior: none; /* App-like feel */
+}
 
-/* @import "@ionic/angular/css/palettes/dark.always.css"; */
-/* @import "@ionic/angular/css/palettes/dark.class.css"; */
-@import '@ionic/angular/css/palettes/dark.system.css';
+/* Custom Scrollbar for Dashboard feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-700 rounded-full hover:bg-gray-600;
+}
+
+/* Form Elements Reset */
+input, select, textarea {
+  @apply bg-gray-800 border-gray-700 text-white rounded-md 
+         focus:ring-2 focus:ring-yellow-500 focus:border-transparent 
+         outline-none transition-all duration-200;
+}
+
+/* Utility Classes used in templates */
+.card-panel {
+  @apply bg-gray-800 border border-gray-700 rounded-xl shadow-sm;
+}
+
+.btn-primary {
+  @apply bg-yellow-500 text-black font-bold uppercase tracking-wider 
+         px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all active:scale-95 shadow-lg;
+}
+
+/* Glow Effect for "Login" Logo */
+.shadow-glow {
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.4);
+}
+
+/* Animations */
+.animate-fade-in { 
+  animation: fadeIn 0.3s ease-out; 
+}
+
+@keyframes fadeIn { 
+  from { opacity: 0; transform: translateY(5px); } 
+  to { opacity: 1; transform: translateY(0); } 
+}

@@ -1,2 +1,96 @@
-// For information on how to create your own theme, please refer to:
-// https://ionicframework.com/docs/theming/
+// Ionic Variables and Theming
+:root {
+  /** primary **/
+  --ion-color-primary: #EAB308; // High-Vis Yellow (Tailwind yellow-500)
+  --ion-color-primary-rgb: 234, 179, 8;
+  --ion-color-primary-contrast: #0f172a; // Obsidian-900
+  --ion-color-primary-contrast-rgb: 15, 23, 42;
+  --ion-color-primary-shade: #ca8a04;
+  --ion-color-primary-tint: #facc15;
+
+  /** secondary **/
+  --ion-color-secondary: #334155; // Obsidian-700
+  --ion-color-secondary-rgb: 51, 65, 85;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #1e293b;
+  --ion-color-secondary-tint: #475569;
+
+  /** tertiary **/
+  --ion-color-tertiary: #64748b; // Slate-500
+  --ion-color-tertiary-rgb: 100, 116, 139;
+  --ion-color-tertiary-contrast: #ffffff;
+  --ion-color-tertiary-contrast-rgb: 255, 255, 255;
+  --ion-color-tertiary-shade: #475569;
+  --ion-color-tertiary-tint: #94a3b8;
+
+  /** success **/
+  --ion-color-success: #22c55e; // Green-500
+  --ion-color-success-rgb: 34, 197, 94;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #16a34a;
+  --ion-color-success-tint: #4ade80;
+
+  /** warning **/
+  --ion-color-warning: #f59e0b; // Amber-500
+  --ion-color-warning-rgb: 245, 158, 11;
+  --ion-color-warning-contrast: #000000;
+  --ion-color-warning-contrast-rgb: 0, 0, 0;
+  --ion-color-warning-shade: #d97706;
+  --ion-color-warning-tint: #fbbf24;
+
+  /** danger **/
+  --ion-color-danger: #ef4444; // Red-500
+  --ion-color-danger-rgb: 239, 68, 68;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #dc2626;
+  --ion-color-danger-tint: #f87171;
+
+  /** dark **/
+  --ion-color-dark: #0f172a; // Obsidian-900
+  --ion-color-dark-rgb: 15, 23, 42;
+  --ion-color-dark-contrast: #ffffff;
+  --ion-color-dark-contrast-rgb: 255, 255, 255;
+  --ion-color-dark-shade: #020617;
+  --ion-color-dark-tint: #1e293b;
+
+  /** medium **/
+  --ion-color-medium: #64748b; // Slate-500
+  --ion-color-medium-rgb: 100, 116, 139;
+  --ion-color-medium-contrast: #ffffff;
+  --ion-color-medium-contrast-rgb: 255, 255, 255;
+  --ion-color-medium-shade: #475569;
+  --ion-color-medium-tint: #94a3b8;
+
+  /** light **/
+  --ion-color-light: #f1f5f9; // Slate-100
+  --ion-color-light-rgb: 241, 245, 249;
+  --ion-color-light-contrast: #000000;
+  --ion-color-light-contrast-rgb: 0, 0, 0;
+  --ion-color-light-shade: #e2e8f0;
+  --ion-color-light-tint: #f8fafc;
+}
+
+// Custom Variables for "Industrial Obsidian" Theme
+:root {
+  --ion-background-color: #0f172a; // Obsidian-900
+  --ion-background-color-rgb: 15, 23, 42;
+
+  --ion-text-color: #e2e8f0; // Slate-200
+  --ion-text-color-rgb: 226, 232, 240;
+
+  --ion-border-color: #334155; // Obsidian-700
+
+  // High-Vis Accent
+  --c-high-vis: #EAB308;
+  --c-high-vis-rgb: 234, 179, 8;
+  
+  // Safety Accents
+  --c-safety-red: #EF4444;
+  --c-safety-orange: #F97316;
+}
+
+// Tailwind directive integration (ensure this file is imported in global.scss)
+// Note: Actual tailwind directives are usually in global.scss, but variables are defined here.

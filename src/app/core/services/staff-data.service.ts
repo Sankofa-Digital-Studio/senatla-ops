@@ -1,27 +1,34 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { Employee, Group, SyncRecord, DailyLog, Site, Issue } from '../models/app.models';
+import {
+  Employee,
+  Group,
+  SyncRecord,
+  DailyLog,
+  Site,
+  Issue,
+  SafetyTalkRecord
+} from '../models/app.models';
 
 @Injectable({ providedIn: 'root' })
 export class StaffDataService {
-  
-   // --- TIME SIMULATION STATE ---
+  // --- TIME SIMULATION STATE ---
   currentTime = signal<Date>(new Date());
-  
+
   // --- CORE STATE ---
   siteName = signal<string>('Senatla Shaft 1');
   lastSyncTime = signal<Date | null>(null);
   unsyncedChanges = signal<boolean>(false);
-  
+
   // Safety Gatekeeper State
   safetyTalkCompleted = signal<boolean>(false);
   currentSafetyTopic = signal<string | null>(null);
-  
+
   safetyTopics = signal<string[]>([
-    "Heat Stress & Dehydration",
-    "Falls of Ground (FOG)",
-    "Machinery Safety",
-    "PPE Compliance",
-    "Emergency Evacuation"
+    'Heat Stress & Dehydration',
+    'Falls of Ground (FOG)',
+    'Machinery Safety',
+    'PPE Compliance',
+    'Emergency Evacuation',
   ]);
 
   syncHistory = signal<SyncRecord[]>([]);
@@ -29,59 +36,124 @@ export class StaffDataService {
   // --- NEW: SITES STATE ---
   sites = signal<Site[]>([
     { id: 's1', name: 'Senatla Shaft 1', location: 'Welkom', isActive: true },
-    { id: 's2', name: 'Harmony Plant B', location: 'Virginia', isActive: true }
+    { id: 's2', name: 'Harmony Plant B', location: 'Virginia', isActive: true },
   ]);
 
   // --- NEW: ISSUES STATE ---
   issues = signal<Issue[]>([
-    { 
-      id: 'i1', siteId: 's1', reportedBy: 'Site Mgr', dateReported: new Date(), 
-      category: 'Discipline', description: 'Worker refused PPE protocol.', 
-      status: 'Open', auditTrail: [] 
-    }
+    {
+      id: 'i1',
+      siteId: 's1',
+      reportedBy: 'Site Mgr',
+      dateReported: new Date(),
+      category: 'Discipline',
+      description: 'Worker refused PPE protocol.',
+      status: 'Open',
+      auditTrail: [],
+    },
   ]);
 
   groups = signal<Group[]>([
-    { id: 'g1', name: 'Team Alpha' }, 
-    { id: 'g2', name: 'Drill Squad' }
-  ]);
-  
-  // --- UPDATED: EMPLOYEE STATE (With Financials) ---
-  private employeeState = signal<Employee[]>([
-    { 
-      id: '1', firstName: 'Tshepo', surname: 'Mokoena', idNumber: '9001015800080',
-      role: 'General Worker', siteId: 's1', groupId: 'g1',
-      startDate: '2023-01-10', basicRate: 350, travelAllowance: 0, housingAllowance: 0,
-      logs: this.generateMockLogs() 
-    },
-    { 
-      id: '2', firstName: 'Johannes', surname: 'Zulu', idNumber: '8805205800080',
-      role: 'Safety Rep', siteId: 's1', groupId: 'g1',
-      startDate: '2022-05-15', basicRate: 450, travelAllowance: 50, housingAllowance: 0,
-      logs: this.generateMockLogs() 
-    },
-    { 
-      id: '3', firstName: 'David', surname: 'Botha', idNumber: '8508125800080',
-      role: 'Operator', siteId: 's1', groupId: 'g2',
-      startDate: '2021-11-01', basicRate: 600, travelAllowance: 100, housingAllowance: 0,
-      logs: this.generateMockLogs() 
-    },
-    { 
-      id: '4', firstName: 'Samuel', surname: 'Nkosi', idNumber: '9502285800080',
-      role: 'General Worker', siteId: 's1', groupId: undefined,
-      startDate: '2023-06-01', basicRate: 350, travelAllowance: 0, housingAllowance: 0,
-      logs: this.generateMockLogs() 
-    },
-    { 
-      id: '5', firstName: 'Michael', surname: 'Khumalo', idNumber: '8207155800080',
-      role: 'Driver', siteId: 's1', groupId: 'g2',
-      startDate: '2020-03-10', basicRate: 550, travelAllowance: 0, housingAllowance: 0,
-      logs: this.generateMockLogs() 
-    }
+    { id: 'g1', name: 'Team Alpha' },
+    { id: 'g2', name: 'Drill Squad' },
   ]);
 
+  // --- UPDATED: EMPLOYEE STATE (With Financials) ---
+  private employeeState = signal<Employee[]>([
+    {
+      id: '1',
+      firstName: 'Tshepo',
+      surname: 'Mokoena',
+      idNumber: '9001015800080',
+      role: 'General Worker',
+      siteId: 's1',
+      groupId: 'g1',
+      startDate: '2023-01-10',
+      basicRate: 350,
+      travelAllowance: 0,
+      housingAllowance: 0,
+      salaryAdvances: 0,
+      logs: this.generateMockLogs(),
+      adjustments: {},
+    },
+    {
+      id: '2',
+      firstName: 'Johannes',
+      surname: 'Zulu',
+      idNumber: '8805205800080',
+      role: 'Safety Rep',
+      siteId: 's1',
+      groupId: 'g1',
+      startDate: '2022-05-15',
+      basicRate: 450,
+      travelAllowance: 50,
+      housingAllowance: 0,
+      salaryAdvances: 0,
+      logs: this.generateMockLogs(),
+      adjustments: {},
+    },
+    {
+      id: '3',
+      firstName: 'David',
+      surname: 'Botha',
+      idNumber: '8508125800080',
+      role: 'Operator',
+      siteId: 's1',
+      groupId: 'g2',
+      startDate: '2021-11-01',
+      basicRate: 600,
+      travelAllowance: 100,
+      housingAllowance: 0,
+      salaryAdvances: 500,
+      logs: this.generateMockLogs(),
+      adjustments: {},
+    }, // Example loan
+    {
+      id: '4',
+      firstName: 'Samuel',
+      surname: 'Nkosi',
+      idNumber: '9502285800080',
+      role: 'General Worker',
+      siteId: 's1',
+      groupId: undefined,
+      startDate: '2023-06-01',
+      basicRate: 350,
+      travelAllowance: 0,
+      housingAllowance: 0,
+      salaryAdvances: 0,
+      logs: this.generateMockLogs(),
+      adjustments: {},
+    },
+    {
+      id: '5',
+      firstName: 'Michael',
+      surname: 'Khumalo',
+      idNumber: '8207155800080',
+      role: 'Driver',
+      siteId: 's1',
+      groupId: 'g2',
+      startDate: '2020-03-10',
+      basicRate: 550,
+      travelAllowance: 0,
+      housingAllowance: 0,
+      salaryAdvances: 0,
+      logs: this.generateMockLogs(),
+      adjustments: {},
+    },
+  ]);
+
+  
+  // NEW: Store actual records of talks
+  safetyTalks = signal<SafetyTalkRecord[]>([]);
+  
+  // Helper to get today's talk
+  currentSafetyTalk = computed(() => {
+     const today = new Date().toDateString();
+     return this.safetyTalks().find(t => t.date.toDateString() === today) || null;
+  });
+  
   readonly employees = this.employeeState.asReadonly();
-  readonly activeSites = computed(() => this.sites().filter(s => s.isActive));
+  readonly activeSites = computed(() => this.sites().filter((s) => s.isActive));
 
   // --- TIME GOVERNANCE LOGIC ---
   readonly timeStatus = computed(() => {
@@ -89,7 +161,7 @@ export class StaffDataService {
     const hours = now.getHours();
     const minutes = now.getMinutes();
     if (hours < 15 || (hours === 15 && minutes < 30)) return 'normal';
-    if ((hours === 15 && minutes >= 30) || (hours === 16)) return 'warning_1';
+    if ((hours === 15 && minutes >= 30) || hours === 16) return 'warning_1';
     if (hours === 17 && minutes <= 5) return 'warning_2';
     if (hours >= 17 || hours < 6) return 'blocked';
     if (hours === 6) return 'late_window';
@@ -103,24 +175,21 @@ export class StaffDataService {
     this.currentTime.set(d);
   }
 
-  // --- SAFETY ACTIONS ---
-  completeSafetyTalk(topic: string) {
-    this.currentSafetyTopic.set(topic);
-    this.safetyTalkCompleted.set(true);
-  }
 
   addSafetyTopic(topic: string) {
     if (!topic.trim()) return;
-    this.safetyTopics.update(current => [...current, topic.trim()]);
+    this.safetyTopics.update((current) => [...current, topic.trim()]);
   }
 
   removeSafetyTopic(topic: string) {
-    this.safetyTopics.update(current => current.filter(t => t !== topic));
+    this.safetyTopics.update((current) => current.filter((t) => t !== topic));
   }
 
   updateSafetyTopic(oldTopic: string, newTopic: string) {
     if (!newTopic.trim()) return;
-    this.safetyTopics.update(current => current.map(t => t === oldTopic ? newTopic.trim() : t));
+    this.safetyTopics.update((current) =>
+      current.map((t) => (t === oldTopic ? newTopic.trim() : t))
+    );
     if (this.currentSafetyTopic() === oldTopic) {
       this.currentSafetyTopic.set(newTopic.trim());
     }
@@ -129,33 +198,40 @@ export class StaffDataService {
   // --- SITE MANAGEMENT ACTIONS ---
   addSite(site: Omit<Site, 'id' | 'isActive'>) {
     const newSite: Site = { ...site, id: crypto.randomUUID(), isActive: true };
-    this.sites.update(s => [...s, newSite]);
+    this.sites.update((s) => [...s, newSite]);
   }
 
   updateSite(id: string, updates: Partial<Site>) {
-    this.sites.update(s => s.map(site => site.id === id ? { ...site, ...updates } : site));
+    this.sites.update((s) =>
+      s.map((site) => (site.id === id ? { ...site, ...updates } : site))
+    );
   }
 
   deleteSite(id: string) {
-    this.sites.update(s => s.map(site => site.id === id ? { ...site, isActive: false } : site));
+    this.sites.update((s) =>
+      s.map((site) => (site.id === id ? { ...site, isActive: false } : site))
+    );
   }
 
   // --- WORKFORCE MANAGEMENT ACTIONS ---
-  addEmployee(emp: Omit<Employee, 'id' | 'logs'>) {
-    const newEmp: Employee = { 
-      ...emp, 
-      id: crypto.randomUUID(), 
-      logs: {} 
+  addEmployee(emp: Omit<Employee, 'id' | 'logs' | 'adjustments'>) {
+    const newEmp: Employee = {
+      ...emp,
+      id: crypto.randomUUID(),
+      logs: {},
+      adjustments: {},
     };
-    this.employeeState.update(e => [...e, newEmp]);
+    this.employeeState.update((e) => [...e, newEmp]);
   }
 
   updateEmployee(id: string, updates: Partial<Employee>) {
-    this.employeeState.update(e => e.map(emp => emp.id === id ? { ...emp, ...updates } : emp));
+    this.employeeState.update((e) =>
+      e.map((emp) => (emp.id === id ? { ...emp, ...updates } : emp))
+    );
   }
 
   deleteEmployee(id: string) {
-    this.employeeState.update(e => e.filter(emp => emp.id !== id));
+    this.employeeState.update((e) => e.filter((emp) => emp.id !== id));
   }
 
   // --- ISSUE RESOLUTION ACTIONS ---
@@ -167,63 +243,127 @@ export class StaffDataService {
     this.updateIssueStatus(id, 'Escalated', note);
   }
 
-  private updateIssueStatus(id: string, status: 'Resolved' | 'Escalated', note: string) {
-    this.issues.update(issues => issues.map(i => {
-      if (i.id !== id) return i;
-      return {
-        ...i,
-        status: status,
-        auditTrail: [...i.auditTrail, { date: new Date(), action: status, user: 'Office Admin' }]
-      };
-    }));
+  private updateIssueStatus(
+    id: string,
+    status: 'Resolved' | 'Escalated',
+    note: string
+  ) {
+    this.issues.update((issues) =>
+      issues.map((i) => {
+        if (i.id !== id) return i;
+        return {
+          ...i,
+          status: status,
+          auditTrail: [
+            ...i.auditTrail,
+            { date: new Date(), action: status, user: 'Office Admin' },
+          ],
+        };
+      })
+    );
+  }
+
+  // --- MANUAL ADJUSTMENTS ---
+  setManualAdjustment(
+    empId: string,
+    month: number,
+    year: number,
+    week: number,
+    days: number
+  ) {
+    const key = `${year}-${month}-${week}`;
+    this.employeeState.update((emps) =>
+      emps.map((e) => {
+        if (e.id !== empId) return e;
+        return {
+          ...e,
+          adjustments: { ...e.adjustments, [key]: days },
+        };
+      })
+    );
+  }
+
+  getManualAdjustment(
+    empId: string,
+    month: number,
+    year: number,
+    week: number
+  ): number {
+    const emp = this.employeeState().find((e) => e.id === empId);
+    if (!emp) return 0;
+    const key = `${year}-${month}-${week}`;
+    return emp.adjustments[key] || 0;
   }
 
   // --- PAYROLL & EXPORT LOGIC ---
   calculateMonthlyPayroll(empId: string, month: number, year: number) {
-    const emp = this.employeeState().find(e => e.id === empId);
+    const emp = this.employeeState().find((e) => e.id === empId);
     if (!emp) return null;
-
-    let daysWorked = 0;
-    Object.values(emp.logs).forEach(log => {
+    let automatedDays = 0;
+    Object.values(emp.logs).forEach((log) => {
       const d = new Date(log.date);
-      if (d.getMonth() === month && d.getFullYear() === year && log.status === 'present') {
-        daysWorked++;
-      }
+      if (
+        d.getMonth() === month &&
+        d.getFullYear() === year &&
+        log.status === 'present'
+      )
+        automatedDays++;
     });
-
-    const grossWages = daysWorked * emp.basicRate;
+    let adjustmentDays = 0;
+    for (let w = 1; w <= 5; w++)
+      adjustmentDays += emp.adjustments[`${year}-${month}-${w}`] || 0;
+    const totalDays = Math.max(0, automatedDays + adjustmentDays);
+    const grossWages = totalDays * emp.basicRate;
     const allowances = (emp.travelAllowance || 0) + (emp.housingAllowance || 0);
-    const uifDeduction = (grossWages + allowances) * 0.01; // 1% UIF
+    const salaryAdvances = emp.salaryAdvances || 0;
+    const uifDeduction = (grossWages + allowances) * 0.01;
     const totalEarnings = grossWages + allowances;
-    
-    return { daysWorked, grossWages, allowances, uifDeduction, totalEarnings };
+    const netPay = totalEarnings - uifDeduction - salaryAdvances;
+    return {
+      daysWorked: totalDays,
+      automatedDays,
+      adjustmentDays,
+      grossWages,
+      allowances,
+      salaryAdvances,
+      uifDeduction,
+      totalEarnings,
+      netPay,
+    };
   }
-
   generateCSV(month: number, year: number): string {
-    const header = "ID Number,Surname,First Name,Site,Days Worked,Basic Rate,Gross Wage,Allowances,UIF Deduction,Net Pay\n";
-    const rows = this.employeeState().map(emp => {
-      const payroll = this.calculateMonthlyPayroll(emp.id, month, year);
-      if (!payroll) return '';
-      const net = payroll.totalEarnings - payroll.uifDeduction;
-      const siteName = this.sites().find(s => s.id === emp.siteId)?.name || 'Unknown';
-      return `${emp.idNumber},${emp.surname},${emp.firstName},${siteName},${payroll.daysWorked},${emp.basicRate},${payroll.grossWages},${payroll.allowances},${payroll.uifDeduction.toFixed(2)},${net.toFixed(2)}`;
-    }).join("\n");
+    const header =
+      'ID Number,Surname,First Name,Site,Days Worked,Manual Adj,Basic Rate,Gross Wage,Allowances,UIF Deduction,Net Pay\n';
+    const rows = this.employeeState()
+      .map((emp) => {
+        const payroll = this.calculateMonthlyPayroll(emp.id, month, year);
+        if (!payroll) return '';
+        const net = payroll.totalEarnings - payroll.uifDeduction;
+        const siteName =
+          this.sites().find((s) => s.id === emp.siteId)?.name || 'Unknown';
+        return `${emp.idNumber},${emp.surname},${emp.firstName},${siteName},${
+          payroll.daysWorked
+        },${payroll.adjustmentDays},${emp.basicRate},${payroll.grossWages},${
+          payroll.allowances
+        },${payroll.uifDeduction.toFixed(2)},${net.toFixed(2)}`;
+      })
+      .join('\n');
     return header + rows;
   }
 
   // --- SYNC & ATTENDANCE ACTIONS ---
   performSync(signature: string, isRolloverAck: boolean = false) {
     const status = this.determineSyncStatus();
-    this.syncHistory.update(h => [
+    this.syncHistory.update((h) => [
       {
         siteId: this.siteName(),
         syncTime: this.currentTime(),
         status: status,
         acknowledgedWarning: isRolloverAck,
         signatureData: signature,
-        safetyTopic: this.currentSafetyTopic() || 'None Recorded'
+        safetyTopic: this.currentSafetyTopic() || 'None Recorded',
       },
-      ...h
+      ...h,
     ]);
     this.lastSyncTime.set(this.currentTime());
     this.unsyncedChanges.set(false);
@@ -233,65 +373,106 @@ export class StaffDataService {
     const s = this.timeStatus();
     if (s === 'late_window') return 'Late';
     if (s === 'critical_late') return 'Critical';
-    if (s === 'normal' || s === 'warning_1' || s === 'warning_2') return 'On Time';
-    return 'Rollover'; 
+    if (s === 'normal' || s === 'warning_1' || s === 'warning_2')
+      return 'On Time';
+    return 'Rollover';
   }
 
-  setSiteName(name: string) { this.siteName.set(name); }
+  setSiteName(name: string) {
+    this.siteName.set(name);
+  }
 
   addGroup(name: string) {
-    const newGroup: Group = { id: Math.random().toString(36).substr(2, 9), name };
-    this.groups.update(g => [...g, newGroup]);
+    const newGroup: Group = {
+      id: Math.random().toString(36).substr(2, 9),
+      name,
+    };
+    this.groups.update((g) => [...g, newGroup]);
   }
 
   assignGroup(empId: string, groupId: string | undefined) {
-    this.employeeState.update(emps => emps.map(e => e.id === empId ? { ...e, groupId } : e));
+    this.employeeState.update((emps) =>
+      emps.map((e) => (e.id === empId ? { ...e, groupId } : e))
+    );
   }
 
-  updateStatus(empId: string, dateStr: string, newStatus: 'present' | 'absent') {
+  completeSafetyTalk(topic: string) {
+    const newRecord: SafetyTalkRecord = {
+      id: Math.random().toString(36).substr(2, 9),
+      date: new Date(),
+      topic: topic,
+      notes: '',
+      photoUrl: ''
+    };
+    this.safetyTalks.update(talks => [newRecord, ...talks]);
+    this.safetyTalkCompleted.set(true);
+  }
+
+  updateSafetyTalkDetails(id: string, notes: string, photoUrl: string) {
+    this.safetyTalks.update(talks => talks.map(t => {
+      if (t.id === id) return { ...t, notes, photoUrl };
+      return t;
+    }));
+  }
+  updateStatus(
+    empId: string,
+    dateStr: string,
+    newStatus: 'present' | 'absent'
+  ) {
     this.unsyncedChanges.set(true);
     const todayStr = this.getTodayStr();
-    if (dateStr > todayStr) return; 
+    if (dateStr > todayStr) return;
     const isRetroactive = dateStr < todayStr;
 
-    this.employeeState.update(emps => emps.map(emp => {
-      if (emp.id !== empId) return emp;
-      const oldLog = emp.logs[dateStr] || { date: dateStr, status: 'pending' };
-      if (oldLog.status === newStatus) return emp;
+    this.employeeState.update((emps) =>
+      emps.map((emp) => {
+        if (emp.id !== empId) return emp;
+        const oldLog = emp.logs[dateStr] || {
+          date: dateStr,
+          status: 'pending',
+        };
+        if (oldLog.status === newStatus) return emp;
 
-      const updatedLog: DailyLog = {
-        ...oldLog,
-        status: newStatus,
-        reason: newStatus === 'present' ? null : 'Sick', 
-        isFlagged: isRetroactive ? true : oldLog.isFlagged,
-        lastUpdated: new Date()
-      };
-      return { ...emp, logs: { ...emp.logs, [dateStr]: updatedLog } };
-    }));
+        const updatedLog: DailyLog = {
+          ...oldLog,
+          status: newStatus,
+          reason: newStatus === 'present' ? null : 'Sick',
+          isFlagged: isRetroactive ? true : oldLog.isFlagged,
+          lastUpdated: new Date(),
+        };
+        return { ...emp, logs: { ...emp.logs, [dateStr]: updatedLog } };
+      })
+    );
   }
 
   updateReason(empId: string, dateStr: string, reason: any) {
     this.unsyncedChanges.set(true);
-    this.employeeState.update(emps => emps.map(e => {
-      if (e.id !== empId) return e;
-      const log = e.logs[dateStr];
-      if (!log) return e;
-      return { ...e, logs: { ...e.logs, [dateStr]: { ...log, reason } } };
-    }));
+    this.employeeState.update((emps) =>
+      emps.map((e) => {
+        if (e.id !== empId) return e;
+        const log = e.logs[dateStr];
+        if (!log) return e;
+        return { ...e, logs: { ...e.logs, [dateStr]: { ...log, reason } } };
+      })
+    );
   }
 
   updateComment(empId: string, dateStr: string, comment: string) {
     this.unsyncedChanges.set(true);
-    this.employeeState.update(emps => emps.map(e => {
-      if (e.id !== empId) return e;
-      const log = e.logs[dateStr] || { date: dateStr, status: 'pending' };
-      return { ...e, logs: { ...e.logs, [dateStr]: { ...log, comment } } };
-    }));
+    this.employeeState.update((emps) =>
+      emps.map((e) => {
+        if (e.id !== empId) return e;
+        const log = e.logs[dateStr] || { date: dateStr, status: 'pending' };
+        return { ...e, logs: { ...e.logs, [dateStr]: { ...log, comment } } };
+      })
+    );
   }
 
   readonly totalAbsent = computed(() => {
     const today = this.getTodayStr();
-    return this.employeeState().filter(e => e.logs[today]?.status === 'absent').length;
+    return this.employeeState().filter(
+      (e) => e.logs[today]?.status === 'absent'
+    ).length;
   });
 
   readonly totalPayroll = computed(() => {
@@ -302,10 +483,12 @@ export class StaffDataService {
     }, 0);
   });
 
-  private getTodayStr(): string { return new Date().toISOString().split('T')[0]; }
+  private getTodayStr(): string {
+    return new Date().toISOString().split('T')[0];
+  }
 
   private generateMockLogs(): Record<string, DailyLog> {
     const today = this.getTodayStr();
     return { [today]: { date: today, status: 'present' } };
   }
-  }
+}
