@@ -1,295 +1,292 @@
-    <div class="h-full flex flex-col bg-gray-900 text-white relative">
-      <!-- HEADER -->
-      <header class="bg-gray-800 p-4 sticky top-0 z-20 shadow-md border-b border-gray-700">
-        <!-- ... existing header content ... -->
-        <div class="flex justify-between items-start mb-4">
-           <div class="flex-1">
-             <label class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Site Name</label>
-             <input [(ngModel)]="localSiteName" (blur)="updateSiteName()" class="bg-transparent border-b border-gray-600 w-full text-lg font-bold focus:border-yellow-500 outline-none text-white placeholder-gray-600" placeholder="Enter Site Name">
-           </div>
-           
-           <div class="flex flex-col items-end">
-              <span *ngIf="service.unsyncedChanges()" class="text-[10px] bg-yellow-500 text-black px-2 rounded font-bold animate-pulse mb-1">UNSYNCED</span>
-              <span *ngIf="!service.unsyncedChanges()" class="text-[10px] text-green-400 font-bold mb-1">SYNCED</span>
-              <span class="text-[10px] text-gray-500">{{ service.lastSyncTime() | date:'HH:mm' }}</span>
-           </div>
-        </div>
-        
-        <!-- STATUS BANNERS -->
-        <div *ngIf="service.safetyTalkCompleted()" 
-             (click)="openSafetyDetailModal()"
-             class="bg-green-800/30 border border-green-700 text-green-400 text-[10px] p-2 rounded mb-2 font-bold flex items-center justify-between cursor-pointer hover:bg-green-800/50 transition-colors">
-           <div class="flex items-center gap-2">
-              <span class="text-lg">🦺</span> 
-              <div>
-                 <span class="block">Safety Talk: {{ service.currentSafetyTalk()?.topic }}</span>
-                 <span class="text-[9px] text-green-500 font-normal" *ngIf="!service.currentSafetyTalk()?.notes">Tap to add notes/photo</span>
-                 <span class="text-[9px] text-white font-normal" *ngIf="service.currentSafetyTalk()?.notes">📝 Notes Added</span>
-              </div>
-           </div>
-           <span class="text-lg">✓</span>
-        </div>
-
-        <div *ngIf="service.timeStatus() === 'warning_1'" class="bg-yellow-900/50 border border-yellow-600 text-yellow-500 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2"><span>⏰</span> REMINDER: Daily sync required by 17:00.</div>
-        <div *ngIf="service.timeStatus() === 'warning_2'" class="bg-red-900/50 border border-red-600 text-red-500 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2 animate-pulse"><span>⏳</span> URGENT: Sync immediately! Blocking in 5 mins.</div>
-        <div *ngIf="service.timeStatus() === 'blocked'" class="bg-gray-800 border border-red-500 text-red-400 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2"><span>⛔️</span> SYSTEM LOCKED: Missed deadline. Reopens 06:00.</div>
-
-        <!-- Date Selector -->
-        <div class="flex justify-between items-center mb-2 bg-gray-900 p-2 rounded border border-gray-700">
-           <button (click)="changeDate(-1)" class="text-gray-400 hover:text-white">←</button>
-           <div class="text-center">
-             <span class="block text-xs font-bold text-yellow-500 uppercase">{{ selectedDate | date:'EEEE' }}</span>
-             <span class="block text-sm font-bold">{{ selectedDate | date:'mediumDate' }}</span>
-             <span *ngIf="isFuture" class="text-[10px] text-red-400 bg-red-900/30 px-2 rounded mt-1">FUTURE (Read Only)</span>
-           </div>
-           <button (click)="changeDate(1)" class="text-gray-400 hover:text-white" [disabled]="isFutureLimit">→</button>
-        </div>
-
-        <!-- Filters -->
-         <div class="flex gap-2">
-            <input [(ngModel)]="searchTerm" placeholder="Search..." class="flex-1 bg-gray-900 text-xs text-white p-2 rounded border border-gray-700 focus:border-yellow-500 outline-none">
-            <select title="filter_group" [(ngModel)]="filterGroup" class="bg-gray-900 text-xs text-white p-2 rounded border border-gray-700 outline-none max-w-[100px]">
-               <option [ngValue]="null">All Groups</option>
-               <option *ngFor="let g of service.groups()" [ngValue]="g.id">{{ g.name }}</option>
-            </select>
-            <button (click)="showGroupModal = true" class="bg-yellow-500 text-black px-3 rounded font-bold text-lg">+</button>
-         </div>
-      </header>
-
-      <!-- EMPLOYEES LIST -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-3 pb-24" [class.opacity-50]="service.timeStatus() === 'blocked'" [class.pointer-events-none]="service.timeStatus() === 'blocked'">
-        <div *ngFor="let emp of filteredEmployees()" 
-             class="bg-gray-800 p-4 rounded-lg shadow-sm border-l-4 transition-all touch-manipulation relative border-gray-700"
-             [class.border-l-green-500]="getLog(emp).status === 'present'"
-             [class.border-l-red-500]="getLog(emp).status === 'absent'"
-             [class.border-l-gray-600]="getLog(emp).status === 'pending'">
-
-          <div *ngIf="getLog(emp).isFlagged" class="absolute top-2 right-2 text-[10px] bg-orange-900/50 text-orange-400 px-2 py-0.5 rounded border border-orange-700 flex items-center gap-1">
-             <span>⚠️ Flagged</span>
-          </div>
-          
-          <div class="flex justify-between items-start mb-3 mt-2">
-            <div (click)="toggleGroupSelect(emp)">
-              <h3 class="font-bold text-white text-sm">{{ emp.firstName }} {{ emp.surname }}</h3>
-              <div class="flex items-center gap-2">
-                 <span class="text-[10px] text-gray-400 uppercase tracking-wider bg-gray-900 px-1 rounded">{{ emp.role }}</span>
-                 <span *ngIf="emp.groupId" class="text-[10px] text-blue-400 bg-blue-900/30 px-1 rounded font-bold">{{ getGroupName(emp.groupId) }}</span>
-              </div>
-            </div>
-
-            <!-- ATTENDANCE TOGGLE (Now triggers camera on Present) -->
-            <button (click)="handleAttendanceToggle(emp)" 
-                    [disabled]="isFuture || service.timeStatus() === 'blocked'"
-                    class="px-4 py-2 rounded text-xs font-bold uppercase transition-all shadow-sm"
-                    [class.bg-green-900]="getLog(emp).status === 'present'" [class.text-green-400]="getLog(emp).status === 'present'"
-                    [class.bg-red-900]="getLog(emp).status === 'absent'" [class.text-red-400]="getLog(emp).status === 'absent'"
-                    [class.bg-gray-700]="getLog(emp).status === 'pending'" [class.text-gray-400]="getLog(emp).status === 'pending'">
-              {{ getLog(emp).status === 'pending' ? 'Mark' : getLog(emp).status }}
-            </button>
-          </div>
-
-          <div *ngIf="getLog(emp).status !== 'pending'" class="pt-3 border-t border-gray-700">
-             <!-- Reason Selector -->
-             <div *ngIf="getLog(emp).status === 'absent'" class="mb-3">
-               <p class="text-[10px] uppercase text-gray-500 font-bold mb-1">Reason</p>
-               <div class="flex flex-wrap gap-2">
-                 <button *ngFor="let r of reasonsList"
-                         (click)="service.updateReason(emp.id, selectedDateStr, r)"
-                         [disabled]="isFuture || service.timeStatus() === 'blocked'"
-                         class="flex-1 min-w-[60px] py-1 text-[10px] border border-gray-600 rounded transition-colors whitespace-nowrap"
-                         [class.bg-gray-700]="getLog(emp).reason === r"
-                         [class.text-white]="getLog(emp).reason === r"
-                         [class.bg-transparent]="getLog(emp).reason !== r">
-                   {{ r }}
-                 </button>
-               </div>
-             </div>
-             
-             <!-- Comment Input -->
-             <div>
-                <p class="text-[10px] uppercase text-gray-500 font-bold mb-1">Daily Comment</p>
-                <div class="flex gap-2">
-                   <input type="text" 
-                          [ngModel]="getLog(emp).comment" 
-                          (change)="updateComment(emp.id, $event)"
-                          [disabled]="isFuture || service.timeStatus() === 'blocked'"
-                          placeholder="Add note..." 
-                          class="w-full text-xs border-b border-gray-700 focus:border-yellow-500 outline-none py-1 bg-transparent text-white">
-                </div>
-             </div>
-          </div>
-        </div>
+<div class="h-full flex flex-col bg-gray-900 text-white relative">
+  <header class="bg-gray-800 p-4 sticky top-0 z-20 shadow-md border-b border-gray-700">
+    <div class="flex justify-between items-start mb-4">
+      <div class="flex-1">
+        <label class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Site Name</label>
+        <input [(ngModel)]="localSiteName" (blur)="updateSiteName()" class="bg-transparent border-b border-gray-600 w-full text-lg font-bold focus:border-yellow-500 outline-none text-white placeholder-gray-600" placeholder="Enter Site Name">
       </div>
 
-      <!-- FOOTER SYNC BAR (Updated Color) -->
-      <div class="bg-gray-900 border-t border-gray-700 p-4 pb-8 z-30">
-        <button (click)="handleSync()" 
-                [disabled]="service.timeStatus() === 'blocked' || !service.unsyncedChanges()"
-                class="w-full py-4 rounded font-bold text-sm uppercase flex items-center justify-center gap-3 transition-all transform active:scale-95"
-                [class.bg-emerald-600]="service.timeStatus() !== 'blocked'"
-                [class.text-white]="service.timeStatus() !== 'blocked'"
-                [class.bg-gray-700]="service.timeStatus() === 'blocked' || !service.unsyncedChanges()"
-                [class.text-gray-500]="service.timeStatus() === 'blocked' || !service.unsyncedChanges()">
-           <span class="text-lg">
-             {{ service.timeStatus() === 'blocked' ? '🚫' : service.unsyncedChanges() ? '📡' : '✅' }}
-           </span>
-           <span>
-             {{ service.timeStatus() === 'blocked' ? 'Sync Locked' : service.unsyncedChanges() ? 'Sync to Server' : 'All Data Synced' }}
-           </span>
+      <div class="flex flex-col items-end">
+        <span *ngIf="service.unsyncedChanges()" class="text-[10px] bg-yellow-500 text-black px-2 rounded font-bold animate-pulse mb-1">UNSYNCED</span>
+        <span *ngIf="!service.unsyncedChanges()" class="text-[10px] text-green-400 font-bold mb-1">SYNCED</span>
+        <span class="text-[10px] text-gray-500">{{ service.lastSyncTime() | date:'HH:mm' }}</span>
+      </div>
+    </div>
+
+    <div *ngIf="service.safetyTalkCompleted()"
+         (click)="openSafetyDetailModal()"
+         class="bg-green-800/30 border border-green-700 text-green-400 text-[10px] p-2 rounded mb-2 font-bold flex items-center justify-between cursor-pointer hover:bg-green-800/50 transition-colors">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">Safety</span>
+        <div>
+          <span class="block">Safety Talk: {{ service.currentSafetyTalk()?.topic }}</span>
+          <span class="text-[9px] text-green-500 font-normal" *ngIf="!service.currentSafetyTalk()?.notes">Tap to add notes/photo</span>
+          <span class="text-[9px] text-white font-normal" *ngIf="service.currentSafetyTalk()?.notes">Notes added</span>
+        </div>
+      </div>
+      <span class="text-lg">OK</span>
+    </div>
+
+    <div *ngIf="service.timeStatus() === 'warning_1'" class="bg-yellow-900/50 border border-yellow-600 text-yellow-500 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2">Reminder: daily sync required by 17:00.</div>
+    <div *ngIf="service.timeStatus() === 'warning_2'" class="bg-red-900/50 border border-red-600 text-red-500 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2 animate-pulse">Urgent: sync immediately. Blocking in 5 minutes.</div>
+    <div *ngIf="service.timeStatus() === 'blocked'" class="bg-gray-800 border border-red-500 text-red-400 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2">System locked: missed deadline. Reopens 06:00.</div>
+
+    <div class="flex justify-between items-center mb-2 bg-gray-900 p-2 rounded border border-gray-700">
+      <button (click)="changeDate(-1)" class="text-gray-400 hover:text-white" aria-label="Previous day">&larr;</button>
+      <div class="text-center">
+        <span class="block text-xs font-bold text-yellow-500 uppercase">{{ selectedDate | date:'EEEE' }}</span>
+        <span class="block text-sm font-bold">{{ selectedDate | date:'mediumDate' }}</span>
+        <span *ngIf="isFuture" class="text-[10px] text-red-400 bg-red-900/30 px-2 rounded mt-1">Future date, read only</span>
+      </div>
+      <button (click)="changeDate(1)" class="text-gray-400 hover:text-white" [disabled]="isFutureLimit" aria-label="Next day">&rarr;</button>
+    </div>
+
+    <div class="flex gap-2">
+      <input [(ngModel)]="searchTerm" placeholder="Search..." class="flex-1 bg-gray-900 text-xs text-white p-2 rounded border border-gray-700 focus:border-yellow-500 outline-none">
+      <select title="filter_group" [(ngModel)]="filterGroup" class="bg-gray-900 text-xs text-white p-2 rounded border border-gray-700 outline-none max-w-[100px]">
+        <option [ngValue]="null">All Groups</option>
+        <option *ngFor="let g of service.groups()" [ngValue]="g.id">{{ g.name }}</option>
+      </select>
+      <button (click)="showGroupModal = true" class="bg-yellow-500 text-black px-3 rounded font-bold text-lg">+</button>
+    </div>
+  </header>
+
+  <div class="flex-1 overflow-y-auto p-4 space-y-3 pb-24" [class.opacity-50]="service.timeStatus() === 'blocked'" [class.pointer-events-none]="service.timeStatus() === 'blocked'">
+    <div *ngFor="let emp of filteredEmployees()"
+         class="bg-gray-800 p-4 rounded-lg shadow-sm border-l-4 transition-all touch-manipulation relative border-gray-700"
+         [class.border-l-green-500]="getLog(emp).status === 'present'"
+         [class.border-l-red-500]="getLog(emp).status === 'absent'"
+         [class.border-l-gray-600]="getLog(emp).status === 'pending'">
+
+      <div *ngIf="getLog(emp).isFlagged" class="absolute top-2 right-2 text-[10px] bg-orange-900/50 text-orange-400 px-2 py-0.5 rounded border border-orange-700">
+        Flagged
+      </div>
+
+      <div class="flex justify-between items-start mb-3 mt-2">
+        <div (click)="toggleGroupSelect(emp)">
+          <h3 class="font-bold text-white text-sm">{{ emp.firstName }} {{ emp.surname }}</h3>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-gray-400 uppercase tracking-wider bg-gray-900 px-1 rounded">{{ emp.role }}</span>
+            <span *ngIf="emp.groupId" class="text-[10px] text-blue-400 bg-blue-900/30 px-1 rounded font-bold">{{ getGroupName(emp.groupId) }}</span>
+          </div>
+        </div>
+
+        <button (click)="handleAttendanceToggle(emp)"
+                [disabled]="isFuture || service.timeStatus() === 'blocked'"
+                class="px-4 py-2 rounded text-xs font-bold uppercase transition-all shadow-sm"
+                [class.bg-green-900]="getLog(emp).status === 'present'" [class.text-green-400]="getLog(emp).status === 'present'"
+                [class.bg-red-900]="getLog(emp).status === 'absent'" [class.text-red-400]="getLog(emp).status === 'absent'"
+                [class.bg-gray-700]="getLog(emp).status === 'pending'" [class.text-gray-400]="getLog(emp).status === 'pending'">
+          {{ getLog(emp).status === 'pending' ? 'Mark' : getLog(emp).status }}
         </button>
       </div>
 
-      <!-- PHOTO CAPTURE MODAL -->
-      <div *ngIf="showPhotoModal" class="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">
-         <div class="bg-gray-800 w-full max-w-sm p-6 rounded-xl text-center">
-            <div class="text-4xl mb-4">📷</div>
-            <h3 class="font-bold text-lg text-white mb-2">Verify Attendance</h3>
-            <p class="text-xs text-gray-400 mb-6">Capturing photo evidence for <strong>{{ photoTargetEmp?.firstName }}</strong>...</p>
-            
-            <!-- Simulated Camera Viewport -->
-            <div class="bg-black w-full h-48 rounded-lg mb-4 flex items-center justify-center border-2 border-dashed border-gray-600 relative overflow-hidden">
-               <img alt="emp_attendance" *ngIf="capturedPhoto" [src]="capturedPhoto" class="absolute inset-0 w-full h-full object-cover">
-               <span *ngIf="!capturedPhoto" class="text-gray-600 text-xs">Camera Preview</span>
-            </div>
-
-            <div class="flex gap-2">
-               <button (click)="showPhotoModal = false; capturedPhoto = null" class="flex-1 bg-gray-700 text-white py-3 rounded font-bold text-xs">Cancel</button>
-               <button *ngIf="!capturedPhoto" (click)="captureRealPhoto()" class="flex-1 bg-blue-600 text-white py-3 rounded font-bold text-xs">Take Photo</button>
-               <button *ngIf="capturedPhoto" (click)="confirmAttendance()" class="flex-1 bg-green-600 text-white py-3 rounded font-bold text-xs">Confirm</button>
-            </div>
-         </div>
+      <div *ngIf="getLog(emp).evidence?.capturedAt" class="mb-3 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[10px] text-emerald-200">
+        Verified at {{ getLog(emp).evidence?.capturedAt | date:'shortTime' }}
+        <span *ngIf="getLog(emp).evidence?.location"> | GPS attached</span>
       </div>
 
-      <!-- ... (Keeping existing modals: Safety, Signature, Group) ... -->
-      <!-- SAFETY MODAL -->
-      <div *ngIf="!service.safetyTalkCompleted()" class="fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center p-6 backdrop-blur-sm">
-         <div class="w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center mb-6 shadow-glow">
-            <span class="text-4xl">🦺</span>
-         </div>
-         <h2 class="text-2xl font-bold text-white text-center mb-2">Safety Protocol Lock</h2>
-         <p class="text-gray-400 text-center mb-8 text-sm max-w-xs">
-            Attendance registers are locked until a daily Toolbox Talk is confirmed.
-         </p>
-         
-         <div class="w-full max-w-sm bg-gray-800 p-6 rounded-xl border border-gray-700">
-            <ng-container *ngIf="!isManagingTopics">
-              <label class="block text-xs uppercase font-bold text-gray-500 mb-2">Select Today's Topic</label>
-              
-              <div class="flex gap-2 mb-6">
-                 <select title="selected_topic" [(ngModel)]="selectedSafetyTopic" class="flex-1 bg-gray-900 text-white p-3 rounded border border-gray-600 text-sm outline-none focus:border-orange-500">
-                    <option [ngValue]="null">-- Select Topic --</option>
-                    <option *ngFor="let topic of service.safetyTopics()" [value]="topic">{{ topic }}</option>
-                 </select>
-                 <button (click)="toggleManageTopics()" class="bg-gray-700 px-3 rounded border border-gray-600 hover:bg-gray-600 text-white">
-                    ⚙️
-                 </button>
-              </div>
+      <div *ngIf="getLog(emp).status !== 'pending'" class="pt-3 border-t border-gray-700">
+        <div *ngIf="getLog(emp).status === 'absent'" class="mb-3">
+          <p class="text-[10px] uppercase text-gray-500 font-bold mb-1">Reason</p>
+          <div class="flex flex-wrap gap-2">
+            <button *ngFor="let r of reasonsList"
+                    (click)="service.updateReason(emp.id, selectedDateStr, r)"
+                    [disabled]="isFuture || service.timeStatus() === 'blocked'"
+                    class="flex-1 min-w-[60px] py-1 text-[10px] border border-gray-600 rounded transition-colors whitespace-nowrap"
+                    [class.bg-gray-700]="getLog(emp).reason === r"
+                    [class.text-white]="getLog(emp).reason === r"
+                    [class.bg-transparent]="getLog(emp).reason !== r">
+              {{ r }}
+            </button>
+          </div>
+        </div>
 
-              <button (click)="confirmSafetyTalk()" 
-                      [disabled]="!selectedSafetyTopic"
-                      class="w-full bg-orange-600 text-white py-4 rounded-lg font-bold uppercase tracking-wider disabled:opacity-50">
-                 Confirm & Unlock
-              </button>
-            </ng-container>
-
-            <!-- EDIT MODE: MANAGE -->
-            <ng-container *ngIf="isManagingTopics">
-               <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-                  <h3 class="text-white font-bold text-sm">Manage Topics</h3>
-                  <button (click)="toggleManageTopics()" class="text-gray-400 hover:text-white text-xs">Done</button>
-               </div>
-               
-               <div class="max-h-60 overflow-y-auto mb-4 space-y-2 pr-1">
-                  <div *ngFor="let topic of service.safetyTopics(); let i = index" class="flex items-center justify-between bg-gray-900 p-2 rounded border border-gray-700">
-                     <span class="text-gray-300 text-xs truncate mr-2">{{ topic }}</span>
-                     <button (click)="deleteTopic(topic)" class="text-red-400 hover:text-red-300 p-1">🗑</button>
-                  </div>
-               </div>
-
-               <div class="flex gap-2">
-                  <input [(ngModel)]="newTopicName" placeholder="New Topic..." class="flex-1 bg-gray-900 text-white p-2 rounded border border-gray-600 text-xs outline-none">
-                  <button (click)="addTopic()" [disabled]="!newTopicName" class="bg-green-600 text-white px-3 rounded font-bold disabled:opacity-50 text-xs">+</button>
-               </div>
-            </ng-container>
-         </div>
-      </div>
-
-      <!-- SAFETY DETAIL MODAL -->
-      <div *ngIf="showSafetyDetailModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-         <div class="bg-gray-800 rounded-lg w-full max-w-sm p-6 border border-gray-700 shadow-2xl">
-            <h3 class="font-bold text-lg mb-4 text-white border-b border-gray-700 pb-2">Toolbox Talk Details</h3>
-            <div class="space-y-4">
-               <div>
-                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Topic</label>
-                  <p class="text-white font-bold text-sm">{{ tempSafetyDetails.topic }}</p>
-                  <p class="text-xs text-gray-500">{{ tempSafetyDetails.date | date:'medium' }}</p>
-               </div>
-               
-               <div>
-                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Notes / Observations</label>
-                  <textarea [(ngModel)]="tempSafetyDetails.notes" 
-                            rows="4" 
-                            placeholder="Type details here..."
-                            class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm focus:border-green-500 outline-none"></textarea>
-               </div>
-
-               <div>
-                  <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Evidence</label>
-                  <button class="w-full border-2 border-dashed border-gray-600 bg-gray-900 p-4 rounded flex flex-col items-center justify-center text-gray-400 hover:border-green-500 hover:text-green-500 transition-colors">
-                     <span class="text-2xl mb-1">📷</span>
-                     <span class="text-xs font-bold uppercase">Capture Photo</span>
-                  </button>
-               </div>
-            </div>
-            
-            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-700">
-               <button (click)="showSafetyDetailModal = false" class="text-gray-400 font-bold text-sm">Cancel</button>
-               <button (click)="saveSafetyDetails()" class="bg-green-600 text-white px-6 py-2 rounded font-bold text-sm hover:bg-green-700">Save</button>
-            </div>
-         </div>
-      </div>
-
-      <!-- SIGNATURE MODAL -->
-      <div *ngIf="showSignatureModal" class="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center">
-         <div class="bg-white w-full max-w-md p-6 rounded-xl">
-            <h3 class="font-bold text-xl text-black mb-2">Sign-Off Required</h3>
-            <p class="text-xs text-gray-500 mb-4">I certify the safety talk was conducted and attendance is accurate.</p>
-            <div class="h-48 bg-gray-100 rounded border-2 border-dashed border-gray-300 relative touch-none mb-4" #canvasContainer>
-               <canvas #sigCanvas 
-                       (mousedown)="startDrawing($event)" 
-                       (mousemove)="draw($event)" 
-                       (mouseup)="stopDrawing()" 
-                       (mouseleave)="stopDrawing()"
-                       (touchstart)="startDrawing($event)" 
-                       (touchmove)="draw($event)" 
-                       (touchend)="stopDrawing()"
-                       class="w-full h-full block cursor-crosshair">
-               </canvas>
-               <div *ngIf="!hasSigned" class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span class="text-gray-300 font-bold text-2xl rotate-[-15deg] opacity-50">SIGN HERE</span>
-               </div>
-            </div>
-
-            <div class="flex gap-3">
-               <button (click)="clearSignature()" class="px-4 py-3 rounded border border-gray-300 text-gray-600 font-bold text-xs uppercase">Clear</button>
-               <button (click)="submitSyncWithSignature()" 
-                       [disabled]="!hasSigned"
-                       class="flex-1 bg-black text-white py-3 rounded font-bold text-sm uppercase disabled:opacity-50">
-                  Confirm
-               </button>
-            </div>
-         </div>
-      </div>
-
-      <!-- Group Modal -->
-      <div *ngIf="showGroupModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-         <div class="bg-gray-800 rounded-lg p-6 w-full max-w-xs shadow-xl border border-gray-700">
-            <h3 class="font-bold text-lg mb-4 text-white">Create New Group</h3>
-            <input [(ngModel)]="newGroupName" placeholder="e.g., Night Shift" class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded mb-4 text-sm outline-none focus:border-yellow-500">
-            <div class="flex gap-2">
-               <button (click)="createGroup()" class="flex-1 bg-yellow-500 text-black py-2 rounded font-bold text-sm">Create</button>
-               <button (click)="showGroupModal = false" class="flex-1 bg-gray-700 text-gray-300 py-2 rounded font-bold text-sm">Cancel</button>
-            </div>
-         </div>
+        <div>
+          <p class="text-[10px] uppercase text-gray-500 font-bold mb-1">Daily Comment</p>
+          <div class="flex gap-2">
+            <input type="text"
+                   [ngModel]="getLog(emp).comment"
+                   (change)="updateComment(emp.id, $event)"
+                   [disabled]="isFuture || service.timeStatus() === 'blocked'"
+                   placeholder="Add note..."
+                   class="w-full text-xs border-b border-gray-700 focus:border-yellow-500 outline-none py-1 bg-transparent text-white">
+          </div>
+        </div>
       </div>
     </div>
+  </div>
+
+  <div class="bg-gray-900 border-t border-gray-700 p-4 pb-8 z-30">
+    <button (click)="handleSync()"
+            [disabled]="service.timeStatus() === 'blocked' || !service.unsyncedChanges()"
+            class="w-full py-4 rounded font-bold text-sm uppercase flex items-center justify-center gap-3 transition-all transform active:scale-95"
+            [class.bg-emerald-600]="service.timeStatus() !== 'blocked'"
+            [class.text-white]="service.timeStatus() !== 'blocked'"
+            [class.bg-gray-700]="service.timeStatus() === 'blocked' || !service.unsyncedChanges()"
+            [class.text-gray-500]="service.timeStatus() === 'blocked' || !service.unsyncedChanges()">
+      <span>
+        {{ service.timeStatus() === 'blocked' ? 'Sync Locked' : service.unsyncedChanges() ? 'Sync to Server' : 'All Data Synced' }}
+      </span>
+    </button>
+  </div>
+
+  <div *ngIf="showPhotoModal" class="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">
+    <div class="bg-gray-800 w-full max-w-sm p-6 rounded-xl text-center">
+      <input #photoInput type="file" accept="image/*" capture="environment" class="hidden" (change)="onPhotoSelected($event)">
+      <div class="text-4xl mb-4">Photo</div>
+      <h3 class="font-bold text-lg text-white mb-2">Verify Attendance</h3>
+      <p class="text-xs text-gray-400 mb-4">Upload or capture an actual image for <strong>{{ photoTargetEmp?.firstName }}</strong>.</p>
+
+      <div class="bg-black w-full h-48 rounded-lg mb-4 flex items-center justify-center border-2 border-dashed border-gray-600 relative overflow-hidden">
+        <img alt="Attendance evidence preview" *ngIf="capturedPhoto" [src]="capturedPhoto" class="absolute inset-0 w-full h-full object-cover">
+        <span *ngIf="!capturedPhoto" class="text-gray-600 text-xs">No evidence selected</span>
+      </div>
+
+      <div class="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-left text-[11px] text-slate-300 mb-4">
+        <div>GPS: {{ capturedLocationLabel }}</div>
+        <div *ngIf="locationWarning" class="text-amber-300 mt-1">{{ locationWarning }}</div>
+      </div>
+
+      <div class="flex gap-2">
+        <button (click)="closePhotoModal()" class="flex-1 bg-gray-700 text-white py-3 rounded font-bold text-xs">Cancel</button>
+        <button *ngIf="!capturedPhoto" (click)="triggerPhotoInput()" class="flex-1 bg-blue-600 text-white py-3 rounded font-bold text-xs">Choose Photo</button>
+        <button *ngIf="capturedPhoto" (click)="confirmAttendance()" class="flex-1 bg-green-600 text-white py-3 rounded font-bold text-xs">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="!service.safetyTalkCompleted()" class="fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center p-6 backdrop-blur-sm">
+    <div class="w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center mb-6 shadow-glow">
+      <span class="text-xl font-black text-gray-950">Safe</span>
+    </div>
+    <h2 class="text-2xl font-bold text-white text-center mb-2">Safety Protocol Lock</h2>
+    <p class="text-gray-400 text-center mb-8 text-sm max-w-xs">
+      Attendance registers stay locked until a daily toolbox talk is confirmed.
+    </p>
+
+    <div class="w-full max-w-sm bg-gray-800 p-6 rounded-xl border border-gray-700">
+      <ng-container *ngIf="!isManagingTopics">
+        <label class="block text-xs uppercase font-bold text-gray-500 mb-2">Select today's topic</label>
+
+        <div class="flex gap-2 mb-6">
+          <select title="selected_topic" [(ngModel)]="selectedSafetyTopic" class="flex-1 bg-gray-900 text-white p-3 rounded border border-gray-600 text-sm outline-none focus:border-orange-500">
+            <option [ngValue]="null">Select Topic</option>
+            <option *ngFor="let topic of service.safetyTopics()" [value]="topic">{{ topic }}</option>
+          </select>
+          <button (click)="toggleManageTopics()" class="bg-gray-700 px-3 rounded border border-gray-600 hover:bg-gray-600 text-white">Edit</button>
+        </div>
+
+        <button (click)="confirmSafetyTalk()"
+                [disabled]="!selectedSafetyTopic"
+                class="w-full bg-orange-600 text-white py-4 rounded-lg font-bold uppercase tracking-wider disabled:opacity-50">
+          Confirm and Unlock
+        </button>
+      </ng-container>
+
+      <ng-container *ngIf="isManagingTopics">
+        <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+          <h3 class="text-white font-bold text-sm">Manage Topics</h3>
+          <button (click)="toggleManageTopics()" class="text-gray-400 hover:text-white text-xs">Done</button>
+        </div>
+
+        <div class="max-h-60 overflow-y-auto mb-4 space-y-2 pr-1">
+          <div *ngFor="let topic of service.safetyTopics()" class="flex items-center justify-between bg-gray-900 p-2 rounded border border-gray-700">
+            <span class="text-gray-300 text-xs truncate mr-2">{{ topic }}</span>
+            <button (click)="deleteTopic(topic)" class="text-red-400 hover:text-red-300 p-1">Remove</button>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <input [(ngModel)]="newTopicName" placeholder="New Topic..." class="flex-1 bg-gray-900 text-white p-2 rounded border border-gray-600 text-xs outline-none">
+          <button (click)="addTopic()" [disabled]="!newTopicName" class="bg-green-600 text-white px-3 rounded font-bold disabled:opacity-50 text-xs">Add</button>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+
+  <div *ngIf="showSafetyDetailModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+    <div class="bg-gray-800 rounded-lg w-full max-w-sm p-6 border border-gray-700 shadow-2xl">
+      <h3 class="font-bold text-lg mb-4 text-white border-b border-gray-700 pb-2">Toolbox Talk Details</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Topic</label>
+          <p class="text-white font-bold text-sm">{{ tempSafetyDetails.topic }}</p>
+          <p class="text-xs text-gray-500">{{ tempSafetyDetails.date | date:'medium' }}</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Notes / Observations</label>
+          <textarea [(ngModel)]="tempSafetyDetails.notes"
+                    rows="4"
+                    placeholder="Type details here..."
+                    class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm focus:border-green-500 outline-none"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-700">
+        <button (click)="showSafetyDetailModal = false" class="text-gray-400 font-bold text-sm">Cancel</button>
+        <button (click)="saveSafetyDetails()" class="bg-green-600 text-white px-6 py-2 rounded font-bold text-sm hover:bg-green-700">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="showRolloverModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-xl border border-amber-500/40 bg-slate-900 p-6 text-white shadow-2xl">
+      <h3 class="text-lg font-bold">Late Sync Acknowledgement</h3>
+      <p class="mt-3 text-sm text-slate-300">
+        The sync deadline has passed. Continue only if you want this record marked as a late or critical submission.
+      </p>
+      <label class="mt-4 flex items-start gap-3 rounded border border-slate-700 bg-slate-950 px-3 py-3 text-sm">
+        <input type="checkbox" [(ngModel)]="rolloverAcknowledged" class="mt-1">
+        <span>I acknowledge that this sync will be logged as a breach acknowledgement.</span>
+      </label>
+      <div class="mt-5 flex justify-end gap-3">
+        <button (click)="showRolloverModal = false; rolloverAcknowledged = false" class="px-4 py-2 text-slate-300">Cancel</button>
+        <button (click)="continueLateSync()" [disabled]="!rolloverAcknowledged" class="rounded bg-amber-500 px-4 py-2 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50">Continue to Sign</button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="showSignatureModal" class="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center">
+    <div class="bg-white w-full max-w-md p-6 rounded-xl">
+      <h3 class="font-bold text-xl text-black mb-2">Sign-Off Required</h3>
+      <p class="text-xs text-gray-500 mb-4">I certify the safety talk was conducted and attendance is accurate.</p>
+      <div class="h-48 bg-gray-100 rounded border-2 border-dashed border-gray-300 relative touch-none mb-4" #canvasContainer>
+        <canvas #sigCanvas
+                (mousedown)="startDrawing($event)"
+                (mousemove)="draw($event)"
+                (mouseup)="stopDrawing()"
+                (mouseleave)="stopDrawing()"
+                (touchstart)="startDrawing($event)"
+                (touchmove)="draw($event)"
+                (touchend)="stopDrawing()"
+                class="w-full h-full block cursor-crosshair">
+        </canvas>
+        <div *ngIf="!hasSigned" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span class="text-gray-300 font-bold text-2xl rotate-[-15deg] opacity-50">SIGN HERE</span>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button (click)="clearSignature()" class="px-4 py-3 rounded border border-gray-300 text-gray-600 font-bold text-xs uppercase">Clear</button>
+        <button (click)="submitSyncWithSignature()"
+                [disabled]="!hasSigned"
+                class="flex-1 bg-black text-white py-3 rounded font-bold text-sm uppercase disabled:opacity-50">
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="showGroupModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-xs shadow-xl border border-gray-700">
+      <h3 class="font-bold text-lg mb-4 text-white">Create New Group</h3>
+      <input [(ngModel)]="newGroupName" placeholder="e.g., Night Shift" class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded mb-4 text-sm outline-none focus:border-yellow-500">
+      <div class="flex gap-2">
+        <button (click)="createGroup()" class="flex-1 bg-yellow-500 text-black py-2 rounded font-bold text-sm">Create</button>
+        <button (click)="showGroupModal = false" class="flex-1 bg-gray-700 text-gray-300 py-2 rounded font-bold text-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>

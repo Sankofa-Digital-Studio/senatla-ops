@@ -1,20 +1,28 @@
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { Component, inject, signal, computed } from '@angular/core';
 import { StaffDataService } from '../../core/services/staff-data.service';
-import { Employee, Site, Issue } from '../../core/models/app.models';
+import { Employee, Site } from '../../core/models/app.models';
 import { FormsModule } from '@angular/forms';
-type TabId = 'dashboard' | 'workforce' | 'sites' | 'payroll' | 'issues';
+import { AssetRegisterComponent } from '../asset-register/asset-register.component';
+
+type TabId = 'dashboard' | 'workforce' | 'sites' | 'payroll' | 'issues' | 'assets';
+type EmployeeForm = Partial<Employee> & {
+  travelAllowance?: number;
+  housingAllowance?: number;
+  salaryAdvances?: number;
+};
 
 @Component({
   selector: 'app-office-admin',
   templateUrl: './office-admin.component.html',
   styleUrls: ['./office-admin.component.scss'],
-  imports: [CommonModule, DatePipe, DecimalPipe, FormsModule],
+  standalone: true,
+  imports: [CommonModule, DatePipe, DecimalPipe, FormsModule, AssetRegisterComponent],
 })
 export class OfficeAdminComponent  {
   service = inject(StaffDataService);
   
-   activeTab = signal<TabId>('dashboard');
+    activeTab = signal<TabId>('dashboard');
   
   // Explicitly typing the tabs array to match TabId
   tabs: { id: TabId, label: string }[] = [
@@ -22,8 +30,12 @@ export class OfficeAdminComponent  {
     { id: 'workforce', label: 'Workforce' },
     { id: 'sites', label: 'Sites' },
     { id: 'payroll', label: 'Payroll & Time' },
-    { id: 'issues', label: 'Resolution Centre' }
+    { id: 'issues', label: 'Resolution Centre' },
+    { id: 'assets', label: 'Assets' }
   ];
+
+  readonly roleOptions: Employee['role'][] = ['General Worker', 'Safety Rep', 'Operator', 'Driver', 'Foreman'];
+  readonly defaultFinancials: Record<string, number> = { travel: 0, housing: 0, advance: 0, loan: 0 };
 
   // Helper method to set active tab safely with strict typing
   setActiveTab(id: TabId) {
@@ -40,12 +52,14 @@ export class OfficeAdminComponent  {
   filterSiteId = signal('');
   showEmpModal = false;
   isEditMode = false;
-  tempEmp: Partial<Employee> = {};
+  tempEmp: EmployeeForm = {};
+  employeeFormError = '';
 
   // Site Management State
   showSiteModal = false;
   isSiteEditMode = false;
   tempSite: Partial<Site> = { name: '', location: '' };
+  siteFormError = '';
 
    showAdjustmentModal = false;
   adjustmentEmpId: string | null = null;
@@ -59,6 +73,7 @@ sortBy = signal<'surname' | 'firstName'>('surname');
 
   // Computed Stats
   openIssuesCount = computed(() => this.service.issues().filter(i => i.status === 'Open').length);
+  financialTypeFields = computed(() => this.service.activeFinancialTypes().filter(type => type.id !== 'advance'));
 
  // Updated Filter Logic with Sort
   filteredEmployees = computed(() => {
@@ -95,15 +110,19 @@ sortBy = signal<'surname' | 'firstName'>('surname');
 
   // Financials Modal Actions
   openFinancialsModal(emp: Employee) {
-     this.tempEmp = { ...emp }; // Clone for editing
+     this.tempEmp = {
+        ...emp,
+        financials: { ...this.defaultFinancials, ...emp.financials },
+        salaryAdvances: emp.salaryAdvances ?? 0
+     };
      this.showFinancialsModal = true;
+     this.employeeFormError = '';
   }
 
   saveFinancials() {
-     if (this.tempEmp.id) {
-        // Use existing update logic from service
-        this.service.updateEmployee(this.tempEmp.id, this.tempEmp);
-     }
+     const payload = this.buildEmployeePayload(true);
+     if (!payload || !payload.id) return;
+     this.service.updateEmployee(payload.id, payload);
      this.showFinancialsModal = false;
   }
 
@@ -122,49 +141,91 @@ sortBy = signal<'surname' | 'firstName'>('surname');
   openAddSiteModal() {
     this.isSiteEditMode = false;
     this.tempSite = { name: '', location: '' };
+    this.siteFormError = '';
     this.showSiteModal = true;
   }
 
   openEditSiteModal(site: Site) {
     this.isSiteEditMode = true;
     this.tempSite = { ...site }; // Clone to avoid direct mutation before save
+    this.siteFormError = '';
     this.showSiteModal = true;
   }
 
   saveSite() {
-    if (this.tempSite.name && this.tempSite.location) {
-      if (this.isSiteEditMode && this.tempSite.id) {
-        this.service.updateSite(this.tempSite.id, this.tempSite);
-      } else {
-        // @ts-ignore - simplified type casting
-        this.service.addSite(this.tempSite as any);
-      }
-      this.showSiteModal = false;
+    const name = this.tempSite.name?.trim() || '';
+    const location = this.tempSite.location?.trim() || '';
+    if (!name || !location) {
+      this.siteFormError = 'Site name and location are required.';
+      return;
     }
+
+    const duplicate = this.service.sites().some(site =>
+      site.name.trim().toLowerCase() === name.toLowerCase() &&
+      site.id !== this.tempSite.id
+    );
+    if (duplicate) {
+      this.siteFormError = 'A site with this name already exists.';
+      return;
+    }
+
+    const payload: Site = {
+      id: this.tempSite.id || this.createId(),
+      name,
+      location,
+      managerId: this.tempSite.managerId,
+      isActive: this.tempSite.isActive ?? true
+    };
+
+    if (this.isSiteEditMode && this.tempSite.id) {
+      this.service.updateSite(this.tempSite.id, payload);
+    } else {
+      this.service.addSite({
+        name,
+        location,
+        managerId: this.tempSite.managerId
+      });
+    }
+
+    this.showSiteModal = false;
+    this.siteFormError = '';
   }
 
   // Employee CRUD
   resetEmpForm() {
     this.tempEmp = { 
-       firstName: '', surname: '', idNumber: '', basicRate: 0, 
-       travelAllowance: 0, housingAllowance: 0, startDate: new Date().toISOString().split('T')[0] 
+       firstName: '', surname: '', idNumber: '', basicRate: 0,
+       role: 'General Worker', siteId: this.service.activeSites()[0]?.id || this.service.sites()[0]?.id || '',
+       groupId: undefined,
+       salaryAdvances: 0,
+       financials: { ...this.defaultFinancials },
+       startDate: new Date().toISOString().split('T')[0]
     };
+    this.employeeFormError = '';
   }
 
   editEmployee(emp: Employee) {
     this.isEditMode = true;
-    this.tempEmp = { ...emp }; // Clone
+    this.tempEmp = {
+      ...emp,
+      financials: { ...this.defaultFinancials, ...emp.financials },
+      salaryAdvances: emp.salaryAdvances ?? 0
+    }; // Clone
+    this.employeeFormError = '';
     this.showEmpModal = true;
   }
 
   saveEmployee() {
-    if (this.isEditMode && this.tempEmp.id) {
-       this.service.updateEmployee(this.tempEmp.id, this.tempEmp);
+    const payload = this.buildEmployeePayload(false);
+    if (!payload) return;
+
+    if (this.isEditMode && payload.id) {
+       this.service.updateEmployee(payload.id, payload);
     } else {
-       // @ts-ignore - simplified for demo, rigorous validation needed in prod
-       this.service.addEmployee(this.tempEmp as Employee);
+       this.service.addEmployee(payload);
     }
     this.showEmpModal = false;
+    this.employeeFormError = '';
   }
 
   deleteEmployee(id: string) {
@@ -224,6 +285,90 @@ sortBy = signal<'surname' | 'firstName'>('surname');
     return `Week ${week} (${startFmt} - ${endFmt})`;
   }
 
+  private buildEmployeePayload(isFinancialEdit: boolean): Employee | null {
+    const firstName = this.cleanText(this.tempEmp.firstName);
+    const surname = this.cleanText(this.tempEmp.surname);
+    const idNumber = this.cleanText(this.tempEmp.idNumber);
+    const siteId = this.cleanText(this.tempEmp.siteId);
+    const startDate = this.cleanText(this.tempEmp.startDate) || new Date().toISOString().split('T')[0];
+    const role = this.tempEmp.role;
+    const basicRate = Number(this.tempEmp.basicRate ?? 0);
+    const salaryAdvances = Number(this.tempEmp.salaryAdvances ?? 0);
+    const travelAllowance = Number(this.tempEmp.financials?.['travel'] ?? this.tempEmp.travelAllowance ?? 0);
+    const housingAllowance = Number(this.tempEmp.financials?.['housing'] ?? this.tempEmp.housingAllowance ?? 0);
+
+    if (!firstName || !surname) {
+      this.employeeFormError = 'First name and surname are required.';
+      return null;
+    }
+    if (!/^\d{13}$/.test(idNumber)) {
+      this.employeeFormError = 'ID number must be 13 digits.';
+      return null;
+    }
+    if (!Number.isFinite(basicRate) || basicRate <= 0) {
+      this.employeeFormError = 'Basic rate must be a positive number.';
+      return null;
+    }
+    if (!siteId || !this.service.sites().some(site => site.id === siteId && site.isActive)) {
+      this.employeeFormError = 'Select an active site before saving.';
+      return null;
+    }
+    if (!this.roleOptions.includes(role as Employee['role'])) {
+      this.employeeFormError = 'Select a valid role.';
+      return null;
+    }
+    if (!isFinancialEdit) {
+      const duplicateId = this.service.employees().some(emp => emp.idNumber === idNumber && emp.id !== this.tempEmp.id);
+      if (duplicateId) {
+        this.employeeFormError = 'An employee with this ID number already exists.';
+        return null;
+      }
+    }
+
+    const existing = this.tempEmp.id
+      ? this.service.employees().find(emp => emp.id === this.tempEmp.id)
+      : undefined;
+
+    const financials = {
+      ...this.defaultFinancials,
+      ...(existing?.financials || {}),
+      ...(this.tempEmp.financials || {}),
+      travel: travelAllowance,
+      housing: housingAllowance
+    };
+
+    return {
+      id: this.tempEmp.id || this.createId(),
+      firstName,
+      surname,
+      idNumber,
+      role: role || 'General Worker',
+      siteId,
+      groupId: this.tempEmp.groupId,
+      startDate,
+      basicRate,
+      salaryAdvances,
+      financials: Object.entries(financials).reduce<Record<string, number>>((acc, [key, value]) => {
+        acc[key] = Number.isFinite(Number(value)) ? Number(value) : 0;
+        return acc;
+      }, {}),
+      logs: existing?.logs || this.tempEmp.logs || {},
+      adjustments: existing?.adjustments || this.tempEmp.adjustments || {},
+      travelAllowance,
+      housingAllowance,
+      taxRefNumber: this.cleanText(this.tempEmp.taxRefNumber) || undefined
+    };
+  }
+
+  private cleanText(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  private createId(): string {
+    return globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2, 11);
+  }
+
   
   
 }
+

@@ -6,7 +6,8 @@ import { StaffDataService } from 'src/app/core/services/staff-data.service';
   selector: 'app-director',
   templateUrl: './director.component.html',
   styleUrls: ['./director.component.scss'],
-    imports: [CommonModule, DecimalPipe, DatePipe],
+  standalone: true,
+  imports: [CommonModule, DecimalPipe, DatePipe],
 })
 export class DirectorComponent  {
 service = inject(StaffDataService);
@@ -27,19 +28,19 @@ service = inject(StaffDataService);
 
   // 2. Headcount
   presentCount = computed(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.toDateKey(this.service.currentTime());
     return this.service.employees().filter(e => e.logs[today]?.status === 'present').length;
   });
 
   absentCount = computed(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.toDateKey(this.service.currentTime());
     return this.service.employees().filter(e => e.logs[today]?.status === 'absent').length;
   });
 
   // 3. Financials
   // "Actual" is based on who is PRESENT today
   actualDailyCost = computed(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = this.toDateKey(this.service.currentTime());
     return this.service.employees().reduce((acc, emp) => {
        const isPresent = emp.logs[today]?.status === 'present';
        return acc + (isPresent ? emp.basicRate : 0);
@@ -84,4 +85,12 @@ service = inject(StaffDataService);
         return [10, 40, 30, 50, 40, 60, 50, 70, 60, 80, 70, 90, 80, 100]; // Daily fluctuations
      }
   });
+
+  private toDateKey(value: Date): string {
+    const year = value.getFullYear();
+    const month = `${value.getMonth() + 1}`.padStart(2, '0');
+    const day = `${value.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 }
+
