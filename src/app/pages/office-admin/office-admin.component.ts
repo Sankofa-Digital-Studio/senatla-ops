@@ -22,7 +22,7 @@ type EmployeeForm = Partial<Employee> & {
 export class OfficeAdminComponent  {
   service = inject(StaffDataService);
   
-    activeTab = signal<TabId>('dashboard');
+  activeTab = signal<TabId>('dashboard');
   
   // Explicitly typing the tabs array to match TabId
   tabs: { id: TabId, label: string }[] = [
@@ -46,6 +46,7 @@ export class OfficeAdminComponent  {
   selectedMonth = new Date().getMonth();
   selectedYear = new Date().getFullYear();
   months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  showFullIdNumbers = signal(false);
 
   // Workforce State
   searchTerm = signal('');
@@ -69,6 +70,10 @@ sortBy = signal<'surname' | 'firstName'>('surname');
 
   // Financials Modal State
   showFinancialsModal = false;
+  showExportModal = false;
+  exportFullIdNumbers = false;
+  exportConfirmationText = '';
+  exportError = '';
 
 
   // Computed Stats
@@ -235,14 +240,32 @@ sortBy = signal<'surname' | 'firstName'>('surname');
   }
 
   // Export
+  openExportModal() {
+    this.showExportModal = true;
+    this.exportFullIdNumbers = false;
+    this.exportConfirmationText = '';
+    this.exportError = '';
+  }
+
   exportCSV() {
-    const csvData = this.service.generateCSV(this.selectedMonth, this.selectedYear);
+    if (this.exportFullIdNumbers && this.exportConfirmationText.trim().toUpperCase() !== 'EXPORT') {
+      this.exportError = 'Type EXPORT to unlock a full-ID payroll export.';
+      return;
+    }
+
+    const csvData = this.service.generateCSV(this.selectedMonth, this.selectedYear, {
+      includeFullIdNumbers: this.exportFullIdNumbers
+    });
     const blob = new Blob([csvData], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Senatla_Payroll_${this.months[this.selectedMonth]}_${this.selectedYear}.csv`;
+    const sensitivitySuffix = this.exportFullIdNumbers ? 'full-ids' : 'masked-ids';
+    a.download = `Senatla_Payroll_${this.months[this.selectedMonth]}_${this.selectedYear}_${sensitivitySuffix}.csv`;
     a.click();
+    window.URL.revokeObjectURL(url);
+    this.showExportModal = false;
+    this.exportError = '';
   }
 
   openAdjustmentModal(emp: Employee) {
@@ -362,6 +385,10 @@ sortBy = signal<'surname' | 'firstName'>('surname');
 
   private cleanText(value: unknown): string {
     return typeof value === 'string' ? value.trim() : '';
+  }
+
+  getIdNumberDisplay(idNumber: string): string {
+    return this.showFullIdNumbers() ? idNumber : this.service.maskIdNumber(idNumber);
   }
 
   private createId(): string {

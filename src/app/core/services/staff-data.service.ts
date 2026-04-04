@@ -13,6 +13,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class StaffDataService {
   private readonly storageKey = 'senatla_ops_data';
+  private readonly legacyStorageKey = 'senatla_ops_data';
 
   currentTime = signal<Date>(new Date());
   siteName = signal<string>('Senatla Shaft 1');
@@ -50,7 +51,7 @@ export class StaffDataService {
   }
 
   private loadFromStorage() {
-    const data = localStorage.getItem(this.storageKey);
+    const data = this.readStoredData();
     if (!data) {
       this.initializeDefaults();
       return;
@@ -93,7 +94,8 @@ export class StaffDataService {
         }
       }
     } catch {
-      localStorage.removeItem(this.storageKey);
+      sessionStorage.removeItem(this.storageKey);
+      localStorage.removeItem(this.legacyStorageKey);
       this.initializeDefaults();
     }
   }
@@ -111,7 +113,7 @@ export class StaffDataService {
       lastSyncTime: this.lastSyncTime(),
       safetyTalks: this.safetyTalks()
     };
-    localStorage.setItem(this.storageKey, JSON.stringify(data));
+    sessionStorage.setItem(this.storageKey, JSON.stringify(data));
   }
 
   private initializeDefaults() {
@@ -261,13 +263,14 @@ export class StaffDataService {
     return { daysWorked: totalDays, automatedDays, adjustmentDays, grossWages, allowances: totalAllowances, deductions: totalDeductions, salaryAdvances: advance, uifDeduction, totalEarnings, netPay };
   }
 
-  generateCSV(month: number, year: number): string {
+  generateCSV(month: number, year: number, options: { includeFullIdNumbers?: boolean } = {}): string {
     const header = 'ID Number,Surname,First Name,Site,Days Worked,Manual Adj,Basic Rate,Gross Wage,Allowances,Deductions,Advances,UIF Deduction,Net Pay\n';
     const rows = this.employeeState().map((emp) => {
       const payroll = this.calculateMonthlyPayroll(emp.id, month, year);
       if (!payroll) return '';
       const siteName = this.sites().find((site) => site.id === emp.siteId)?.name || 'Unknown';
-      return `${emp.idNumber},${emp.surname},${emp.firstName},${siteName},${payroll.daysWorked},${payroll.adjustmentDays},${emp.basicRate},${payroll.grossWages},${payroll.allowances},${payroll.deductions},${payroll.salaryAdvances},${payroll.uifDeduction.toFixed(2)},${payroll.netPay.toFixed(2)}`;
+      const idNumber = options.includeFullIdNumbers ? emp.idNumber : this.maskIdNumber(emp.idNumber);
+      return `${idNumber},${emp.surname},${emp.firstName},${siteName},${payroll.daysWorked},${payroll.adjustmentDays},${emp.basicRate},${payroll.grossWages},${payroll.allowances},${payroll.deductions},${payroll.salaryAdvances},${payroll.uifDeduction.toFixed(2)},${payroll.netPay.toFixed(2)}`;
     }).join('\n');
     return header + rows;
   }
@@ -347,6 +350,11 @@ export class StaffDataService {
     return `${year}-${month}-${day}`;
   }
   private generateMockLogs(): Record<string, DailyLog> { const today = this.getTodayStr(); return { [today]: { date: today, status: 'present' } }; }
+  maskIdNumber(idNumber: string): string {
+    const trimmed = this.cleanText(idNumber);
+    if (trimmed.length <= 4) return trimmed;
+    return `${trimmed.slice(0, 2)}${'*'.repeat(Math.max(trimmed.length - 4, 0))}${trimmed.slice(-2)}`;
+  }
   private cleanText(value: unknown): string { return typeof value === 'string' ? value.trim() : ''; }
   private clampNumber(value: unknown, min: number, max: number): number {
     const numeric = Number(value);
@@ -395,6 +403,17 @@ export class StaffDataService {
       housingAllowance: housing,
       taxRefNumber: this.cleanText(employee.taxRefNumber) || undefined,
     };
+  }
+  private readStoredData(): string | null {
+    const sessionData = sessionStorage.getItem(this.storageKey);
+    if (sessionData) return sessionData;
+
+    const legacyData = localStorage.getItem(this.legacyStorageKey);
+    if (!legacyData) return null;
+
+    sessionStorage.setItem(this.storageKey, legacyData);
+    localStorage.removeItem(this.legacyStorageKey);
+    return legacyData;
   }
 }
 

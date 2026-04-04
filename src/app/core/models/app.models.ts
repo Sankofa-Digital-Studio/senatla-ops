@@ -68,6 +68,12 @@ export interface DemoUser {
   displayName: string;
 }
 
+export interface AuthSession {
+  username: string;
+  role: AppRole;
+  displayName: string;
+}
+
 export interface Issue {
   id: string;
   siteId: string;

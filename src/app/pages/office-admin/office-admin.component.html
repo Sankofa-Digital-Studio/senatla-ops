@@ -53,9 +53,15 @@
                   <option *ngFor="let s of service.sites()" [value]="s.id">{{ s.name }}</option>
                </select>
             </div>
-            <button (click)="showEmpModal = true; isEditMode = false; resetEmpForm()" title="Add Employee"
-               class="bg-green-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-green-700 shadow-sm w-full md:w-auto">+
-               New Employee</button>
+            <div class="flex w-full md:w-auto flex-col md:flex-row gap-2">
+               <label class="flex items-center gap-2 rounded border border-gray-700 bg-gray-800 px-3 py-2 text-[11px] uppercase tracking-wider text-gray-300">
+                  <input type="checkbox" [ngModel]="showFullIdNumbers()" (ngModelChange)="showFullIdNumbers.set($event)" class="accent-yellow-500">
+                  Show Full IDs
+               </label>
+               <button (click)="showEmpModal = true; isEditMode = false; resetEmpForm()" title="Add Employee"
+                  class="bg-green-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-green-700 shadow-sm w-full md:w-auto">+
+                  New Employee</button>
+            </div>
          </div>
 
          <div class="bg-gray-800 rounded shadow-sm overflow-hidden border border-gray-700 overflow-x-auto">
@@ -76,7 +82,7 @@
                   <tr *ngFor="let emp of filteredEmployees()" class="hover:bg-gray-700/50">
                      <td class="p-3 font-bold text-white">{{ emp.surname }}</td>
                      <td class="p-3 text-gray-300">{{ emp.firstName }}</td>
-                     <td class="p-3 font-mono text-xs text-gray-400">{{ emp.idNumber }}</td>
+                     <td class="p-3 font-mono text-xs text-gray-400">{{ getIdNumberDisplay(emp.idNumber) }}</td>
                      <td class="p-3"><span
                            class="text-[10px] bg-gray-900 px-2 py-1 rounded border border-gray-600 text-gray-300">{{
                            getSiteName(emp.siteId) }}</span></td>
@@ -135,10 +141,15 @@
                      class="bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm w-24 outline-none focus:border-yellow-500">
                </div>
             </div>
-            <button (click)="exportCSV()" title="Export CSV"
-               class="bg-green-700 text-white px-4 py-2 rounded text-sm font-bold w-full md:w-auto md:ml-auto flex items-center justify-center gap-2 hover:bg-green-800 shadow-sm transition-colors">
-               <span>⬇</span> Export CSV
-            </button>
+            <div class="flex flex-col gap-2 w-full md:w-auto md:ml-auto">
+                <button (click)="openExportModal()" title="Export CSV"
+                  class="bg-green-700 text-white px-4 py-2 rounded text-sm font-bold w-full md:w-auto flex items-center justify-center gap-2 hover:bg-green-800 shadow-sm transition-colors">
+                  <span>⬇</span> Export CSV
+               </button>
+               <p class="text-[11px] text-gray-500 md:text-right">
+                  Exports mask ID numbers by default. Use full-ID export only for payroll handoff.
+               </p>
+            </div>
          </div>
 
          <!-- Timesheet View -->
@@ -162,7 +173,7 @@
                      <ng-container *ngIf="getPayroll(emp.id) as pay">
                         <td class="p-3">
                            <div class="font-bold text-white">{{ emp.surname }}, {{ emp.firstName }}</div>
-                           <div class="text-xs text-gray-500 font-mono">{{ emp.idNumber }}</div>
+                           <div class="text-xs text-gray-500 font-mono">{{ getIdNumberDisplay(emp.idNumber) }}</div>
                         </td>
                         <td class="p-3 text-center cursor-pointer hover:bg-blue-900/30 transition-colors relative group"
                            (click)="openAdjustmentModal(emp)">
@@ -325,6 +336,40 @@
          <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-700"><button
                (click)="showFinancialsModal=false" class="text-gray-400">Cancel</button><button
                (click)="saveFinancials()" class="bg-yellow-500 text-black px-4 py-2 rounded font-bold">Update</button>
+         </div>
+      </div>
+   </div>
+
+   <!-- EXPORT MODAL -->
+   <div *ngIf="showExportModal"
+      class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
+      <div class="bg-gray-800 rounded-lg w-full max-w-md mx-auto p-6 shadow-2xl border border-gray-700">
+         <h3 class="font-bold text-lg mb-2 text-white border-b border-gray-700 pb-2">Export Payroll CSV</h3>
+         <p class="text-xs text-gray-400 mb-4">
+            CSV exports are masked by default to reduce ID exposure. Full-ID export should only be used for controlled payroll handoff.
+         </p>
+         <label class="flex items-start gap-3 text-sm text-gray-200 mb-4">
+            <input type="checkbox" [(ngModel)]="exportFullIdNumbers" class="mt-1 accent-yellow-500">
+            <span>Include full ID numbers in the CSV export</span>
+         </label>
+
+         <div *ngIf="exportFullIdNumbers" class="mb-4 rounded border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs text-orange-200">
+            Type <span class="font-bold">EXPORT</span> below to confirm a full-ID export.
+         </div>
+         <div *ngIf="exportFullIdNumbers" class="mb-4">
+            <label class="block text-[10px] uppercase tracking-widest text-gray-500 mb-1">Confirmation</label>
+            <input [(ngModel)]="exportConfirmationText" placeholder="EXPORT"
+               class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded text-sm">
+         </div>
+         <div *ngIf="exportError" class="mb-4 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            {{ exportError }}
+         </div>
+
+         <div class="flex justify-end gap-3 pt-4 border-t border-gray-700">
+            <button (click)="showExportModal = false" class="text-gray-400">Cancel</button>
+            <button (click)="exportCSV()" class="bg-yellow-500 text-black px-4 py-2 rounded font-bold">
+               Export
+            </button>
          </div>
       </div>
    </div>

@@ -1,5 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { AppRole, DemoUser } from '../models/app.models';
+import { AppRole, AuthSession, DemoUser } from '../models/app.models';
 
 const SESSION_KEY = 'senatla_ops_session';
 
@@ -11,7 +11,7 @@ const DEMO_USERS: DemoUser[] = [
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private sessionState = signal<DemoUser | null>(this.loadSession());
+  private sessionState = signal<AuthSession | null>(this.loadSession());
 
   readonly session = this.sessionState.asReadonly();
   readonly isAuthenticated = computed(() => this.sessionState() !== null);
@@ -28,8 +28,13 @@ export class AuthService {
       return null;
     }
 
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
-    this.sessionState.set(user);
+    const session: AuthSession = {
+      username: user.username,
+      role: user.role,
+      displayName: user.displayName,
+    };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    this.sessionState.set(session);
     return user;
   }
 
@@ -46,12 +51,12 @@ export class AuthService {
     return DEMO_USERS;
   }
 
-  private loadSession(): DemoUser | null {
+  private loadSession(): AuthSession | null {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
 
     try {
-      const parsed = JSON.parse(raw) as Partial<DemoUser>;
+      const parsed = JSON.parse(raw) as Partial<AuthSession>;
       const validUser = DEMO_USERS.find(
         (entry) =>
           entry.username === parsed.username &&
