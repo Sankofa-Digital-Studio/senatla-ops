@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, ElementRef, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DailyLog, Employee } from 'src/app/core/models/app.models';
 import { StaffDataService } from 'src/app/core/services/staff-data.service';
@@ -45,6 +45,8 @@ export class SiteManagerComponent {
   isDrawing = false;
   hasSigned = false;
   private ctx!: CanvasRenderingContext2D;
+  readonly latestSyncRecord = computed(() => this.service.syncHistory()[0] || null);
+  readonly recentAttendanceAudit = computed(() => this.service.attendanceAuditTrail().slice(0, 6));
 
   constructor() {
     this.localSiteName = this.service.siteName();

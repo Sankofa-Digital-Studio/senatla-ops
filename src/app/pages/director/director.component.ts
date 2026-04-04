@@ -76,6 +76,7 @@ service = inject(StaffDataService);
 
   // 5. Recent Activity
   recentSyncs = computed(() => this.service.syncHistory().slice(0, 5));
+  highestRiskSync = computed(() => this.service.syncHistory().find((entry) => entry.status !== 'On Time') || null);
 
   // 6. Simulated Trend Data (for Graph)
   trendData = computed(() => {

@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { Subscription, combineLatest } from 'rxjs';
 import { AppRole } from 'src/app/core/models/app.models';
 import { AuthService } from 'src/app/core/services/auth.service';
 
@@ -12,16 +13,29 @@ import { AuthService } from 'src/app/core/services/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   readonly auth = inject(AuthService);
+  private routeSubscription?: Subscription;
 
   username = '';
   password = '';
   errorMsg = '';
-  requestedRole = this.normalizeRole(this.route.snapshot.paramMap.get('role') ?? '');
-  redirectUrl = this.sanitizeRedirect(this.route.snapshot.queryParamMap.get('redirect'));
+  requestedRole: AppRole | null = null;
+  redirectUrl = '';
+
+  ngOnInit() {
+    this.routeSubscription = combineLatest([this.route.paramMap, this.route.queryParamMap]).subscribe(([params, query]) => {
+      this.requestedRole = this.normalizeRole(params.get('role') ?? '');
+      this.redirectUrl = this.sanitizeRedirect(query.get('redirect'));
+      this.errorMsg = '';
+    });
+  }
+
+  ngOnDestroy() {
+    this.routeSubscription?.unsubscribe();
+  }
 
   async handleLogin() {
     const role = this.requestedRole || this.inferRoleFromUsername(this.username);
@@ -39,7 +53,7 @@ export class LoginComponent {
     }
 
     this.errorMsg = '';
-    this.router.navigateByUrl(this.redirectUrl || this.getRolePath(role));
+    await this.router.navigateByUrl(this.redirectUrl || this.getRolePath(role));
   }
 
   useDemo(role: AppRole) {

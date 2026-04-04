@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { environment } from '../environments/environment';
 import { TimeControlsComponent } from './components/time-controls.component';
 import { AuthService } from './core/services/auth.service';
@@ -13,6 +13,7 @@ import { AuthService } from './core/services/auth.service';
 })
 export class AppComponent {
   readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
   readonly showDebugControls = !environment.production;
   readonly securedNavItems = [{ label: 'Landing', path: '/landing' }, { label: 'Login', path: '/login' }];
   readonly navLinks = computed(() => {
@@ -25,7 +26,8 @@ export class AppComponent {
 
   get sessionRole() { return this.auth.role(); }
 
-  logout() {
-    this.auth.logout();
+  async logout() {
+    await this.auth.logout();
+    await this.router.navigateByUrl('/landing');
   }
 }

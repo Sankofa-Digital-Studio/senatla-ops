@@ -1,6 +1,8 @@
 import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import {
   AdminAuditEvent,
+  AttendanceAuditEvent,
+  AttendanceEvidence,
   Employee,
   Group,
   SyncRecord,
@@ -11,10 +13,12 @@ import {
   FinancialType
 } from '../models/app.models';
 import { APP_STATE_GATEWAY, AppStateGateway, AppStateSnapshot } from '../gateways/app-state.gateway';
+import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class StaffDataService {
   private readonly appStateGateway = inject<AppStateGateway>(APP_STATE_GATEWAY);
+  private readonly auth = inject(AuthService);
   private readonly hydrated = signal(false);
 
   currentTime = signal<Date>(new Date());
@@ -38,15 +42,17 @@ export class StaffDataService {
   groups = signal<Group[]>([]);
   financialTypes = signal<FinancialType[]>([]);
   adminAuditTrail = signal<AdminAuditEvent[]>([]);
+  attendanceAuditTrail = signal<AttendanceAuditEvent[]>([]);
 
   private employeeState = signal<Employee[]>([]);
 
+  readonly isHydrated = this.hydrated.asReadonly();
   readonly employees = this.employeeState.asReadonly();
   readonly activeSites = computed(() => this.sites().filter((site) => site.isActive));
   readonly activeFinancialTypes = computed(() => this.financialTypes().filter((type) => type.isActive));
+  readonly pendingAttendanceSummary = computed(() => this.getAttendanceSummary());
 
   constructor() {
-    this.initializeDefaults();
     void this.loadFromGateway();
 
     effect(() => {
@@ -59,6 +65,7 @@ export class StaffDataService {
     try {
       const snapshot = await this.appStateGateway.loadState();
       if (!snapshot) {
+        this.initializeDefaults();
         this.hydrated.set(true);
         return;
       }
@@ -71,48 +78,63 @@ export class StaffDataService {
   }
 
   private applySnapshot(parsed: AppStateSnapshot) {
-      this.siteName.set(this.cleanText(parsed.siteName) || 'Senatla Shaft 1');
-      this.sites.set(Array.isArray(parsed.sites) ? parsed.sites.map((site: any) => this.normalizeSite(site)) : []);
-      this.employeeState.set(
-        Array.isArray(parsed.employees)
-          ? parsed.employees.map((employee: any) => this.normalizeEmployee(employee))
-          : [],
-      );
-      this.issues.set(parsed.issues || []);
-      this.groups.set(
-        Array.isArray(parsed.groups)
-          ? parsed.groups
-              .map((group: any) => ({ id: this.generateId(group.id), name: this.cleanText(group.name) }))
-              .filter((group: Group) => Boolean(group.name))
-          : [],
-      );
-      this.financialTypes.set(parsed.financialTypes || []);
-      this.adminAuditTrail.set(
-        Array.isArray(parsed.adminAuditTrail)
-          ? parsed.adminAuditTrail.map((entry: any) => ({
-              ...entry,
-              occurredAt: new Date(entry.occurredAt),
-            }))
-          : [],
-      );
-      this.safetyTopics.set(
-        Array.isArray(parsed.safetyTopics)
-          ? parsed.safetyTopics.map((topic: any) => this.cleanText(topic)).filter(Boolean)
-          : [],
-      );
-      this.syncHistory.set(parsed.syncHistory || []);
+    this.siteName.set(this.cleanText(parsed.siteName) || 'Senatla Shaft 1');
+    this.sites.set(Array.isArray(parsed.sites) ? parsed.sites.map((site: any) => this.normalizeSite(site)) : []);
+    this.employeeState.set(
+      Array.isArray(parsed.employees)
+        ? parsed.employees.map((employee: any) => this.normalizeEmployee(employee))
+        : [],
+    );
+    this.issues.set(
+      Array.isArray(parsed.issues)
+        ? parsed.issues.map((issue: any) => this.normalizeIssue(issue))
+        : [],
+    );
+    this.groups.set(
+      Array.isArray(parsed.groups)
+        ? parsed.groups
+            .map((group: any) => ({ id: this.generateId(group.id), name: this.cleanText(group.name) }))
+            .filter((group: Group) => Boolean(group.name))
+        : [],
+    );
+    this.financialTypes.set(parsed.financialTypes || []);
+    this.adminAuditTrail.set(
+      Array.isArray(parsed.adminAuditTrail)
+        ? parsed.adminAuditTrail.map((entry: any) => ({
+            ...entry,
+            occurredAt: new Date(entry.occurredAt),
+          }))
+        : [],
+    );
+    this.attendanceAuditTrail.set(
+      Array.isArray(parsed.attendanceAuditTrail)
+        ? parsed.attendanceAuditTrail.map((entry: any) => ({
+            ...entry,
+            occurredAt: new Date(entry.occurredAt),
+          }))
+        : [],
+    );
+    this.safetyTopics.set(
+      Array.isArray(parsed.safetyTopics)
+        ? parsed.safetyTopics.map((topic: any) => this.cleanText(topic)).filter(Boolean)
+        : [],
+    );
+    this.syncHistory.set(
+      Array.isArray(parsed.syncHistory)
+        ? parsed.syncHistory.map((record: any) => this.normalizeSyncRecord(record))
+        : [],
+    );
 
-      if (parsed.lastSyncTime) this.lastSyncTime.set(new Date(parsed.lastSyncTime));
-      if (parsed.safetyTalks) {
-        this.safetyTalks.set(parsed.safetyTalks.map((talk: any) => ({ ...talk, date: new Date(talk.date) })));
-        const today = this.currentTime().toDateString();
-        const hasTalkToday = parsed.safetyTalks.some((talk: any) => new Date(talk.date).toDateString() === today);
-        this.safetyTalkCompleted.set(hasTalkToday);
-        if (hasTalkToday) {
-          const talk = parsed.safetyTalks.find((item: any) => new Date(item.date).toDateString() === today);
-          this.currentSafetyTopic.set(talk?.topic || null);
-        }
-      }
+    this.lastSyncTime.set(parsed.lastSyncTime ? new Date(parsed.lastSyncTime) : null);
+    this.safetyTalks.set(
+      Array.isArray(parsed.safetyTalks)
+        ? parsed.safetyTalks.map((talk: any) => ({ ...talk, date: new Date(talk.date) }))
+        : [],
+    );
+    const today = this.currentTime().toDateString();
+    const talkToday = this.safetyTalks().find((talk) => talk.date.toDateString() === today) || null;
+    this.safetyTalkCompleted.set(!!talkToday);
+    this.currentSafetyTopic.set(talkToday?.topic || null);
   }
 
   private buildSnapshot(): AppStateSnapshot {
@@ -124,6 +146,7 @@ export class StaffDataService {
       groups: this.groups(),
       financialTypes: this.financialTypes(),
       adminAuditTrail: this.adminAuditTrail(),
+      attendanceAuditTrail: this.attendanceAuditTrail(),
       safetyTopics: this.safetyTopics(),
       syncHistory: this.syncHistory(),
       lastSyncTime: this.lastSyncTime()?.toISOString() || null,
@@ -170,6 +193,7 @@ export class StaffDataService {
     this.safetyTalks.update((talks) => [newRecord, ...talks]);
     this.currentSafetyTopic.set(topic);
     this.safetyTalkCompleted.set(true);
+    this.recordAttendanceAudit('safety_talk_completed', `Safety talk confirmed for topic "${this.cleanText(topic)}".`);
   }
 
   updateSafetyTalkDetails(id: string, notes: string, photoUrl: string) {
@@ -177,6 +201,7 @@ export class StaffDataService {
       if (talk.id === id) return { ...talk, notes: this.cleanText(notes).slice(0, 500), photoUrl: this.cleanText(photoUrl) };
       return talk;
     }));
+    this.recordAttendanceAudit('safety_talk_updated', 'Safety talk notes or photo evidence updated.');
   }
 
   addSafetyTopic(topic: string) {
@@ -218,12 +243,12 @@ export class StaffDataService {
   }
   assignGroup(empId: string, groupId: string | undefined) { this.employeeState.update((employees) => employees.map((employee) => employee.id === empId ? { ...employee, groupId } : employee)); }
 
-  recordAdminAudit(action: AdminAuditEvent['action'], details?: string) {
+  recordAdminAudit(action: AdminAuditEvent['action'], details?: string, actor = this.currentActor()) {
     const entry: AdminAuditEvent = {
       id: this.generateId(),
       action,
       occurredAt: new Date(this.currentTime()),
-      actor: 'Office Admin',
+      actor,
       details: this.cleanText(details) || undefined,
     };
     this.adminAuditTrail.update((events) => [entry, ...events].slice(0, 25));
@@ -231,7 +256,17 @@ export class StaffDataService {
 
   resolveIssue(id: string, note: string) { this.updateIssueStatus(id, 'Resolved', note); }
   escalateIssue(id: string, note: string) { this.updateIssueStatus(id, 'Escalated', note); }
-  private updateIssueStatus(id: string, status: 'Resolved' | 'Escalated', note: string) { this.issues.update((issues) => issues.map((issue) => { if (issue.id !== id) return issue; return { ...issue, status, auditTrail: [...issue.auditTrail, { date: new Date(this.currentTime()), action: this.cleanText(note) || status, user: 'Office Admin' }] }; })); }
+  private updateIssueStatus(id: string, status: 'Resolved' | 'Escalated', note: string) {
+    const actor = this.currentActor();
+    this.issues.update((issues) => issues.map((issue) => {
+      if (issue.id !== id) return issue;
+      return {
+        ...issue,
+        status,
+        auditTrail: [...issue.auditTrail, { date: new Date(this.currentTime()), action: this.cleanText(note) || status, user: actor }],
+      };
+    }));
+  }
 
   setManualAdjustment(empId: string, month: number, year: number, week: number, days: number) {
     const key = `${year}-${month}-${week}`;
@@ -305,8 +340,30 @@ export class StaffDataService {
     return header + rows;
   }
 
+  exportPayrollCsv(
+    month: number,
+    year: number,
+    options: { includeFullIdNumbers?: boolean; confirmationText?: string } = {},
+  ) {
+    const includeFullIdNumbers = !!options.includeFullIdNumbers;
+    if (includeFullIdNumbers && this.cleanText(options.confirmationText).toUpperCase() !== 'EXPORT') {
+      throw new Error('Type EXPORT to unlock a full-ID payroll export.');
+    }
+
+    const csvData = this.generateCSV(month, year, { includeFullIdNumbers });
+    this.recordAdminAudit(
+      includeFullIdNumbers ? 'full_payroll_export' : 'masked_payroll_export',
+      `${this.monthName(month)} ${year} payroll export`,
+    );
+    return {
+      csvData,
+      sensitivitySuffix: includeFullIdNumbers ? 'full-ids' : 'masked-ids',
+    };
+  }
+
   performSync(signature: string, isRolloverAck: boolean = false) {
     const status = this.determineSyncStatus();
+    const summary = this.getAttendanceSummary();
     this.syncHistory.update((history) => [
       {
         siteId: this.siteName(),
@@ -314,10 +371,13 @@ export class StaffDataService {
         status,
         acknowledgedWarning: isRolloverAck,
         signatureData: signature,
-        safetyTopic: this.currentSafetyTopic() || 'None Recorded'
+        safetyTopic: this.currentSafetyTopic() || 'None Recorded',
+        actor: this.currentActor(),
+        attendanceSummary: summary,
       },
       ...history
     ]);
+    this.recordAttendanceAudit('sync_submitted', `Daily sync submitted with ${summary.present} present, ${summary.absent} absent, ${summary.pending} pending.`);
     this.lastSyncTime.set(this.currentTime());
     this.unsyncedChanges.set(false);
   }
@@ -336,6 +396,8 @@ export class StaffDataService {
     const todayStr = this.getTodayStr();
     if (dateStr > todayStr) return;
     const isRetroactive = dateStr < todayStr;
+    const employee = this.employeeState().find((entry) => entry.id === empId);
+    const employeeName = employee ? `${employee.firstName} ${employee.surname}` : 'Unknown employee';
 
     this.employeeState.update((employees) => employees.map((employee) => {
       if (employee.id !== empId) return employee;
@@ -352,24 +414,36 @@ export class StaffDataService {
       };
       return { ...employee, logs: { ...employee.logs, [dateStr]: updatedLog } };
     }));
+    this.recordAttendanceAudit(
+      newStatus === 'present' ? 'attendance_marked_present' : 'attendance_marked_absent',
+      `${employeeName} marked ${newStatus} for ${dateStr}${isRetroactive ? ' (retroactive)' : ''}.`,
+      empId,
+      employeeName,
+    );
   }
 
   updateReason(empId: string, dateStr: string, reason: DailyLog['reason']) {
     this.unsyncedChanges.set(true);
+    const employee = this.employeeState().find((entry) => entry.id === empId);
+    const employeeName = employee ? `${employee.firstName} ${employee.surname}` : 'Unknown employee';
     this.employeeState.update((employees) => employees.map((employee) => {
       if (employee.id !== empId) return employee;
       const log = employee.logs[dateStr];
       if (!log) return employee;
       return { ...employee, logs: { ...employee.logs, [dateStr]: { ...log, reason } } };
     }));
+    this.recordAttendanceAudit('attendance_reason_updated', `${employeeName} absence reason set to ${reason || 'None'} for ${dateStr}.`, empId, employeeName);
   }
   updateComment(empId: string, dateStr: string, comment: string) {
     this.unsyncedChanges.set(true);
+    const employee = this.employeeState().find((entry) => entry.id === empId);
+    const employeeName = employee ? `${employee.firstName} ${employee.surname}` : 'Unknown employee';
     this.employeeState.update((employees) => employees.map((employee) => {
       if (employee.id !== empId) return employee;
       const log = employee.logs[dateStr] || { date: dateStr, status: 'pending' };
       return { ...employee, logs: { ...employee.logs, [dateStr]: { ...log, comment: this.cleanText(comment).slice(0, 280) } } };
     }));
+    this.recordAttendanceAudit('attendance_comment_updated', `${employeeName} comment updated for ${dateStr}.`, empId, employeeName);
   }
 
   private getTodayStr(): string {
@@ -384,6 +458,46 @@ export class StaffDataService {
     const trimmed = this.cleanText(idNumber);
     if (trimmed.length <= 4) return trimmed;
     return `${trimmed.slice(0, 2)}${'*'.repeat(Math.max(trimmed.length - 4, 0))}${trimmed.slice(-2)}`;
+  }
+  searchableIdNumber(idNumber: string, includeSensitiveValue: boolean): string {
+    return includeSensitiveValue ? this.cleanText(idNumber).toLowerCase() : this.maskIdNumber(idNumber).toLowerCase();
+  }
+  private recordAttendanceAudit(
+    action: AttendanceAuditEvent['action'],
+    details: string,
+    employeeId?: string,
+    employeeName?: string,
+  ) {
+    const entry: AttendanceAuditEvent = {
+      id: this.generateId(),
+      action,
+      occurredAt: new Date(this.currentTime()),
+      actor: this.currentActor(),
+      employeeId,
+      employeeName,
+      details: this.cleanText(details) || undefined,
+    };
+    this.attendanceAuditTrail.update((events) => [entry, ...events].slice(0, 40));
+  }
+
+  private getAttendanceSummary() {
+    const today = this.getTodayStr();
+    return this.employeeState().reduce(
+      (summary, employee) => {
+        const log = employee.logs[today] || { date: today, status: 'pending' as const };
+        if (log.status === 'present') summary.present += 1;
+        if (log.status === 'absent') summary.absent += 1;
+        if (log.status === 'pending') summary.pending += 1;
+        if (log.isFlagged) summary.flagged += 1;
+        if (log.evidence?.photoDataUrl) summary.evidenceCount += 1;
+        return summary;
+      },
+      { present: 0, absent: 0, pending: 0, flagged: 0, evidenceCount: 0 },
+    );
+  }
+
+  private monthName(month: number) {
+    return new Date(2000, month, 1).toLocaleDateString('en-US', { month: 'short' });
   }
   private cleanText(value: unknown): string { return typeof value === 'string' ? value.trim() : ''; }
   private clampNumber(value: unknown, min: number, max: number): number {
@@ -427,12 +541,85 @@ export class StaffDataService {
         housing,
         advance,
       },
-      logs: employee.logs || {},
+      logs: this.normalizeLogs(employee.logs),
       adjustments: employee.adjustments || {},
       travelAllowance: travel,
       housingAllowance: housing,
       taxRefNumber: this.cleanText(employee.taxRefNumber) || undefined,
     };
+  }
+
+  private normalizeLogs(logs: Employee['logs'] | undefined): Employee['logs'] {
+    if (!logs || typeof logs !== 'object') return {};
+
+    return Object.entries(logs).reduce<Employee['logs']>((normalized, [date, log]) => {
+        const currentLog = log || { date, status: 'pending' };
+        normalized[date] = {
+          ...currentLog,
+          date,
+          lastUpdated: currentLog.lastUpdated ? new Date(currentLog.lastUpdated) : undefined,
+          evidence: this.normalizeEvidence(currentLog.evidence),
+        };
+        return normalized;
+      }, {});
+  }
+
+  private normalizeEvidence(evidence: AttendanceEvidence | null | undefined): AttendanceEvidence | null {
+    if (!evidence?.photoDataUrl) return null;
+    return {
+      photoDataUrl: this.cleanText(evidence.photoDataUrl),
+      capturedAt: new Date(evidence.capturedAt),
+      location: evidence.location && Number.isFinite(evidence.location.latitude) && Number.isFinite(evidence.location.longitude)
+        ? {
+            latitude: evidence.location.latitude,
+            longitude: evidence.location.longitude,
+          }
+        : null,
+    };
+  }
+
+  private normalizeIssue(issue: Partial<Issue>): Issue {
+    return {
+      id: this.generateId(issue.id),
+      siteId: this.cleanText(issue.siteId),
+      reportedBy: this.cleanText(issue.reportedBy) || 'Unknown',
+      dateReported: new Date(issue.dateReported || this.currentTime()),
+      category: issue.category || 'Operations',
+      description: this.cleanText(issue.description),
+      status: issue.status || 'Open',
+      auditTrail: Array.isArray(issue.auditTrail)
+        ? issue.auditTrail.map((entry) => ({
+            date: new Date(entry.date),
+            action: this.cleanText(entry.action),
+            user: this.cleanText(entry.user) || 'Unknown',
+          }))
+        : [],
+    };
+  }
+
+  private normalizeSyncRecord(record: Partial<SyncRecord>): SyncRecord {
+    return {
+      siteId: this.cleanText(record.siteId) || this.siteName(),
+      syncTime: new Date(record.syncTime || this.currentTime()),
+      status: record.status || 'On Time',
+      acknowledgedWarning: !!record.acknowledgedWarning,
+      signatureData: this.cleanText(record.signatureData) || undefined,
+      safetyTopic: this.cleanText(record.safetyTopic) || undefined,
+      actor: this.cleanText(record.actor) || undefined,
+      attendanceSummary: record.attendanceSummary
+        ? {
+            present: this.clampNumber(record.attendanceSummary.present, 0, 100000),
+            absent: this.clampNumber(record.attendanceSummary.absent, 0, 100000),
+            pending: this.clampNumber(record.attendanceSummary.pending, 0, 100000),
+            flagged: this.clampNumber(record.attendanceSummary.flagged, 0, 100000),
+            evidenceCount: this.clampNumber(record.attendanceSummary.evidenceCount, 0, 100000),
+          }
+        : undefined,
+    };
+  }
+
+  private currentActor(): string {
+    return this.auth.currentSession()?.displayName || 'Unknown User';
   }
 }
 

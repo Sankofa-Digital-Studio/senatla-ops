@@ -5,6 +5,7 @@ import { AppStateGateway, AppStateSnapshot } from './app-state.gateway';
 export class LocalAppStateGateway implements AppStateGateway {
   private readonly storageKey = 'senatla_ops_data';
   private readonly legacyStorageKey = 'senatla_ops_data';
+  private readonly legacyBackupKey = 'senatla_ops_data_backup';
 
   async loadState(): Promise<AppStateSnapshot | null> {
     const sessionData = sessionStorage.getItem(this.storageKey);
@@ -15,9 +16,11 @@ export class LocalAppStateGateway implements AppStateGateway {
     const legacyData = localStorage.getItem(this.legacyStorageKey);
     if (!legacyData) return null;
 
-    sessionStorage.setItem(this.storageKey, legacyData);
+    const parsed = JSON.parse(legacyData) as AppStateSnapshot;
+    sessionStorage.setItem(this.storageKey, JSON.stringify(parsed));
+    localStorage.setItem(this.legacyBackupKey, legacyData);
     localStorage.removeItem(this.legacyStorageKey);
-    return JSON.parse(legacyData) as AppStateSnapshot;
+    return parsed;
   }
 
   async saveState(snapshot: AppStateSnapshot): Promise<void> {

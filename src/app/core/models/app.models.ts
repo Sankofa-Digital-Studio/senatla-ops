@@ -26,6 +26,14 @@ export interface SyncRecord {
   acknowledgedWarning?: boolean;
   signatureData?: string;
   safetyTopic?: string;
+  actor?: string;
+  attendanceSummary?: {
+    present: number;
+    absent: number;
+    pending: number;
+    flagged: number;
+    evidenceCount: number;
+  };
 }
 
 export interface Site {
@@ -117,6 +125,23 @@ export interface AdminAuditEvent {
     | 'full_payroll_export';
   occurredAt: Date;
   actor: string;
+  details?: string;
+}
+
+export interface AttendanceAuditEvent {
+  id: string;
+  action:
+    | 'attendance_marked_present'
+    | 'attendance_marked_absent'
+    | 'attendance_reason_updated'
+    | 'attendance_comment_updated'
+    | 'safety_talk_completed'
+    | 'safety_talk_updated'
+    | 'sync_submitted';
+  occurredAt: Date;
+  actor: string;
+  employeeId?: string;
+  employeeName?: string;
   details?: string;
 }
 export interface VehicleAsset {

@@ -39,7 +39,7 @@ export class OfficeAdminComponent  {
 
   // Helper method to set active tab safely with strict typing
   setActiveTab(id: TabId) {
-    if (id !== 'workforce' && id !== 'payroll' && this.showFullIdNumbers()) {
+    if (id !== 'workforce' && this.showFullIdNumbers()) {
       this.setSensitiveIdVisibility(false);
     }
     if (id !== 'payroll') {
@@ -95,7 +95,7 @@ sortBy = signal<'surname' | 'firstName'>('surname');
     const site = this.filterSiteId();
     const employees = this.service.employees().filter(e => {
       const nameMatch = (e.firstName.toLowerCase().includes(term) || e.surname.toLowerCase().includes(term));
-      const idMatch = e.idNumber.includes(term);
+      const idMatch = this.service.searchableIdNumber(e.idNumber, this.showFullIdNumbers()).includes(term);
       const siteMatch = site ? e.siteId === site : true;
       return (nameMatch || idMatch) && siteMatch;
     });
@@ -257,26 +257,24 @@ sortBy = signal<'surname' | 'firstName'>('surname');
   }
 
   exportCSV() {
-    if (this.exportFullIdNumbers && this.exportConfirmationText.trim().toUpperCase() !== 'EXPORT') {
-      this.exportError = 'Type EXPORT to unlock a full-ID payroll export.';
+    let exportResult: { csvData: string; sensitivitySuffix: string };
+    try {
+      exportResult = this.service.exportPayrollCsv(this.selectedMonth, this.selectedYear, {
+        includeFullIdNumbers: this.exportFullIdNumbers,
+        confirmationText: this.exportConfirmationText,
+      });
+    } catch (error) {
+      this.exportError = error instanceof Error ? error.message : 'Unable to create payroll export.';
       return;
     }
 
-    const csvData = this.service.generateCSV(this.selectedMonth, this.selectedYear, {
-      includeFullIdNumbers: this.exportFullIdNumbers
-    });
-    const blob = new Blob([csvData], { type: 'text/csv' });
+    const blob = new Blob([exportResult.csvData], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const sensitivitySuffix = this.exportFullIdNumbers ? 'full-ids' : 'masked-ids';
-    a.download = `Senatla_Payroll_${this.months[this.selectedMonth]}_${this.selectedYear}_${sensitivitySuffix}.csv`;
+    a.download = `Senatla_Payroll_${this.months[this.selectedMonth]}_${this.selectedYear}_${exportResult.sensitivitySuffix}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-    this.service.recordAdminAudit(
-      this.exportFullIdNumbers ? 'full_payroll_export' : 'masked_payroll_export',
-      `${this.months[this.selectedMonth]} ${this.selectedYear} payroll export`,
-    );
     this.showExportModal = false;
     this.exportError = '';
   }
@@ -405,6 +403,9 @@ sortBy = signal<'surname' | 'firstName'>('surname');
   }
 
   setSensitiveIdVisibility(enabled: boolean) {
+    if (this.showFullIdNumbers() === enabled) {
+      return;
+    }
     this.showFullIdNumbers.set(enabled);
     this.service.recordAdminAudit(
       enabled ? 'sensitive_ids_shown' : 'sensitive_ids_hidden',

@@ -1,3 +1,4 @@
+<ng-container *ngIf="service.isHydrated(); else siteLoading">
 <div class="h-full flex flex-col bg-gray-900 text-white relative">
   <header class="bg-gray-800 p-4 sticky top-0 z-20 shadow-md border-b border-gray-700">
     <div class="flex justify-between items-start mb-4">
@@ -30,6 +31,14 @@
     <div *ngIf="service.timeStatus() === 'warning_1'" class="bg-yellow-900/50 border border-yellow-600 text-yellow-500 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2">Reminder: daily sync required by 17:00.</div>
     <div *ngIf="service.timeStatus() === 'warning_2'" class="bg-red-900/50 border border-red-600 text-red-500 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2 animate-pulse">Urgent: sync immediately. Blocking in 5 minutes.</div>
     <div *ngIf="service.timeStatus() === 'blocked'" class="bg-gray-800 border border-red-500 text-red-400 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2">System locked: missed deadline. Reopens 06:00.</div>
+    <div *ngIf="service.unsyncedChanges()" class="bg-slate-900 border border-slate-700 text-slate-300 text-xs p-3 rounded mb-2">
+      Pending sync summary:
+      Present {{ service.pendingAttendanceSummary().present }},
+      Absent {{ service.pendingAttendanceSummary().absent }},
+      Pending {{ service.pendingAttendanceSummary().pending }},
+      Flagged {{ service.pendingAttendanceSummary().flagged }},
+      Evidence {{ service.pendingAttendanceSummary().evidenceCount }}.
+    </div>
 
     <div class="flex justify-between items-center mb-2 bg-gray-900 p-2 rounded border border-gray-700">
       <button (click)="changeDate(-1)" class="text-gray-400 hover:text-white" aria-label="Previous day">&larr;</button>
@@ -48,6 +57,39 @@
         <option *ngFor="let g of service.groups()" [ngValue]="g.id">{{ g.name }}</option>
       </select>
       <button (click)="showGroupModal = true" class="bg-yellow-500 text-black px-3 rounded font-bold text-lg">+</button>
+    </div>
+
+    <div class="mt-3 grid gap-3 md:grid-cols-2">
+      <div class="rounded border border-gray-700 bg-gray-900 p-3">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Latest Sync Record</p>
+        <ng-container *ngIf="latestSyncRecord() as latestSync; else noSyncRecord">
+          <p class="mt-2 text-xs font-bold text-white">{{ latestSync.status }} sync by {{ latestSync.actor || 'Unknown actor' }}</p>
+          <p class="mt-1 text-[11px] text-gray-400">{{ latestSync.syncTime | date:'medium' }}</p>
+          <p class="mt-2 text-[11px] text-gray-300">
+            Present {{ latestSync.attendanceSummary?.present || 0 }},
+            Absent {{ latestSync.attendanceSummary?.absent || 0 }},
+            Pending {{ latestSync.attendanceSummary?.pending || 0 }},
+            Evidence {{ latestSync.attendanceSummary?.evidenceCount || 0 }}
+          </p>
+        </ng-container>
+        <ng-template #noSyncRecord>
+          <p class="mt-2 text-[11px] text-gray-500">No sync record captured in this session yet.</p>
+        </ng-template>
+      </div>
+
+      <div class="rounded border border-gray-700 bg-gray-900 p-3">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Recent Attendance Audit</p>
+        <div class="mt-2 space-y-2" *ngIf="recentAttendanceAudit().length; else noAuditTrail">
+          <div *ngFor="let event of recentAttendanceAudit()" class="rounded border border-gray-800 bg-gray-950 px-3 py-2">
+            <p class="text-[11px] font-bold text-white">{{ event.action }}</p>
+            <p class="mt-1 text-[11px] text-gray-400">{{ event.occurredAt | date:'short' }} by {{ event.actor }}</p>
+            <p *ngIf="event.details" class="mt-1 text-[11px] text-gray-300">{{ event.details }}</p>
+          </div>
+        </div>
+        <ng-template #noAuditTrail>
+          <p class="mt-2 text-[11px] text-gray-500">No attendance audit events recorded yet.</p>
+        </ng-template>
+      </div>
     </div>
   </header>
 
@@ -252,6 +294,9 @@
     <div class="bg-white w-full max-w-md p-6 rounded-xl">
       <h3 class="font-bold text-xl text-black mb-2">Sign-Off Required</h3>
       <p class="text-xs text-gray-500 mb-4">I certify the safety talk was conducted and attendance is accurate.</p>
+      <div class="mb-4 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
+        This sync records the signer, timing status, attendance totals, flagged entries, evidence count, and breach acknowledgement state.
+      </div>
       <div class="h-48 bg-gray-100 rounded border-2 border-dashed border-gray-300 relative touch-none mb-4" #canvasContainer>
         <canvas #sigCanvas
                 (mousedown)="startDrawing($event)"
@@ -290,3 +335,10 @@
     </div>
   </div>
 </div>
+</ng-container>
+
+<ng-template #siteLoading>
+  <div class="flex h-full items-center justify-center bg-gray-900 px-6 text-center text-sm text-gray-400">
+    Loading site attendance data...
+  </div>
+</ng-template>
