@@ -1,25 +1,31 @@
-import { Component, signal } from '@angular/core';
-import { LoginComponent } from './pages/login/login.component';
 import { CommonModule } from '@angular/common';
+import { Component, computed, inject } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { environment } from '../environments/environment';
 import { TimeControlsComponent } from './components/time-controls.component';
-import { DirectorComponent } from './pages/director/director.component';
-import { OfficeAdminComponent } from './pages/office-admin/office-admin.component';
-import { SiteManagerComponent } from './pages/site-manager/site-manager.component';
+import { AuthService } from './core/services/auth.service';
 
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
-   imports: [
-    CommonModule, 
-    LoginComponent, 
-    SiteManagerComponent, 
-    OfficeAdminComponent, 
-    DirectorComponent, 
-    TimeControlsComponent
-  ]
+  standalone: true,
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, TimeControlsComponent],
 })
 export class AppComponent {
-   currentView = signal<string>('login');
-  navigate(view: string) { this.currentView.set(view); }
-  logout() { this.currentView.set('login'); }
+  readonly auth = inject(AuthService);
+  readonly showDebugControls = !environment.production;
+  readonly securedNavItems = [{ label: 'Landing', path: '/landing' }, { label: 'Login', path: '/login' }];
+  readonly navLinks = computed(() => {
+    const role = this.auth.role();
+    if (role === 'site') return [{ label: 'Site Manager', path: '/site-manager' }];
+    if (role === 'office') return [{ label: 'Office Admin', path: '/office-admin' }, { label: 'Asset Register', path: '/asset-register' }];
+    if (role === 'director') return [{ label: 'Director', path: '/director' }];
+    return [];
+  });
+
+  get sessionRole() { return this.auth.role(); }
+
+  logout() {
+    this.auth.logout();
+  }
 }
