@@ -1,18 +1,5 @@
-import { inject } from '@angular/core';
-import { CanActivateFn, Router, Routes } from '@angular/router';
-import { AppRole } from './core/models/app.models';
-import { AuthService } from './core/services/auth.service';
-
-const requireRole = (role: AppRole): CanActivateFn => () => {
-  const router = inject(Router);
-  const auth = inject(AuthService);
-
-  if (auth.canAccess(role)) {
-    return true;
-  }
-
-  return router.createUrlTree(['/login', role]);
-};
+import { Routes } from '@angular/router';
+import { roleCanActivate, roleCanMatch } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -34,22 +21,26 @@ export const routes: Routes = [
   },
   {
     path: 'site-manager',
-    canActivate: [requireRole('site')],
+    canMatch: [roleCanMatch('site')],
+    canActivate: [roleCanActivate('site')],
     loadComponent: () => import('./pages/site-manager/site-manager.component').then((m) => m.SiteManagerComponent),
   },
   {
     path: 'office-admin',
-    canActivate: [requireRole('office')],
+    canMatch: [roleCanMatch('office')],
+    canActivate: [roleCanActivate('office')],
     loadComponent: () => import('./pages/office-admin/office-admin.component').then((m) => m.OfficeAdminComponent),
   },
   {
     path: 'director',
-    canActivate: [requireRole('director')],
+    canMatch: [roleCanMatch('director')],
+    canActivate: [roleCanActivate('director')],
     loadComponent: () => import('./pages/director/director.component').then((m) => m.DirectorComponent),
   },
   {
     path: 'asset-register',
-    canActivate: [requireRole('office')],
+    canMatch: [roleCanMatch('office')],
+    canActivate: [roleCanActivate('office')],
     loadComponent: () => import('./pages/asset-register/asset-register.component').then((m) => m.AssetRegisterComponent),
   },
   {

@@ -21,6 +21,7 @@ export class LoginComponent {
   password = '';
   errorMsg = '';
   requestedRole = this.normalizeRole(this.route.snapshot.paramMap.get('role') ?? '');
+  redirectUrl = this.sanitizeRedirect(this.route.snapshot.queryParamMap.get('redirect'));
 
   handleLogin() {
     const role = this.requestedRole || this.inferRoleFromUsername(this.username);
@@ -38,7 +39,7 @@ export class LoginComponent {
     }
 
     this.errorMsg = '';
-    this.router.navigateByUrl(this.getRolePath(role));
+    this.router.navigateByUrl(this.redirectUrl || this.getRolePath(role));
   }
 
   useDemo(role: AppRole) {
@@ -67,5 +68,12 @@ export class LoginComponent {
     if (role === 'site') return '/site-manager';
     if (role === 'office') return '/office-admin';
     return '/director';
+  }
+
+  private sanitizeRedirect(redirect: string | null): string {
+    if (!redirect || !redirect.startsWith('/')) return '';
+    if (redirect.startsWith('//')) return '';
+    if (redirect.startsWith('/login')) return '';
+    return redirect;
   }
 }

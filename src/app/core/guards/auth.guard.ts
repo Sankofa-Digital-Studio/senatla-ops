@@ -6,15 +6,19 @@ import { AuthService } from '../services/auth.service';
 function hasAccess(expectedRole?: AppRole, segments: UrlSegment[] = []) {
   const auth = inject(AuthService);
   const router = inject(Router);
+  const requestedPath = '/' + segments.map((segment) => segment.path).join('/');
 
   if (!auth.isAuthenticated()) {
-    return router.createUrlTree(['/login'], {
-      queryParams: { redirect: '/' + segments.map((segment) => segment.path).join('/') },
+    return router.createUrlTree(expectedRole ? ['/login', expectedRole] : ['/login'], {
+      queryParams: { redirect: requestedPath || '/' },
     });
   }
 
   if (expectedRole && auth.role() !== expectedRole) {
-    return router.createUrlTree(['/landing']);
+    auth.logout();
+    return router.createUrlTree(['/login', expectedRole], {
+      queryParams: { redirect: requestedPath || '/' },
+    });
   }
 
   return true;

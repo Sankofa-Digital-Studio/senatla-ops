@@ -72,6 +72,8 @@ export interface AuthSession {
   username: string;
   role: AppRole;
   displayName: string;
+  issuedAt: string;
+  expiresAt: string;
 }
 
 export interface Issue {
