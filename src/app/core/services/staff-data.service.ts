@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
+import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import {
   AdminAuditEvent,
   Employee,
@@ -10,11 +10,12 @@ import {
   SafetyTalkRecord,
   FinancialType
 } from '../models/app.models';
+import { APP_STATE_GATEWAY, AppStateGateway, AppStateSnapshot } from '../gateways/app-state.gateway';
 
 @Injectable({ providedIn: 'root' })
 export class StaffDataService {
-  private readonly storageKey = 'senatla_ops_data';
-  private readonly legacyStorageKey = 'senatla_ops_data';
+  private readonly appStateGateway = inject<AppStateGateway>(APP_STATE_GATEWAY);
+  private readonly hydrated = signal(false);
 
   currentTime = signal<Date>(new Date());
   siteName = signal<string>('Senatla Shaft 1');
@@ -45,22 +46,31 @@ export class StaffDataService {
   readonly activeFinancialTypes = computed(() => this.financialTypes().filter((type) => type.isActive));
 
   constructor() {
-    this.loadFromStorage();
+    this.initializeDefaults();
+    void this.loadFromGateway();
 
     effect(() => {
-      this.saveToStorage();
+      if (!this.hydrated()) return;
+      void this.saveToGateway();
     });
   }
 
-  private loadFromStorage() {
-    const data = this.readStoredData();
-    if (!data) {
-      this.initializeDefaults();
-      return;
-    }
-
+  private async loadFromGateway() {
     try {
-      const parsed = JSON.parse(data);
+      const snapshot = await this.appStateGateway.loadState();
+      if (!snapshot) {
+        this.hydrated.set(true);
+        return;
+      }
+      this.applySnapshot(snapshot);
+      this.hydrated.set(true);
+    } catch {
+      this.initializeDefaults();
+      this.hydrated.set(true);
+    }
+  }
+
+  private applySnapshot(parsed: AppStateSnapshot) {
       this.siteName.set(this.cleanText(parsed.siteName) || 'Senatla Shaft 1');
       this.sites.set(Array.isArray(parsed.sites) ? parsed.sites.map((site: any) => this.normalizeSite(site)) : []);
       this.employeeState.set(
@@ -103,15 +113,10 @@ export class StaffDataService {
           this.currentSafetyTopic.set(talk?.topic || null);
         }
       }
-    } catch {
-      sessionStorage.removeItem(this.storageKey);
-      localStorage.removeItem(this.legacyStorageKey);
-      this.initializeDefaults();
-    }
   }
 
-  private saveToStorage() {
-    const data = {
+  private buildSnapshot(): AppStateSnapshot {
+    return {
       siteName: this.siteName(),
       sites: this.sites(),
       employees: this.employeeState(),
@@ -121,10 +126,13 @@ export class StaffDataService {
       adminAuditTrail: this.adminAuditTrail(),
       safetyTopics: this.safetyTopics(),
       syncHistory: this.syncHistory(),
-      lastSyncTime: this.lastSyncTime(),
+      lastSyncTime: this.lastSyncTime()?.toISOString() || null,
       safetyTalks: this.safetyTalks()
     };
-    sessionStorage.setItem(this.storageKey, JSON.stringify(data));
+  }
+
+  private async saveToGateway() {
+    await this.appStateGateway.saveState(this.buildSnapshot());
   }
 
   private initializeDefaults() {
@@ -425,17 +433,6 @@ export class StaffDataService {
       housingAllowance: housing,
       taxRefNumber: this.cleanText(employee.taxRefNumber) || undefined,
     };
-  }
-  private readStoredData(): string | null {
-    const sessionData = sessionStorage.getItem(this.storageKey);
-    if (sessionData) return sessionData;
-
-    const legacyData = localStorage.getItem(this.legacyStorageKey);
-    if (!legacyData) return null;
-
-    sessionStorage.setItem(this.storageKey, legacyData);
-    localStorage.removeItem(this.legacyStorageKey);
-    return legacyData;
   }
 }
 

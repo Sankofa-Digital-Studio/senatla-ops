@@ -23,7 +23,7 @@ export class LoginComponent {
   requestedRole = this.normalizeRole(this.route.snapshot.paramMap.get('role') ?? '');
   redirectUrl = this.sanitizeRedirect(this.route.snapshot.queryParamMap.get('redirect'));
 
-  handleLogin() {
+  async handleLogin() {
     const role = this.requestedRole || this.inferRoleFromUsername(this.username);
 
     if (!role) {
@@ -31,9 +31,9 @@ export class LoginComponent {
       return;
     }
 
-    const user = this.auth.login(this.username, this.password);
-    if (!user || user.role !== role) {
-      this.auth.logout();
+    const session = await this.auth.login(this.username, this.password);
+    if (!session || session.role !== role) {
+      await this.auth.logout();
       this.errorMsg = 'Invalid credentials for the selected role.';
       return;
     }

@@ -15,7 +15,7 @@ function hasAccess(expectedRole?: AppRole, segments: UrlSegment[] = []) {
   }
 
   if (expectedRole && auth.role() !== expectedRole) {
-    auth.logout();
+    void auth.logout();
     return router.createUrlTree(['/login', expectedRole], {
       queryParams: { redirect: requestedPath || '/' },
     });
