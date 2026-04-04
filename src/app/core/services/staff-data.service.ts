@@ -1,5 +1,6 @@
 import { Injectable, signal, computed, effect } from '@angular/core';
 import {
+  AdminAuditEvent,
   Employee,
   Group,
   SyncRecord,
@@ -35,6 +36,7 @@ export class StaffDataService {
   issues = signal<Issue[]>([]);
   groups = signal<Group[]>([]);
   financialTypes = signal<FinancialType[]>([]);
+  adminAuditTrail = signal<AdminAuditEvent[]>([]);
 
   private employeeState = signal<Employee[]>([]);
 
@@ -75,6 +77,14 @@ export class StaffDataService {
           : [],
       );
       this.financialTypes.set(parsed.financialTypes || []);
+      this.adminAuditTrail.set(
+        Array.isArray(parsed.adminAuditTrail)
+          ? parsed.adminAuditTrail.map((entry: any) => ({
+              ...entry,
+              occurredAt: new Date(entry.occurredAt),
+            }))
+          : [],
+      );
       this.safetyTopics.set(
         Array.isArray(parsed.safetyTopics)
           ? parsed.safetyTopics.map((topic: any) => this.cleanText(topic)).filter(Boolean)
@@ -108,6 +118,7 @@ export class StaffDataService {
       issues: this.issues(),
       groups: this.groups(),
       financialTypes: this.financialTypes(),
+      adminAuditTrail: this.adminAuditTrail(),
       safetyTopics: this.safetyTopics(),
       syncHistory: this.syncHistory(),
       lastSyncTime: this.lastSyncTime(),
@@ -198,6 +209,17 @@ export class StaffDataService {
     this.groups.update((current) => [...current, newGroup]);
   }
   assignGroup(empId: string, groupId: string | undefined) { this.employeeState.update((employees) => employees.map((employee) => employee.id === empId ? { ...employee, groupId } : employee)); }
+
+  recordAdminAudit(action: AdminAuditEvent['action'], details?: string) {
+    const entry: AdminAuditEvent = {
+      id: this.generateId(),
+      action,
+      occurredAt: new Date(this.currentTime()),
+      actor: 'Office Admin',
+      details: this.cleanText(details) || undefined,
+    };
+    this.adminAuditTrail.update((events) => [entry, ...events].slice(0, 25));
+  }
 
   resolveIssue(id: string, note: string) { this.updateIssueStatus(id, 'Resolved', note); }
   escalateIssue(id: string, note: string) { this.updateIssueStatus(id, 'Escalated', note); }

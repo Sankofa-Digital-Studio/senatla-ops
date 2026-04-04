@@ -39,6 +39,15 @@ export class OfficeAdminComponent  {
 
   // Helper method to set active tab safely with strict typing
   setActiveTab(id: TabId) {
+    if (id !== 'workforce' && id !== 'payroll' && this.showFullIdNumbers()) {
+      this.setSensitiveIdVisibility(false);
+    }
+    if (id !== 'payroll') {
+      this.showExportModal = false;
+      this.exportError = '';
+      this.exportConfirmationText = '';
+      this.exportFullIdNumbers = false;
+    }
     this.activeTab.set(id);
   }
 
@@ -264,6 +273,10 @@ sortBy = signal<'surname' | 'firstName'>('surname');
     a.download = `Senatla_Payroll_${this.months[this.selectedMonth]}_${this.selectedYear}_${sensitivitySuffix}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+    this.service.recordAdminAudit(
+      this.exportFullIdNumbers ? 'full_payroll_export' : 'masked_payroll_export',
+      `${this.months[this.selectedMonth]} ${this.selectedYear} payroll export`,
+    );
     this.showExportModal = false;
     this.exportError = '';
   }
@@ -389,6 +402,14 @@ sortBy = signal<'surname' | 'firstName'>('surname');
 
   getIdNumberDisplay(idNumber: string): string {
     return this.showFullIdNumbers() ? idNumber : this.service.maskIdNumber(idNumber);
+  }
+
+  setSensitiveIdVisibility(enabled: boolean) {
+    this.showFullIdNumbers.set(enabled);
+    this.service.recordAdminAudit(
+      enabled ? 'sensitive_ids_shown' : 'sensitive_ids_hidden',
+      enabled ? 'Full employee IDs revealed in admin UI' : 'Full employee IDs hidden in admin UI',
+    );
   }
 
   private createId(): string {

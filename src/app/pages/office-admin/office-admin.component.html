@@ -55,7 +55,7 @@
             </div>
             <div class="flex w-full md:w-auto flex-col md:flex-row gap-2">
                <label class="flex items-center gap-2 rounded border border-gray-700 bg-gray-800 px-3 py-2 text-[11px] uppercase tracking-wider text-gray-300">
-                  <input type="checkbox" [ngModel]="showFullIdNumbers()" (ngModelChange)="showFullIdNumbers.set($event)" class="accent-yellow-500">
+                  <input type="checkbox" [ngModel]="showFullIdNumbers()" (ngModelChange)="setSensitiveIdVisibility($event)" class="accent-yellow-500">
                   Show Full IDs
                </label>
                <button (click)="showEmpModal = true; isEditMode = false; resetEmpForm()" title="Add Employee"
@@ -65,6 +65,9 @@
          </div>
 
          <div class="bg-gray-800 rounded shadow-sm overflow-hidden border border-gray-700 overflow-x-auto">
+            <div *ngIf="showFullIdNumbers()" class="border-b border-orange-500/30 bg-orange-500/10 px-4 py-3 text-[11px] uppercase tracking-wider text-orange-200">
+               Sensitive mode enabled: full employee IDs are visible in this session.
+            </div>
             <table class="w-full text-left text-sm min-w-[600px]">
                <thead class="bg-gray-700 text-gray-400 uppercase text-xs border-b border-gray-600">
                   <tr>
@@ -154,6 +157,9 @@
 
          <!-- Timesheet View -->
          <div class="bg-gray-800 rounded shadow-sm overflow-hidden border border-gray-700 overflow-x-auto">
+            <div *ngIf="showFullIdNumbers()" class="border-b border-orange-500/30 bg-orange-500/10 px-4 py-3 text-[11px] uppercase tracking-wider text-orange-200">
+               Sensitive mode enabled: payroll rows are showing full employee IDs.
+            </div>
             <table class="w-full text-sm text-left min-w-[900px]">
                <thead class="bg-gray-700 text-gray-400 text-xs uppercase border-b border-gray-600">
                   <tr>
@@ -370,6 +376,30 @@
             <button (click)="exportCSV()" class="bg-yellow-500 text-black px-4 py-2 rounded font-bold">
                Export
             </button>
+         </div>
+
+         <div class="rounded-lg border border-gray-700 bg-gray-800 p-4">
+            <div class="flex items-center justify-between gap-3 border-b border-gray-700 pb-3">
+               <div>
+                  <h3 class="text-sm font-bold text-white uppercase tracking-wider">Privacy Audit Trail</h3>
+                  <p class="text-xs text-gray-400">Recent sensitive ID visibility changes and payroll exports for this session.</p>
+               </div>
+               <span class="rounded border border-gray-600 px-2 py-1 text-[10px] uppercase tracking-wider text-gray-400">
+                  {{ service.adminAuditTrail().length }} events
+               </span>
+            </div>
+            <div class="mt-3 space-y-2" *ngIf="service.adminAuditTrail().length; else noAuditEvents">
+               <div *ngFor="let event of service.adminAuditTrail().slice(0, 6)" class="rounded border border-gray-700 bg-gray-900 px-3 py-2">
+                  <div class="flex items-center justify-between gap-3 text-xs">
+                     <span class="font-bold text-white">{{ event.action }}</span>
+                     <span class="font-mono text-gray-500">{{ event.occurredAt | date:'short' }}</span>
+                  </div>
+                  <p class="mt-1 text-xs text-gray-400">{{ event.details || 'No details recorded.' }}</p>
+               </div>
+            </div>
+            <ng-template #noAuditEvents>
+               <p class="mt-3 text-xs text-gray-500">No privacy-sensitive admin actions recorded in this session.</p>
+            </ng-template>
          </div>
       </div>
    </div>

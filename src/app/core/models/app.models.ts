@@ -105,6 +105,18 @@ export interface FinancialType {
   isActive: boolean;
   isSystem?: boolean;
 }
+
+export interface AdminAuditEvent {
+  id: string;
+  action:
+    | 'sensitive_ids_shown'
+    | 'sensitive_ids_hidden'
+    | 'masked_payroll_export'
+    | 'full_payroll_export';
+  occurredAt: Date;
+  actor: string;
+  details?: string;
+}
 export interface VehicleAsset {
   id: string;
   registrationNumber?: string; // e.g. ABC 123 GP
