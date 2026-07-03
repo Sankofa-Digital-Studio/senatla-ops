@@ -15,14 +15,13 @@ service = inject(StaffDataService);
 
   // --- ANALYTICS LOGIC ---
 
-  // 1. Compliance Score
+  private readonly periodSyncs = computed(() => this.service.syncHistory().filter((entry) => this.isInSelectedPeriod(entry.syncTime)));
+
+  // 1. Compliance Score - persisted synchronization records only.
   complianceScore = computed(() => {
-    const history = this.service.syncHistory();
-    if (history.length === 0) return 100;
-    const onTime = history.filter(h => h.status === 'On Time').length;
-    // Simulate slight variance for demo realism
-    if (this.viewMode() === 'month') return 92; 
-    if (this.viewMode() === 'year') return 88;
+    const history = this.periodSyncs();
+    if (history.length === 0) return 0;
+    const onTime = history.filter((entry) => entry.status === 'On Time').length;
     return (onTime / history.length) * 100;
   });
 
@@ -47,23 +46,20 @@ service = inject(StaffDataService);
     }, 0);
   });
 
-  // Dynamic Cost Display
+  // Actual cost from recorded attendance. No synthetic multipliers.
   displayedCost = computed(() => {
-     const daily = this.actualDailyCost();
-     if (this.viewMode() === 'day') return daily;
-     if (this.viewMode() === 'month') return daily * 22; // Projected Month (22 shifts)
-     return daily * 264; // Projected Year (12 * 22 shifts)
+     return this.service.employees().reduce((total, employee) => total + Object.entries(employee.logs)
+       .filter(([dateKey, log]) => log.status === 'present' && this.isDateKeyInSelectedPeriod(dateKey))
+       .reduce((employeeTotal) => employeeTotal + employee.basicRate, 0), 0);
   });
 
   // 4. Per-Site Breakdown
   siteStats = computed(() => {
      return this.service.sites().map(site => {
         const staff = this.service.employees().filter(e => e.siteId === site.id);
-        const dailyCost = staff.reduce((acc, e) => acc + e.basicRate, 0); // Potential daily burn
-        
-        let displayCost = dailyCost;
-        if (this.viewMode() === 'month') displayCost *= 22;
-        if (this.viewMode() === 'year') displayCost *= 264;
+        const displayCost = staff.reduce((total, employee) => total + Object.entries(employee.logs)
+          .filter(([dateKey, log]) => log.status === 'present' && this.isDateKeyInSelectedPeriod(dateKey))
+          .reduce((employeeTotal) => employeeTotal + employee.basicRate, 0), 0);
 
         return {
            name: site.name,
@@ -78,14 +74,31 @@ service = inject(StaffDataService);
   recentSyncs = computed(() => this.service.syncHistory().slice(0, 5));
   highestRiskSync = computed(() => this.service.syncHistory().find((entry) => entry.status !== 'On Time') || null);
 
-  // 6. Simulated Trend Data (for Graph)
+  // 6. Persisted attendance cost trend.
   trendData = computed(() => {
-     if (this.viewMode() === 'year') {
-        return [45, 50, 48, 52, 55, 58, 54, 60, 62, 59, 65, 70]; // Monthly growth
-     } else {
-        return [10, 40, 30, 50, 40, 60, 50, 70, 60, 80, 70, 90, 80, 100]; // Daily fluctuations
+     const totals = new Map<string, number>();
+     for (const employee of this.service.employees()) {
+       for (const [dateKey, log] of Object.entries(employee.logs)) {
+         if (log.status !== 'present' || !this.isDateKeyInSelectedPeriod(dateKey)) continue;
+         const bucket = this.viewMode() === 'year' ? dateKey.slice(0, 7) : dateKey;
+         totals.set(bucket, (totals.get(bucket) || 0) + employee.basicRate);
+       }
      }
+     const entries = [...totals.entries()].sort(([left], [right]) => left.localeCompare(right));
+     const max = Math.max(0, ...entries.map(([, value]) => value));
+     return entries.map(([label, value]) => ({ label, value, ratio: max ? (value / max) * 100 : 0 }));
   });
+
+  private isInSelectedPeriod(value: Date) {
+    return this.isDateKeyInSelectedPeriod(this.toDateKey(new Date(value)));
+  }
+
+  private isDateKeyInSelectedPeriod(dateKey: string) {
+    const currentKey = this.toDateKey(this.service.currentTime());
+    if (this.viewMode() === 'day') return dateKey === currentKey;
+    if (this.viewMode() === 'month') return dateKey.startsWith(currentKey.slice(0, 7));
+    return dateKey.startsWith(currentKey.slice(0, 4));
+  }
 
   private toDateKey(value: Date): string {
     const year = value.getFullYear();

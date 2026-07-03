@@ -8,8 +8,6 @@ export interface AppStateSnapshot {
   issues: Issue[];
   groups: Group[];
   financialTypes: FinancialType[];
-  adminAuditTrail: AdminAuditEvent[];
-  attendanceAuditTrail: AttendanceAuditEvent[];
   safetyTopics: string[];
   syncHistory: SyncRecord[];
   lastSyncTime: string | null;
@@ -19,6 +17,10 @@ export interface AppStateSnapshot {
 export interface AppStateGateway {
   loadState(): Promise<AppStateSnapshot | null>;
   saveState(snapshot: AppStateSnapshot): Promise<void>;
+  loadAdminAuditTrail(): Promise<AdminAuditEvent[]>;
+  loadAttendanceAuditTrail(): Promise<AttendanceAuditEvent[]>;
+  appendAdminAuditEvent(event: AdminAuditEvent): Promise<void>;
+  appendAttendanceAuditEvent(event: AttendanceAuditEvent): Promise<void>;
 }
 
 export const APP_STATE_GATEWAY = new InjectionToken<AppStateGateway>('APP_STATE_GATEWAY');

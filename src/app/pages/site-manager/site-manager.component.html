@@ -3,7 +3,9 @@
   <header class="bg-gray-800 p-4 sticky top-0 z-20 shadow-md border-b border-gray-700">
     <div class="flex justify-between items-start mb-4">
       <div class="flex-1">
-        <label class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Site Name</label>
+        <p class="text-[10px] font-bold uppercase tracking-wider text-yellow-500">Site Manager</p>
+        <h1 class="mt-1 text-lg font-bold">Timesheet Register</h1>
+        <label class="mt-2 block text-[10px] text-gray-400 uppercase font-bold tracking-wider">Current site</label>
         <input [(ngModel)]="localSiteName" (blur)="updateSiteName()" class="bg-transparent border-b border-gray-600 w-full text-lg font-bold focus:border-yellow-500 outline-none text-white placeholder-gray-600" placeholder="Enter Site Name">
       </div>
 
@@ -31,6 +33,9 @@
     <div *ngIf="service.timeStatus() === 'warning_1'" class="bg-yellow-900/50 border border-yellow-600 text-yellow-500 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2">Reminder: daily sync required by 17:00.</div>
     <div *ngIf="service.timeStatus() === 'warning_2'" class="bg-red-900/50 border border-red-600 text-red-500 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2 animate-pulse">Urgent: sync immediately. Blocking in 5 minutes.</div>
     <div *ngIf="service.timeStatus() === 'blocked'" class="bg-gray-800 border border-red-500 text-red-400 text-xs p-2 rounded mb-2 font-bold flex items-center gap-2">System locked: missed deadline. Reopens 06:00.</div>
+    <div *ngIf="service.auditPersistenceError() as auditError" class="mb-2 rounded border border-red-500 bg-red-950 px-3 py-2 text-xs text-red-200">
+      Audit write failed: {{ auditError }} Changes remain visible locally but are not release evidence until the write succeeds.
+    </div>
     <div *ngIf="service.unsyncedChanges()" class="bg-slate-900 border border-slate-700 text-slate-300 text-xs p-3 rounded mb-2">
       Pending sync summary:
       Present {{ service.pendingAttendanceSummary().present }},
@@ -38,6 +43,29 @@
       Pending {{ service.pendingAttendanceSummary().pending }},
       Flagged {{ service.pendingAttendanceSummary().flagged }},
       Evidence {{ service.pendingAttendanceSummary().evidenceCount }}.
+    </div>
+
+    <div class="mb-2 rounded-xl border border-slate-700 bg-slate-950 p-3">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 class="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-400">Recent Audit Evidence</h2>
+          <p class="mt-1 text-xs text-slate-500">Normalized attendance events read from the immutable audit tables.</p>
+        </div>
+        <span class="text-[10px] uppercase tracking-wider text-slate-500">Latest {{ recentAttendanceAudit().length }}</span>
+      </div>
+      <div class="mt-3 space-y-2">
+        <div *ngFor="let event of recentAttendanceAudit()" class="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-white">{{ event.action }}</p>
+              <p class="text-xs text-slate-400">{{ event.actor }} · {{ event.employeeName || 'Site event' }}</p>
+              <p *ngIf="event.details" class="mt-1 text-xs text-slate-300">{{ event.details }}</p>
+            </div>
+            <span class="text-[11px] uppercase tracking-wider text-slate-500">{{ event.occurredAt | date:'short' }}</span>
+          </div>
+        </div>
+        <p *ngIf="!recentAttendanceAudit().length" class="text-xs text-slate-500">No immutable attendance audit events yet.</p>
+      </div>
     </div>
 
     <div class="flex justify-between items-center mb-2 bg-gray-900 p-2 rounded border border-gray-700">
@@ -51,112 +79,28 @@
     </div>
 
     <div class="flex gap-2">
-      <input [(ngModel)]="searchTerm" placeholder="Search..." class="flex-1 bg-gray-900 text-xs text-white p-2 rounded border border-gray-700 focus:border-yellow-500 outline-none">
+      <input [(ngModel)]="searchTerm" placeholder="Search employee" class="flex-1 bg-gray-900 text-xs text-white p-2 rounded border border-gray-700 focus:border-yellow-500 outline-none">
       <select title="filter_group" [(ngModel)]="filterGroup" class="bg-gray-900 text-xs text-white p-2 rounded border border-gray-700 outline-none max-w-[100px]">
         <option [ngValue]="null">All Groups</option>
         <option *ngFor="let g of service.groups()" [ngValue]="g.id">{{ g.name }}</option>
       </select>
-      <button (click)="showGroupModal = true" class="bg-yellow-500 text-black px-3 rounded font-bold text-lg">+</button>
     </div>
 
-    <div class="mt-3 grid gap-3 md:grid-cols-2">
-      <div class="rounded border border-gray-700 bg-gray-900 p-3">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Latest Sync Record</p>
-        <ng-container *ngIf="latestSyncRecord() as latestSync; else noSyncRecord">
-          <p class="mt-2 text-xs font-bold text-white">{{ latestSync.status }} sync by {{ latestSync.actor || 'Unknown actor' }}</p>
-          <p class="mt-1 text-[11px] text-gray-400">{{ latestSync.syncTime | date:'medium' }}</p>
-          <p class="mt-2 text-[11px] text-gray-300">
-            Present {{ latestSync.attendanceSummary?.present || 0 }},
-            Absent {{ latestSync.attendanceSummary?.absent || 0 }},
-            Pending {{ latestSync.attendanceSummary?.pending || 0 }},
-            Evidence {{ latestSync.attendanceSummary?.evidenceCount || 0 }}
-          </p>
-        </ng-container>
-        <ng-template #noSyncRecord>
-          <p class="mt-2 text-[11px] text-gray-500">No sync record captured in this session yet.</p>
-        </ng-template>
-      </div>
-
-      <div class="rounded border border-gray-700 bg-gray-900 p-3">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-500">Recent Attendance Audit</p>
-        <div class="mt-2 space-y-2" *ngIf="recentAttendanceAudit().length; else noAuditTrail">
-          <div *ngFor="let event of recentAttendanceAudit()" class="rounded border border-gray-800 bg-gray-950 px-3 py-2">
-            <p class="text-[11px] font-bold text-white">{{ event.action }}</p>
-            <p class="mt-1 text-[11px] text-gray-400">{{ event.occurredAt | date:'short' }} by {{ event.actor }}</p>
-            <p *ngIf="event.details" class="mt-1 text-[11px] text-gray-300">{{ event.details }}</p>
-          </div>
-        </div>
-        <ng-template #noAuditTrail>
-          <p class="mt-2 text-[11px] text-gray-500">No attendance audit events recorded yet.</p>
-        </ng-template>
-      </div>
-    </div>
+    <app-timesheet-summary class="mt-3 block" [summary]="registerSummary()" [compact]="true"></app-timesheet-summary>
   </header>
 
   <div class="flex-1 overflow-y-auto p-4 space-y-3 pb-24" [class.opacity-50]="service.timeStatus() === 'blocked'" [class.pointer-events-none]="service.timeStatus() === 'blocked'">
-    <div *ngFor="let emp of filteredEmployees()"
-         class="bg-gray-800 p-4 rounded-lg shadow-sm border-l-4 transition-all touch-manipulation relative border-gray-700"
-         [class.border-l-green-500]="getLog(emp).status === 'present'"
-         [class.border-l-red-500]="getLog(emp).status === 'absent'"
-         [class.border-l-gray-600]="getLog(emp).status === 'pending'">
-
-      <div *ngIf="getLog(emp).isFlagged" class="absolute top-2 right-2 text-[10px] bg-orange-900/50 text-orange-400 px-2 py-0.5 rounded border border-orange-700">
-        Flagged
-      </div>
-
-      <div class="flex justify-between items-start mb-3 mt-2">
-        <div (click)="toggleGroupSelect(emp)">
-          <h3 class="font-bold text-white text-sm">{{ emp.firstName }} {{ emp.surname }}</h3>
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] text-gray-400 uppercase tracking-wider bg-gray-900 px-1 rounded">{{ emp.role }}</span>
-            <span *ngIf="emp.groupId" class="text-[10px] text-blue-400 bg-blue-900/30 px-1 rounded font-bold">{{ getGroupName(emp.groupId) }}</span>
-          </div>
-        </div>
-
-        <button (click)="handleAttendanceToggle(emp)"
-                [disabled]="isFuture || service.timeStatus() === 'blocked'"
-                class="px-4 py-2 rounded text-xs font-bold uppercase transition-all shadow-sm"
-                [class.bg-green-900]="getLog(emp).status === 'present'" [class.text-green-400]="getLog(emp).status === 'present'"
-                [class.bg-red-900]="getLog(emp).status === 'absent'" [class.text-red-400]="getLog(emp).status === 'absent'"
-                [class.bg-gray-700]="getLog(emp).status === 'pending'" [class.text-gray-400]="getLog(emp).status === 'pending'">
-          {{ getLog(emp).status === 'pending' ? 'Mark' : getLog(emp).status }}
-        </button>
-      </div>
-
-      <div *ngIf="getLog(emp).evidence?.capturedAt" class="mb-3 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[10px] text-emerald-200">
-        Verified at {{ getLog(emp).evidence?.capturedAt | date:'shortTime' }}
-        <span *ngIf="getLog(emp).evidence?.location"> | GPS attached</span>
-      </div>
-
-      <div *ngIf="getLog(emp).status !== 'pending'" class="pt-3 border-t border-gray-700">
-        <div *ngIf="getLog(emp).status === 'absent'" class="mb-3">
-          <p class="text-[10px] uppercase text-gray-500 font-bold mb-1">Reason</p>
-          <div class="flex flex-wrap gap-2">
-            <button *ngFor="let r of reasonsList"
-                    (click)="service.updateReason(emp.id, selectedDateStr, r)"
-                    [disabled]="isFuture || service.timeStatus() === 'blocked'"
-                    class="flex-1 min-w-[60px] py-1 text-[10px] border border-gray-600 rounded transition-colors whitespace-nowrap"
-                    [class.bg-gray-700]="getLog(emp).reason === r"
-                    [class.text-white]="getLog(emp).reason === r"
-                    [class.bg-transparent]="getLog(emp).reason !== r">
-              {{ r }}
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <p class="text-[10px] uppercase text-gray-500 font-bold mb-1">Daily Comment</p>
-          <div class="flex gap-2">
-            <input type="text"
-                   [ngModel]="getLog(emp).comment"
-                   (change)="updateComment(emp.id, $event)"
-                   [disabled]="isFuture || service.timeStatus() === 'blocked'"
-                   placeholder="Add note..."
-                   class="w-full text-xs border-b border-gray-700 focus:border-yellow-500 outline-none py-1 bg-transparent text-white">
-          </div>
-        </div>
-      </div>
-    </div>
+    <app-attendance-row
+      *ngFor="let emp of filteredEmployees()"
+      [employee]="emp"
+      [log]="getLog(emp)"
+      [groupName]="emp.groupId ? getGroupName(emp.groupId) : ''"
+      [disabled]="isFuture || service.timeStatus() === 'blocked'"
+      [reasons]="reasonsList"
+      (statusChange)="onAttendanceStatusChange($event)"
+      (reasonChange)="onAttendanceReasonChange($event)"
+      (commentChange)="onAttendanceCommentChange($event)"
+    ></app-attendance-row>
   </div>
 
   <div class="bg-gray-900 border-t border-gray-700 p-4 pb-8 z-30">

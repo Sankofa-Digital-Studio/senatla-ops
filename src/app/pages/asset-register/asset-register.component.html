@@ -1,129 +1,175 @@
-<div class="h-full bg-gray-900 text-white flex flex-col font-sans">
-  <div class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-md">
+<div class="asset-control">
+  <header class="command-header">
     <div>
-      <h1 class="text-xl font-bold text-white">Asset Register</h1>
-      <p class="text-xs text-gray-400">Fleet management, scan intake, and compliance tracking</p>
+      <h1>Asset Control</h1>
+      <p>Senatla Trading · one verified record from field assignment to retirement</p>
     </div>
-    <div class="flex items-center gap-3 text-xs">
-      <div class="bg-gray-900 border border-gray-700 rounded px-3 py-2">
-        <span class="text-gray-500 uppercase tracking-wider">Total</span>
-        <div class="text-lg font-bold text-white">{{ totalVehicles() }}</div>
-      </div>
-      <div class="bg-gray-900 border border-gray-700 rounded px-3 py-2">
-        <span class="text-gray-500 uppercase tracking-wider">Active</span>
-        <div class="text-lg font-bold text-green-400">{{ activeVehicles() }}</div>
-      </div>
-      <div class="bg-gray-900 border border-gray-700 rounded px-3 py-2">
-        <span class="text-gray-500 uppercase tracking-wider">Expired</span>
-        <div class="text-lg font-bold text-red-400">{{ expiredVehicles() }}</div>
-      </div>
-      <button (click)="openScanModal()" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold flex items-center gap-2 hover:bg-blue-500 transition-colors">
-        Add Asset
+    <div class="header-actions">
+      <button type="button" class="button button-secondary" (click)="overlayMode.set('import')">
+        <span aria-hidden="true">⇧</span> Import CSV
+      </button>
+      <button type="button" class="button button-primary" (click)="openRegister()">
+        <span aria-hidden="true">＋</span> Register asset
       </button>
     </div>
-  </div>
+  </header>
 
-  <div class="flex-1 overflow-y-auto p-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div *ngFor="let vehicle of vehicles()" class="bg-gray-800 p-4 rounded-xl border border-gray-700 hover:border-gray-500 transition-colors">
-        <div class="flex justify-between items-start mb-2">
-          <span class="text-2xl">{{ getIcon(vehicle.type) }}</span>
-          <span class="px-2 py-1 rounded text-[10px] font-bold uppercase"
-            [class.bg-green-900]="vehicle.status === 'Active'"
-            [class.text-green-400]="vehicle.status === 'Active'"
-            [class.bg-yellow-900]="vehicle.status === 'Maintenance'"
-            [class.text-yellow-400]="vehicle.status === 'Maintenance'"
-            [class.bg-red-900]="vehicle.status === 'Expired'"
-            [class.text-red-400]="vehicle.status === 'Expired'">
-            {{ vehicle.status }}
-          </span>
-        </div>
-        <h3 class="font-bold text-lg text-white">{{ vehicle.registrationNumber }}</h3>
-        <p class="text-xs text-gray-400 mb-4">{{ vehicle.make }} {{ vehicle.model }}</p>
+  <nav class="workspace-tabs" aria-label="Asset workspaces">
+    <button type="button" [class.active]="activeWorkspace() === 'engineering'" (click)="switchWorkspace('engineering')">
+      <span class="workspace-icon" aria-hidden="true">▰</span>
+      <span><strong>Engineering Equipment</strong><small>Heavy machinery, yellow metal and attachments</small></span>
+    </button>
+    <button type="button" [class.active]="activeWorkspace() === 'fleet'" (click)="switchWorkspace('fleet')">
+      <span class="workspace-icon" aria-hidden="true">▱</span>
+      <span><strong>Fleet &amp; General Equipment</strong><small>Vehicles and small-to-medium equipment</small></span>
+    </button>
+  </nav>
 
-        <div class="text-xs text-gray-500 bg-gray-900 p-2 rounded border border-gray-700">
-          <div class="flex justify-between mb-1"><span>VIN:</span> <span class="font-mono text-gray-300">{{ vehicle.vin }}</span></div>
-          <div class="flex justify-between"><span>Expiry:</span> <span class="font-mono" [class.text-red-400]="isExpired(vehicle.licenseExpiry)">{{ vehicle.licenseExpiry }}</span></div>
-        </div>
+  <main class="control-body">
+    <section class="context-strip">
+      <div>
+        <h2>{{ activeWorkspace() === 'engineering' ? 'Is every machine safe and ready for the next shift?' : 'Can every vehicle and portable asset be located, assigned and used legally?' }}</h2>
+        <p>{{ activeWorkspace() === 'engineering' ? 'Readiness joins meter hours, defects, work orders and return-to-service approval.' : 'Control custody, road compliance, service status and equipment availability in one register.' }}</p>
       </div>
-    </div>
-  </div>
+      <span class="ownership-mark">Owned by Senatla Trading</span>
+    </section>
 
-  <div *ngIf="showScanModal" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-    <div class="bg-gray-800 rounded-xl w-full max-w-lg shadow-2xl border border-gray-700 overflow-hidden flex flex-col max-h-[90vh]">
-      <div class="bg-gray-900 p-4 border-b border-gray-700 flex justify-between items-center">
-        <h3 class="font-bold text-white">Add New Asset</h3>
-        <button (click)="showScanModal = false" class="text-gray-400 hover:text-white">Close</button>
+    <section class="draft-queue" *ngIf="registration.activeDrafts().length">
+      <div><strong>Registrations in progress</strong><span>Resume incomplete records without losing ownership or evidence.</span></div>
+      <div class="draft-list">
+        <button type="button" *ngFor="let draft of registration.activeDrafts().slice(0, 4)" (click)="resumeDraft(draft)">
+          <span>{{ draft.asset.registrationNumber || draft.asset.vin || draft.asset.serialNumber || draft.asset.make || 'New asset' }}</span>
+          <small>{{ registrationStateLabel(draft.state) }} / {{ draft.ownerName }}</small>
+        </button>
       </div>
+    </section>
 
-      <div class="p-6 overflow-y-auto">
-        <div *ngIf="saveError" class="mb-4 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-          {{ saveError }}
+    <section class="metric-row" aria-label="Workspace summary">
+      <button type="button" class="metric" [class.selected]="readinessFilter() === 'all'" (click)="updateReadinessFilter('all')">
+        <span class="metric-symbol neutral" aria-hidden="true">◇</span><span><small>Total assets</small><strong>{{ workspaceAssets().length }}</strong></span>
+      </button>
+      <button type="button" class="metric" [class.selected]="readinessFilter() === 'ready'" (click)="updateReadinessFilter('ready')">
+        <span class="metric-symbol ready" aria-hidden="true">✓</span><span><small>Ready</small><strong>{{ readyCount() }}</strong></span>
+      </button>
+      <button type="button" class="metric" [class.selected]="readinessFilter() === 'attention'" (click)="updateReadinessFilter('attention')">
+        <span class="metric-symbol attention" aria-hidden="true">!</span><span><small>Needs attention</small><strong>{{ attentionCount() }}</strong></span>
+      </button>
+      <button type="button" class="metric" [class.selected]="readinessFilter() === 'blocked'" (click)="updateReadinessFilter('blocked')">
+        <span class="metric-symbol blocked" aria-hidden="true">−</span><span><small>Out of service</small><strong>{{ blockedCount() }}</strong></span>
+      </button>
+    </section>
+
+    <section class="register-workspace">
+      <aside class="filter-rail">
+        <div class="rail-heading"><h2>Filters</h2><button type="button" (click)="clearFilters()">Clear all</button></div>
+        <label>Search
+          <span class="search-control"><input [ngModel]="searchTerm()" (ngModelChange)="updateSearch($event)" placeholder="Identifier, asset, custodian"><span aria-hidden="true">⌕</span></span>
+        </label>
+        <label>Lifecycle
+          <select [ngModel]="lifecycleFilter()" (ngModelChange)="updateLifecycleFilter($event)">
+            <option value="all">All lifecycle states</option><option value="active">Active</option><option value="maintenance">Maintenance</option><option value="retired">Retired</option><option value="disposed">Disposed</option>
+          </select>
+        </label>
+        <label>Readiness
+          <select [ngModel]="readinessFilter()" (ngModelChange)="updateReadinessFilter($event)">
+            <option value="all">All readiness states</option><option value="ready">Ready</option><option value="attention">Needs attention</option><option value="blocked">Out of service</option>
+          </select>
+        </label>
+        <label>Site / location
+          <select [ngModel]="siteFilter()" (ngModelChange)="updateSiteFilter($event)">
+            <option value="all">All locations</option><option *ngFor="let site of service.activeSites()" [value]="site.id">{{ site.name }}</option>
+          </select>
+        </label>
+        <div class="identity-note"><strong>Identity rule</strong><p>At least one serial number, VIN or number plate is required. Every supplied identifier is unique.</p></div>
+      </aside>
+
+      <div class="asset-list-panel">
+        <div class="list-toolbar">
+          <div><strong>{{ filteredAssets().length }}</strong> assets in this view</div>
+          <div class="legend"><span><i class="dot ready-dot"></i> Ready</span><span><i class="dot attention-dot"></i> Attention</span><span><i class="dot blocked-dot"></i> Blocked</span></div>
         </div>
 
-        <div *ngIf="!isFormPopulated" class="flex flex-col items-center justify-center space-y-6 py-8">
-          <div class="w-64 h-40 border-2 border-dashed border-blue-500 bg-gray-900 rounded-lg flex items-center justify-center relative overflow-hidden group cursor-pointer" (click)="simulateScan()">
-            <div class="absolute top-0 left-0 w-full h-1 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-scan"></div>
-            <div class="text-center">
-              <span class="text-4xl block mb-2">Scan</span>
-              <p class="text-xs text-blue-400 font-bold uppercase">Tap to scan license disk</p>
-              <p class="text-[10px] text-gray-500 mt-1">Align barcode within frame</p>
-            </div>
+        <div class="asset-table" role="table" aria-label="Asset register">
+          <div class="asset-table-head" role="row">
+            <span>Asset</span><span>Identifier</span><span>Location</span><span>Readiness</span><span>{{ activeWorkspace() === 'engineering' ? 'Latest meter' : 'Custodian' }}</span>
           </div>
-          <p class="text-xs text-gray-500 text-center max-w-xs">Simulated intake is enabled in this build. The form is still validated before save.</p>
-          <button (click)="manualEntry()" class="text-xs text-gray-400 underline hover:text-white">Enter manually</button>
+          <button type="button" class="asset-row" *ngFor="let asset of pagedAssets()" [class.active]="selectedAssetEffectiveId() === asset.id" (click)="selectAsset(asset)" role="row">
+            <span class="asset-name"><strong>{{ asset.make }} {{ asset.model }}</strong><small>{{ asset.assetClass || asset.type }}</small></span>
+            <span class="identifier"><strong>{{ assetIdentifier(asset) }}</strong><small>{{ asset.type }}</small></span>
+            <span><strong>{{ service.getSiteName(asset.assignedSiteId || '') || 'Unassigned' }}</strong><small>{{ asset.lifecycleState || 'active' }}</small></span>
+            <span class="readiness" [attr.data-state]="assetReadiness(asset)"><i class="dot"></i>{{ readinessLabel(asset) }}</span>
+            <span><strong>{{ activeWorkspace() === 'engineering' ? meterLabel(latestMeterForTemplate(asset.id)) : (asset.custodianName || 'Unassigned') }}</strong><small>{{ activeWorkspace() === 'engineering' ? 'Recorded meter' : 'Current custody' }}</small></span>
+          </button>
+          <div *ngIf="!filteredAssets().length" class="empty-register"><strong>No assets match this view</strong><p>Clear the filters or register the first asset for this workspace.</p></div>
         </div>
 
-        <div *ngIf="isFormPopulated" class="space-y-4 animate-fade-in">
-          <div class="bg-blue-900/20 border border-blue-800 p-3 rounded text-blue-300 text-xs flex items-center gap-2 mb-4">
-            Auto-filled data can still be edited before saving.
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Registration No.</label>
-              <input [(ngModel)]="tempVehicle.registrationNumber" class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded focus:border-blue-500 outline-none font-bold">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">License Expiry</label>
-              <input type="date" [(ngModel)]="tempVehicle.licenseExpiry" class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded focus:border-blue-500 outline-none">
-            </div>
-            <div class="col-span-2">
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">VIN / Chassis No.</label>
-              <input [(ngModel)]="tempVehicle.vin" class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded focus:border-blue-500 outline-none font-mono">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Make</label>
-              <input [(ngModel)]="tempVehicle.make" class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded focus:border-blue-500 outline-none">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Model</label>
-              <input [(ngModel)]="tempVehicle.model" class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded focus:border-blue-500 outline-none">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Vehicle Type</label>
-              <select [(ngModel)]="tempVehicle.type" class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded focus:border-blue-500 outline-none">
-                <option value="Heavy Duty">Heavy Duty</option>
-                <option value="Light Vehicle">Light Vehicle</option>
-                <option value="Yellow Metal">Yellow Metal</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Status</label>
-              <select [(ngModel)]="tempVehicle.status" class="w-full bg-gray-900 border border-gray-600 text-white p-2 rounded focus:border-blue-500 outline-none">
-                <option value="Active">Active</option>
-                <option value="Maintenance">Maintenance</option>
-                <option value="Expired">Expired</option>
-              </select>
-            </div>
-          </div>
+        <div class="pagination" *ngIf="filteredAssets().length">
+          <span>Page {{ page() }} of {{ totalPages() }}</span>
+          <div><button type="button" (click)="page.set(page() - 1)" [disabled]="page() === 1" aria-label="Previous page">←</button><button type="button" (click)="page.set(page() + 1)" [disabled]="page() === totalPages()" aria-label="Next page">→</button></div>
         </div>
       </div>
 
-      <div class="p-4 bg-gray-900 border-t border-gray-700 flex justify-end gap-3" *ngIf="isFormPopulated">
-        <button (click)="isFormPopulated = false" class="text-gray-400 font-bold text-sm hover:text-white px-4">Rescan</button>
-        <button (click)="saveVehicle()" class="bg-blue-600 text-white px-6 py-2 rounded font-bold text-sm hover:bg-blue-500 shadow-lg">Save Asset</button>
+      <aside class="asset-inspector" *ngIf="selectedAsset() as asset; else noSelection">
+        <div class="inspector-title">
+          <div><h2>{{ asset.make }} {{ asset.model }}</h2><p>{{ asset.assetClass || asset.type }} · {{ assetIdentifier(asset) }}</p></div>
+          <span class="service-status" [class.offline]="assetReadiness(asset) === 'blocked'"><i></i>{{ assetReadiness(asset) === 'blocked' ? 'Out of service' : 'In service' }}</span>
+        </div>
+        <div class="readiness-callout" [attr.data-state]="assetReadiness(asset)">
+          <span><small>Operational readiness</small><strong><i class="dot"></i>{{ readinessLabel(asset) }}</strong></span>
+          <button type="button" (click)="manageOpen.set(true)">Review</button>
+        </div>
+        <dl class="detail-grid">
+          <div><dt>Location</dt><dd>{{ service.getSiteName(asset.assignedSiteId || '') || 'Unassigned' }}</dd></div>
+          <div><dt>Custodian</dt><dd>{{ asset.custodianName || 'Unassigned' }}</dd></div>
+          <div><dt>Asset class</dt><dd>{{ asset.assetClass || asset.type }}</dd></div>
+          <div><dt>Make / model</dt><dd>{{ asset.make }} {{ asset.model }}</dd></div>
+        </dl>
+        <div class="identifier-block"><small>Verified identifiers</small><p>{{ assetIdentifierDetails(asset) }}</p></div>
+        <div class="operational-fact">
+          <span class="fact-icon">◷</span><span><small>{{ activeWorkspace() === 'engineering' ? 'Latest meter' : 'Licence / compliance date' }}</small><strong>{{ activeWorkspace() === 'engineering' ? meterLabel(selectedLatestMeter()) : (asset.licenseExpiry || 'Not recorded') }}</strong></span>
+        </div>
+        <div class="operational-fact">
+          <span class="fact-icon">◈</span><span><small>Compliance</small><strong>{{ complianceLabel(asset.id) }}</strong></span>
+        </div>
+        <div class="operational-fact">
+          <span class="fact-icon">⌁</span><span><small>Open work orders</small><strong>{{ selectedWorkOrders().length ? selectedWorkOrders().length + ' require action' : 'None open' }}</strong></span>
+        </div>
+        <button type="button" class="button button-primary manage-button" (click)="manageOpen.set(!manageOpen())">{{ manageOpen() ? 'Close operations' : 'Manage asset' }}</button>
+        <div class="inspector-links"><button type="button" (click)="openEditor(asset)">Edit record</button><button type="button" *ngIf="(asset.lifecycleState || 'active') !== 'retired'" (click)="retireAsset(asset)">Retire asset</button></div>
+      </aside>
+      <ng-template #noSelection><aside class="asset-inspector no-selection"><strong>No asset selected</strong><p>Choose an asset to inspect its full operational record.</p></aside></ng-template>
+    </section>
+
+    <section class="operations-drawer" *ngIf="manageOpen() && selectedAsset()">
+      <div class="operations-heading"><div><h2>Lifecycle operations</h2><p>Record the event once. Custody, compliance, meter and maintenance histories remain attached to the same asset dossier.</p></div><button type="button" (click)="manageOpen.set(false)" aria-label="Close operations">×</button></div>
+      <app-asset-operations [assetId]="selectedAssetEffectiveId()"></app-asset-operations>
+    </section>
+  </main>
+
+  <div class="overlay" *ngIf="overlayMode()" (click)="overlayMode.set(null)">
+    <section class="overlay-panel" (click)="$event.stopPropagation()">
+      <div class="overlay-heading"><div><h2>{{ overlayMode() === 'register' ? (assetForm.id ? 'Edit asset record' : 'Register asset') : 'Controlled CSV import' }}</h2><p>{{ overlayMode() === 'register' ? 'The record is owned by Senatla Trading and available to authorised operational roles.' : 'A dry run checks identifiers and reports conflicts before anything is written.' }}</p></div><button type="button" (click)="overlayMode.set(null)" aria-label="Close">×</button></div>
+      <app-asset-registration-workspace
+        *ngIf="overlayMode() === 'register'"
+        [asset]="assetForm"
+        [sites]="service.activeSites()"
+        [draft]="activeDraft()"
+        [evidence]="activeEvidence()"
+        [reminders]="registration.reminderMilestones(assetForm).slice(0, 10)"
+        [busy]="registrationBusy()"
+        [message]="registrationMessage()"
+        [error]="saveError()"
+        (draftSaveRequested)="saveRegistrationDraft()"
+        (captureRequested)="captureEvidence($event)"
+        (fileSelected)="uploadEvidence($event)"
+        (extractionRequested)="applyExtraction($event)"
+        (completionRequested)="saveAsset()"
+      ></app-asset-registration-workspace>
+      <div *ngIf="overlayMode() === 'import'" class="import-panel">
+        <label class="file-drop"><strong>Choose a CSV asset register</strong><span>Required: make, model and at least one serial number, VIN or number plate</span><input type="file" accept=".csv,text/csv" (change)="previewImport($event)"></label>
+        <div *ngIf="importMessage()" class="import-message">{{ importMessage() }}</div>
+        <div *ngIf="importPreview() as preview" class="import-result"><p><strong>{{ preview.totalRows }}</strong> rows checked · <span>{{ preview.validAssets.length }} valid</span> · <em>{{ preview.conflicts.length }} conflicts</em></p><ul *ngIf="preview.conflicts.length"><li *ngFor="let conflict of preview.conflicts">Row {{ conflict.rowNumber }}: {{ conflict.identifier || 'No identifier' }} — {{ conflict.reason }}</li></ul><button type="button" class="button button-primary" (click)="commitImport()" [disabled]="preview.conflicts.length > 0 || !preview.validAssets.length">Commit verified import</button></div>
       </div>
-    </div>
+    </section>
   </div>
 </div>

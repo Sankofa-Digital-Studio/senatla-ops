@@ -68,13 +68,13 @@
           <span class="text-6xl">R</span>
         </div>
         <p class="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">
-          {{ viewMode() === 'day' ? 'Daily Burn Rate' : viewMode() === 'month' ? 'Monthly Cost' : 'YTD Cost' }}
+          {{ viewMode() === 'day' ? 'Actual Daily Cost' : viewMode() === 'month' ? 'Actual Month Cost' : 'Actual YTD Cost' }}
         </p>
         <div class="flex items-end gap-2">
           <span class="text-3xl font-bold text-white font-mono">R {{ displayedCost() | number:'1.0-0' }}</span>
         </div>
         <p class="text-[10px] text-gray-500 mt-4">
-          {{ viewMode() === 'day' ? "Based on today's attendance" : viewMode() === 'month' ? 'Projected Total (22 Shifts)' : 'Actual Year-To-Date' }}
+          Based only on recorded present attendance
         </p>
       </div>
 
@@ -97,9 +97,9 @@
     <div *ngIf="viewMode() !== 'day'" class="animate-fade-in">
       <h2 class="text-sm font-bold text-white uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">Spending Trend Analysis</h2>
       <div class="h-40 flex items-end gap-2 p-4 bg-gray-800 rounded-xl border border-gray-700">
-        <div *ngFor="let h of trendData()" class="flex-1 bg-gray-700 hover:bg-yellow-500 transition-all duration-300 rounded-t relative group" [style.height.%]="h">
+        <div *ngFor="let point of trendData()" class="flex-1 bg-gray-700 hover:bg-yellow-500 transition-all duration-300 rounded-t relative group" [style.height.%]="point.ratio">
           <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 text-[10px] font-mono text-white bg-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-            R {{ h }}k
+            {{ point.label }}: R {{ point.value | number:'1.0-0' }}
           </div>
         </div>
       </div>

@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { IonicModule } from '@ionic/angular';
-
+import { resetTestStorage, TEST_APP_PROVIDERS } from '../../test-providers';
 import { DirectorComponent} from './director.component';
 
 describe('DirectorComponent', () => {
@@ -8,9 +7,10 @@ describe('DirectorComponent', () => {
   let fixture: ComponentFixture<DirectorComponent>;
 
   beforeEach(waitForAsync(() => {
+    resetTestStorage();
     TestBed.configureTestingModule({
-      declarations: [ DirectorComponent ],
-      imports: [IonicModule.forRoot()]
+      imports: [DirectorComponent],
+      providers: TEST_APP_PROVIDERS,
     }).compileComponents();
 
     fixture = TestBed.createComponent(DirectorComponent);

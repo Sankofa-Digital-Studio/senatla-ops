@@ -20,6 +20,8 @@ export class StaffDataService {
   private readonly appStateGateway = inject<AppStateGateway>(APP_STATE_GATEWAY);
   private readonly auth = inject(AuthService);
   private readonly hydrated = signal(false);
+  private auditWriteSequence = Promise.resolve();
+  private loadSequence = 0;
 
   currentTime = signal<Date>(new Date());
   siteName = signal<string>('Senatla Shaft 1');
@@ -43,6 +45,7 @@ export class StaffDataService {
   financialTypes = signal<FinancialType[]>([]);
   adminAuditTrail = signal<AdminAuditEvent[]>([]);
   attendanceAuditTrail = signal<AttendanceAuditEvent[]>([]);
+  auditPersistenceError = signal<string | null>(null);
 
   private employeeState = signal<Employee[]>([]);
 
@@ -53,7 +56,12 @@ export class StaffDataService {
   readonly pendingAttendanceSummary = computed(() => this.getAttendanceSummary());
 
   constructor() {
-    void this.loadFromGateway();
+    effect(() => {
+      const ready = this.auth.isReady();
+
+      if (!ready) return;
+      void this.loadForSession();
+    });
 
     effect(() => {
       if (!this.hydrated()) return;
@@ -61,20 +69,39 @@ export class StaffDataService {
     });
   }
 
-  private async loadFromGateway() {
+  private async loadForSession() {
+    const loadId = ++this.loadSequence;
+    this.hydrated.set(false);
+
     try {
-      const snapshot = await this.appStateGateway.loadState();
-      if (!snapshot) {
+      const [snapshotResult, adminAuditResult, attendanceAuditResult] = await Promise.all([
+        this.settlePromise(this.appStateGateway.loadState()),
+        this.settlePromise(this.appStateGateway.loadAdminAuditTrail()),
+        this.settlePromise(this.appStateGateway.loadAttendanceAuditTrail()),
+      ]);
+      if (loadId !== this.loadSequence) return;
+
+      const snapshot = snapshotResult.status === 'fulfilled' ? snapshotResult.value : null;
+      if (snapshot) {
+        this.applySnapshot(snapshot);
+      } else {
         this.initializeDefaults();
-        this.hydrated.set(true);
-        return;
       }
-      this.applySnapshot(snapshot);
+
+      this.adminAuditTrail.set(adminAuditResult.status === 'fulfilled' ? adminAuditResult.value : []);
+      this.attendanceAuditTrail.set(attendanceAuditResult.status === 'fulfilled' ? attendanceAuditResult.value : []);
       this.hydrated.set(true);
     } catch {
+      if (loadId !== this.loadSequence) return;
       this.initializeDefaults();
       this.hydrated.set(true);
     }
+  }
+
+  private settlePromise<T>(promise: Promise<T>) {
+    return promise
+      .then((value) => ({ status: 'fulfilled' as const, value }))
+      .catch((reason: unknown) => ({ status: 'rejected' as const, reason }));
   }
 
   private applySnapshot(parsed: AppStateSnapshot) {
@@ -98,22 +125,6 @@ export class StaffDataService {
         : [],
     );
     this.financialTypes.set(parsed.financialTypes || []);
-    this.adminAuditTrail.set(
-      Array.isArray(parsed.adminAuditTrail)
-        ? parsed.adminAuditTrail.map((entry: any) => ({
-            ...entry,
-            occurredAt: new Date(entry.occurredAt),
-          }))
-        : [],
-    );
-    this.attendanceAuditTrail.set(
-      Array.isArray(parsed.attendanceAuditTrail)
-        ? parsed.attendanceAuditTrail.map((entry: any) => ({
-            ...entry,
-            occurredAt: new Date(entry.occurredAt),
-          }))
-        : [],
-    );
     this.safetyTopics.set(
       Array.isArray(parsed.safetyTopics)
         ? parsed.safetyTopics.map((topic: any) => this.cleanText(topic)).filter(Boolean)
@@ -145,8 +156,6 @@ export class StaffDataService {
       issues: this.issues(),
       groups: this.groups(),
       financialTypes: this.financialTypes(),
-      adminAuditTrail: this.adminAuditTrail(),
-      attendanceAuditTrail: this.attendanceAuditTrail(),
       safetyTopics: this.safetyTopics(),
       syncHistory: this.syncHistory(),
       lastSyncTime: this.lastSyncTime()?.toISOString() || null,
@@ -170,6 +179,8 @@ export class StaffDataService {
       { id: 'advance', name: 'Salary Advance', category: 'Deduction', isActive: true, isSystem: true },
       { id: 'loan', name: 'Company Loan', category: 'Deduction', isActive: true, isSystem: false }
     ]);
+    this.adminAuditTrail.set([]);
+    this.attendanceAuditTrail.set([]);
     this.safetyTopics.set(['Heat Stress & Dehydration', 'Falls of Ground (FOG)', 'Machinery Safety', 'PPE Compliance', 'Emergency Evacuation']);
     this.employeeState.set([
       { id: '1', firstName: 'Tshepo', surname: 'Mokoena', idNumber: '9001015800080', role: 'General Worker', siteId: 's1', groupId: 'g1', startDate: '2023-01-10', basicRate: 350, salaryAdvances: 0, financials: { travel: 0, housing: 0, advance: 0 }, logs: this.generateMockLogs(), adjustments: {} },
@@ -252,6 +263,7 @@ export class StaffDataService {
       details: this.cleanText(details) || undefined,
     };
     this.adminAuditTrail.update((events) => [entry, ...events].slice(0, 25));
+    this.queueAuditWrite(() => this.appStateGateway.appendAdminAuditEvent(entry));
   }
 
   resolveIssue(id: string, note: string) { this.updateIssueStatus(id, 'Resolved', note); }
@@ -391,7 +403,7 @@ export class StaffDataService {
   }
 
   setSiteName(name: string) { this.siteName.set(this.cleanText(name).slice(0, 80) || 'Senatla Shaft 1'); }
-  updateStatus(empId: string, dateStr: string, newStatus: 'present' | 'absent', evidence?: DailyLog['evidence']) {
+  updateStatus(empId: string, dateStr: string, newStatus: DailyLog['status'], evidence?: DailyLog['evidence']) {
     this.unsyncedChanges.set(true);
     const todayStr = this.getTodayStr();
     if (dateStr > todayStr) return;
@@ -407,7 +419,7 @@ export class StaffDataService {
       const updatedLog: DailyLog = {
         ...oldLog,
         status: newStatus,
-        reason: newStatus === 'present' ? null : 'Sick',
+        reason: newStatus === 'absent' ? oldLog.reason || 'Sick' : null,
         evidence: newStatus === 'present' ? evidence ?? oldLog.evidence ?? null : null,
         isFlagged: isRetroactive ? true : oldLog.isFlagged,
         lastUpdated: new Date(this.currentTime()),
@@ -415,7 +427,11 @@ export class StaffDataService {
       return { ...employee, logs: { ...employee.logs, [dateStr]: updatedLog } };
     }));
     this.recordAttendanceAudit(
-      newStatus === 'present' ? 'attendance_marked_present' : 'attendance_marked_absent',
+      newStatus === 'present'
+        ? 'attendance_marked_present'
+        : newStatus === 'absent'
+          ? 'attendance_marked_absent'
+          : 'attendance_marked_pending',
       `${employeeName} marked ${newStatus} for ${dateStr}${isRetroactive ? ' (retroactive)' : ''}.`,
       empId,
       employeeName,
@@ -475,9 +491,22 @@ export class StaffDataService {
       actor: this.currentActor(),
       employeeId,
       employeeName,
+      siteId: employeeId
+        ? this.employeeState().find((employee) => employee.id === employeeId)?.siteId
+        : this.sites().find((site) => site.name === this.siteName())?.id,
       details: this.cleanText(details) || undefined,
     };
     this.attendanceAuditTrail.update((events) => [entry, ...events].slice(0, 40));
+    this.queueAuditWrite(() => this.appStateGateway.appendAttendanceAuditEvent(entry));
+  }
+
+  private queueAuditWrite(write: () => Promise<void>) {
+    this.auditWriteSequence = this.auditWriteSequence
+      .then(write)
+      .then(() => this.auditPersistenceError.set(null))
+      .catch((error: unknown) => {
+        this.auditPersistenceError.set(error instanceof Error ? error.message : 'Audit event persistence failed.');
+      });
   }
 
   private getAttendanceSummary() {

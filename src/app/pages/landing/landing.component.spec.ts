@@ -1,15 +1,15 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { IonicModule } from '@ionic/angular';
-
+import { resetTestStorage, TEST_APP_PROVIDERS } from '../../test-providers';
 import { LandingComponent } from './landing.component';
 
 describe('LandingComponent', () => {
   let component: LandingComponent;
   let fixture: ComponentFixture<LandingComponent>;
   beforeEach(waitForAsync(() => {
+    resetTestStorage();
     TestBed.configureTestingModule({
-      declarations: [ LandingComponent ],
-      imports: [IonicModule.forRoot()]
+      imports: [LandingComponent],
+      providers: TEST_APP_PROVIDERS,
     }).compileComponents();
 
     fixture = TestBed.createComponent(LandingComponent);

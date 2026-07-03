@@ -1,145 +1,358 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { VehicleAsset } from '../../core/models/app.models';
+import { AssetEvidenceFileSelection, AssetRegistrationWorkspaceComponent } from '../../components/asset-registration-workspace.component';
+import { AssetOperationsComponent } from '../../components/asset-operations.component';
+import {
+  AssetEvidenceType,
+  AssetImportPreview,
+  AssetMeterReading,
+  AssetRegistrationDraft,
+  AssetRegistrationEvidence,
+  SENATLA_TRADING_ORGANIZATION_ID,
+  VehicleAsset,
+} from '../../core/models/app.models';
+import { AssetRegistrationService } from '../../core/services/asset-registration.service';
+import { OfficeAdminService } from '../../core/services/office-admin.service';
+
+type AssetWorkspace = 'engineering' | 'fleet';
+type ReadinessState = 'ready' | 'attention' | 'blocked';
+type OverlayMode = 'register' | 'import' | null;
 
 @Component({
   selector: 'app-asset-register',
   templateUrl: './asset-register.component.html',
   styleUrls: ['./asset-register.component.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AssetRegistrationWorkspaceComponent, AssetOperationsComponent],
 })
 export class AssetRegisterComponent {
-  vehicles = signal<VehicleAsset[]>([
-    {
-      id: '1',
-      registrationNumber: 'HDW 492 GP',
-      vin: 'WBWA8208082N92',
-      make: 'CAT',
-      model: 'D8 Dozer',
-      type: 'Yellow Metal',
-      licenseExpiry: '2026-05-30',
+  readonly service = inject(OfficeAdminService);
+  readonly registration = inject(AssetRegistrationService);
+  readonly activeWorkspace = signal<AssetWorkspace>('engineering');
+  readonly overlayMode = signal<OverlayMode>(null);
+  readonly manageOpen = signal(false);
+  readonly saveError = signal('');
+  readonly searchTerm = signal('');
+  readonly lifecycleFilter = signal('all');
+  readonly readinessFilter = signal('all');
+  readonly siteFilter = signal('all');
+  readonly page = signal(1);
+  readonly pageSize = 8;
+  readonly importPreview = signal<AssetImportPreview | null>(null);
+  readonly importMessage = signal('');
+  readonly selectedAssetId = signal('');
+  readonly activeDraft = signal<AssetRegistrationDraft | null>(null);
+  readonly registrationBusy = signal(false);
+  readonly registrationMessage = signal('');
+
+  readonly workspaceAssets = computed(() => this.service.assets().filter((asset) => this.assetWorkspace(asset) === this.activeWorkspace()));
+  readonly filteredAssets = computed(() => {
+    const term = this.searchTerm().trim().toLowerCase();
+    const lifecycle = this.lifecycleFilter();
+    const readiness = this.readinessFilter();
+    const site = this.siteFilter();
+    return this.workspaceAssets().filter((asset) =>
+      (lifecycle === 'all' || (asset.lifecycleState || 'active') === lifecycle)
+      && (readiness === 'all' || this.assetReadiness(asset) === readiness)
+      && (site === 'all' || asset.assignedSiteId === site)
+      && (!term || [
+        asset.registrationNumber,
+        asset.serialNumber,
+        asset.vin,
+        asset.make,
+        asset.model,
+        asset.assetClass,
+        asset.custodianName,
+        this.service.getSiteName(asset.assignedSiteId || ''),
+      ].some((value) => value?.toLowerCase().includes(term))));
+  });
+  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filteredAssets().length / this.pageSize)));
+  readonly pagedAssets = computed(() => this.filteredAssets().slice((this.page() - 1) * this.pageSize, this.page() * this.pageSize));
+  readonly selectedAsset = computed(() => {
+    const inWorkspace = this.workspaceAssets();
+    return inWorkspace.find((asset) => asset.id === this.selectedAssetId()) || inWorkspace[0] || null;
+  });
+  readonly selectedAssetEffectiveId = computed(() => this.selectedAsset()?.id || '');
+  readonly readyCount = computed(() => this.workspaceAssets().filter((asset) => this.assetReadiness(asset) === 'ready').length);
+  readonly attentionCount = computed(() => this.workspaceAssets().filter((asset) => this.assetReadiness(asset) === 'attention').length);
+  readonly blockedCount = computed(() => this.workspaceAssets().filter((asset) => this.assetReadiness(asset) === 'blocked').length);
+  readonly selectedWorkOrders = computed(() => this.service.assetWorkOrders().filter((order) => order.assetId === this.selectedAssetEffectiveId() && !['completed', 'cancelled'].includes(order.status)));
+  readonly selectedCompliance = computed(() => this.service.assetComplianceRecords().filter((record) => record.assetId === this.selectedAssetEffectiveId()));
+  readonly selectedLatestMeter = computed(() => this.latestMeterForTemplate(this.selectedAssetEffectiveId()));
+  readonly activeEvidence = computed(() => {
+    const draftId = this.activeDraft()?.id;
+    return draftId ? this.registration.evidence().filter((item) => item.draftId === draftId) : [];
+  });
+
+  assetForm: VehicleAsset = this.newAsset('engineering');
+
+  switchWorkspace(workspace: AssetWorkspace) {
+    this.activeWorkspace.set(workspace);
+    this.selectedAssetId.set('');
+    this.searchTerm.set('');
+    this.lifecycleFilter.set('all');
+    this.readinessFilter.set('all');
+    this.siteFilter.set('all');
+    this.page.set(1);
+    this.manageOpen.set(false);
+  }
+
+  openRegister() {
+    this.assetForm = this.newAsset(this.activeWorkspace());
+    this.activeDraft.set(this.registration.createDraft(this.assetForm));
+    this.saveError.set('');
+    this.registrationMessage.set('');
+    this.overlayMode.set('register');
+  }
+
+  openEditor(asset: VehicleAsset) {
+    this.assetForm = { ...asset };
+    this.activeDraft.set(null);
+    this.selectedAssetId.set(asset.id);
+    this.saveError.set('');
+    this.overlayMode.set('register');
+  }
+
+  selectAsset(asset: VehicleAsset) {
+    this.selectedAssetId.set(asset.id);
+    this.manageOpen.set(false);
+  }
+
+  async saveAsset() {
+    this.saveError.set('');
+    this.registrationBusy.set(true);
+    try {
+      const draft = this.activeDraft();
+      const savedDraft = draft ? await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } }) : null;
+      const savedId = this.assetForm.id;
+      await this.service.saveAsset(this.assetForm);
+      if (savedDraft) {
+        await this.registration.completeDraft(savedDraft, this.assetForm.id);
+        const reminderResult = await this.registration.scheduleReminders(this.assetForm);
+        this.registrationMessage.set(reminderResult.native
+          ? `${reminderResult.scheduled} device reminders scheduled.`
+          : 'Registration completed. Reminder dates are recorded; device scheduling activates in the installed mobile app.');
+      }
+      this.selectedAssetId.set(savedId || this.service.assets()[0]?.id || '');
+      this.overlayMode.set(null);
+      this.activeDraft.set(null);
+      this.assetForm = this.newAsset(this.activeWorkspace());
+    } catch (error) {
+      this.saveError.set(error instanceof Error ? error.message : 'Unable to save asset.');
+    } finally {
+      this.registrationBusy.set(false);
+    }
+  }
+
+  async saveRegistrationDraft() {
+    this.saveError.set('');
+    this.registrationBusy.set(true);
+    try {
+      const draft = this.activeDraft() || this.registration.createDraft(this.assetForm);
+      const saved = await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } });
+      this.activeDraft.set(saved);
+      this.registrationMessage.set(`Draft saved to ${saved.ownerName}'s registration queue.`);
+    } catch (error) {
+      this.saveError.set(error instanceof Error ? error.message : 'Unable to save registration draft.');
+    } finally {
+      this.registrationBusy.set(false);
+    }
+  }
+
+  resumeDraft(draft: AssetRegistrationDraft) {
+    this.activeDraft.set({ ...draft, asset: { ...draft.asset } });
+    this.assetForm = { ...draft.asset };
+    this.activeWorkspace.set(this.assetWorkspace(draft.asset));
+    this.saveError.set('');
+    this.registrationMessage.set(`Resuming ${draft.ownerName}'s ${this.registrationStateLabel(draft.state).toLowerCase()} registration.`);
+    this.overlayMode.set('register');
+  }
+
+  async captureEvidence(evidenceType: AssetEvidenceType) {
+    this.saveError.set('');
+    this.registrationBusy.set(true);
+    try {
+      const file = await this.registration.captureImage(evidenceType);
+      await this.attachEvidence(file, evidenceType);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to capture image.';
+      if (!/cancel/i.test(message)) this.saveError.set(message);
+    } finally {
+      this.registrationBusy.set(false);
+    }
+  }
+
+  async uploadEvidence(selection: AssetEvidenceFileSelection) {
+    this.saveError.set('');
+    this.registrationBusy.set(true);
+    try {
+      await this.attachEvidence(selection.file, selection.evidenceType);
+    } catch (error) {
+      this.saveError.set(error instanceof Error ? error.message : 'Unable to attach evidence.');
+    } finally {
+      this.registrationBusy.set(false);
+    }
+  }
+
+  async applyExtraction(evidence: AssetRegistrationEvidence) {
+    this.registrationBusy.set(true);
+    try {
+      this.assetForm = await this.registration.applyExtraction(this.assetForm, evidence);
+      const draft = this.activeDraft();
+      if (draft) this.activeDraft.set(await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } }));
+      this.registrationMessage.set('Detected values applied. Review every populated field before completing registration.');
+    } catch (error) {
+      this.saveError.set(error instanceof Error ? error.message : 'Unable to apply detected values.');
+    } finally {
+      this.registrationBusy.set(false);
+    }
+  }
+
+  registrationStateLabel(state: AssetRegistrationDraft['state']) {
+    return { draft: 'Draft', review_required: 'Review required', ready: 'Ready to register', completed: 'Completed' }[state];
+  }
+
+  private async attachEvidence(file: File, evidenceType: AssetEvidenceType) {
+    let draft = this.activeDraft() || this.registration.createDraft(this.assetForm);
+    draft = await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } });
+    this.activeDraft.set(draft);
+    const evidence = await this.registration.addEvidence(draft, evidenceType, file);
+    draft = await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } });
+    this.activeDraft.set(draft);
+    if (evidence.extractionState === 'review_required') {
+      this.registrationMessage.set('Data detected. Review and apply the extracted values below.');
+    } else if (evidence.extractionState === 'pending') {
+      this.registrationMessage.set('Image saved. No supported barcode was detected; keep it for office review and complete missing fields manually.');
+    } else {
+      this.registrationMessage.set('Evidence attached to this draft.');
+    }
+  }
+
+  updateSearch(value: string) {
+    this.searchTerm.set(value);
+    this.page.set(1);
+  }
+
+  updateLifecycleFilter(value: string) {
+    this.lifecycleFilter.set(value);
+    this.page.set(1);
+  }
+
+  updateReadinessFilter(value: string) {
+    this.readinessFilter.set(value);
+    this.page.set(1);
+  }
+
+  updateSiteFilter(value: string) {
+    this.siteFilter.set(value);
+    this.page.set(1);
+  }
+
+  clearFilters() {
+    this.searchTerm.set('');
+    this.lifecycleFilter.set('all');
+    this.readinessFilter.set('all');
+    this.siteFilter.set('all');
+    this.page.set(1);
+  }
+
+  async retireAsset(asset: VehicleAsset) {
+    this.saveError.set('');
+    try {
+      await this.service.saveAsset({ ...asset, lifecycleState: 'retired', retiredAt: new Date().toISOString(), status: 'Maintenance' });
+    } catch (error) {
+      this.saveError.set(error instanceof Error ? error.message : 'Unable to retire asset.');
+    }
+  }
+
+  async previewImport(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const preview = this.service.previewAssetCsv(await file.text());
+    this.importPreview.set(preview);
+    this.importMessage.set(preview.conflicts.length ? `${preview.conflicts.length} conflict(s) must be resolved.` : `${preview.validAssets.length} asset(s) ready to import.`);
+  }
+
+  async commitImport() {
+    const preview = this.importPreview();
+    if (!preview) return;
+    try {
+      await this.service.commitAssetImport(preview);
+      this.importMessage.set(`${preview.validAssets.length} asset(s) imported.`);
+      this.importPreview.set(null);
+    } catch (error) {
+      this.importMessage.set(error instanceof Error ? error.message : 'Import failed.');
+    }
+  }
+
+  assetWorkspace(asset: VehicleAsset): AssetWorkspace {
+    const generalEquipment = /(generator|compressor|pump|welder|tool|trailer|compactor|mower|forklift)/i.test(asset.assetClass || `${asset.make} ${asset.model}`);
+    return asset.type === 'Light Vehicle' || generalEquipment ? 'fleet' : 'engineering';
+  }
+
+  assetReadiness(asset: VehicleAsset): ReadinessState {
+    if (['retired', 'disposed'].includes(asset.lifecycleState || '') || asset.status === 'Expired') return 'blocked';
+    const openOrders = this.service.assetWorkOrders().filter((order) => order.assetId === asset.id && !['completed', 'cancelled'].includes(order.status));
+    if (openOrders.some((order) => order.priority === 'critical' || order.status === 'blocked')) return 'blocked';
+    const compliance = this.service.assetComplianceRecords().filter((record) => record.assetId === asset.id);
+    const licenceExpired = Boolean(asset.licenseExpiry && new Date(`${asset.licenseExpiry}T23:59:59`).getTime() < Date.now());
+    if (asset.status === 'Maintenance' || openOrders.length || licenceExpired || compliance.some((record) => ['due', 'expired'].includes(record.status))) return 'attention';
+    return 'ready';
+  }
+
+  readinessLabel(asset: VehicleAsset) {
+    return { ready: 'Ready', attention: 'Needs attention', blocked: 'Out of service' }[this.assetReadiness(asset)];
+  }
+
+  assetIdentifier(asset: VehicleAsset) {
+    return asset.registrationNumber || asset.vin || asset.serialNumber || 'Identifier missing';
+  }
+
+  assetIdentifierDetails(asset: VehicleAsset) {
+    return [
+      asset.registrationNumber ? `Plate ${asset.registrationNumber}` : '',
+      asset.vin ? `VIN ${asset.vin}` : '',
+      asset.serialNumber ? `Serial ${asset.serialNumber}` : '',
+    ].filter(Boolean).join(' / ');
+  }
+
+  meterLabel(reading: AssetMeterReading | null) {
+    if (!reading) return 'No reading';
+    const unit = reading.meterType === 'engine_hours' ? 'h' : reading.meterType === 'odometer_km' ? 'km' : 'cycles';
+    return `${reading.reading.toLocaleString()} ${unit}`;
+  }
+
+  complianceLabel(assetId: string) {
+    const records = this.service.assetComplianceRecords().filter((record) => record.assetId === assetId);
+    if (!records.length) return 'No records';
+    if (records.some((record) => record.status === 'expired')) return 'Expired';
+    if (records.some((record) => record.status === 'due')) return 'Due soon';
+    return 'Compliant';
+  }
+
+  latestMeterForTemplate(assetId: string): AssetMeterReading | null {
+    return this.service.assetMeterReadings()
+      .filter((reading) => reading.assetId === assetId)
+      .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())[0] || null;
+  }
+
+  private newAsset(workspace: AssetWorkspace): VehicleAsset {
+    return {
+      id: '',
+      organizationId: SENATLA_TRADING_ORGANIZATION_ID,
+      registrationNumber: '',
+      serialNumber: '',
+      vin: '',
+      make: '',
+      model: '',
+      type: workspace === 'engineering' ? 'Yellow Metal' : 'Light Vehicle',
+      assetClass: workspace === 'engineering' ? 'Excavator' : 'Light vehicle',
+      licenseExpiry: new Date().toISOString().slice(0, 10),
       status: 'Active',
-    },
-    {
-      id: '2',
-      registrationNumber: 'KJS 299 FS',
-      vin: 'JTEBU248292020',
-      make: 'Toyota',
-      model: 'Hilux',
-      type: 'Light Vehicle',
-      licenseExpiry: '2024-12-15',
-      status: 'Expired',
-    },
-  ]);
-
-  showScanModal = false;
-  isFormPopulated = false;
-  saveError = '';
-
-  tempVehicle: Partial<VehicleAsset> = {};
-
-  totalVehicles = computed(() => this.vehicles().length);
-  activeVehicles = computed(() =>
-    this.vehicles().filter((vehicle) => vehicle.status === 'Active').length,
-  );
-  expiredVehicles = computed(() =>
-    this.vehicles().filter((vehicle) => this.isExpired(vehicle.licenseExpiry)).length,
-  );
-
-  openScanModal() {
-    this.showScanModal = true;
-    this.isFormPopulated = false;
-    this.tempVehicle = {};
-    this.saveError = '';
-  }
-
-  simulateScan() {
-    setTimeout(() => {
-      this.tempVehicle = {
-        registrationNumber: 'BBC 999 NW',
-        vin: 'AHH28282828111',
-        make: 'Mercedes',
-        model: 'Actros',
-        type: 'Heavy Duty',
-        licenseExpiry: '2026-11-30',
-        status: 'Active',
-      };
-      this.isFormPopulated = true;
-      this.saveError = '';
-    }, 1500);
-  }
-
-  manualEntry() {
-    this.tempVehicle = { status: 'Active', type: 'Heavy Duty' };
-    this.isFormPopulated = true;
-    this.saveError = '';
-  }
-
-  saveVehicle() {
-    const registrationNumber = this.cleanText(this.tempVehicle.registrationNumber).toUpperCase();
-    const vin = this.cleanText(this.tempVehicle.vin).toUpperCase();
-    const make = this.cleanText(this.tempVehicle.make);
-    const model = this.cleanText(this.tempVehicle.model);
-    const licenseExpiry = this.cleanText(this.tempVehicle.licenseExpiry);
-    const type = this.tempVehicle.type;
-
-    if (!registrationNumber || !vin || !make || !model || !licenseExpiry || !type) {
-      this.saveError = 'Registration, VIN, make, model, expiry date, and type are required.';
-      return;
-    }
-
-    if (!this.isValidExpiry(licenseExpiry)) {
-      this.saveError = 'Enter a valid license expiry date.';
-      return;
-    }
-
-    const duplicate = this.vehicles().some(
-      (vehicle) => vehicle.registrationNumber?.toUpperCase() === registrationNumber,
-    );
-    if (duplicate) {
-      this.saveError = 'That registration number is already in the register.';
-      return;
-    }
-
-    const status: VehicleAsset['status'] = this.isExpired(licenseExpiry)
-      ? 'Expired'
-      : this.tempVehicle.status || 'Active';
-
-    this.vehicles.update((vehicles) => [
-      ...vehicles,
-      {
-        id: Date.now().toString(),
-        registrationNumber,
-        vin,
-        make,
-        model,
-        type,
-        licenseExpiry,
-        status,
-      },
-    ]);
-    this.showScanModal = false;
-    this.saveError = '';
-  }
-
-  getIcon(type: string) {
-    if (type === 'Heavy Duty') return '🚛';
-    if (type === 'Yellow Metal') return '🚜';
-    return '🚗';
-  }
-
-  isExpired(dateStr: string) {
-    return this.isValidExpiry(dateStr) && new Date(`${dateStr}T00:00:00`) < new Date();
-  }
-
-  private cleanText(value: unknown) {
-    return typeof value === 'string' ? value.trim() : '';
-  }
-
-  private isValidExpiry(dateStr: string) {
-    const parsed = new Date(`${dateStr}T00:00:00`);
-    return !Number.isNaN(parsed.getTime());
+      lifecycleState: 'active',
+      assignedSiteId: undefined,
+      notes: '',
+    };
   }
 }

@@ -32,13 +32,22 @@ module.exports = function (config) {
         { type: 'text-summary' }
       ]
     },
-    reporters: ['progress', 'kjhtml'],
+    reporters: process.env.CI === 'true' ? ['progress'] : ['progress', 'kjhtml'],
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
-    autoWatch: true,
+    autoWatch: process.env.CI !== 'true',
     browsers: ['Chrome'],
-    singleRun: false,
-    restartOnFileChange: true
+    customLaunchers: {
+      ChromeHeadlessCI: {
+        base: 'ChromeHeadless',
+        flags: ['--disable-gpu', '--disable-dev-shm-usage', '--no-sandbox'],
+      },
+    },
+    captureTimeout: 60000,
+    browserNoActivityTimeout: 60000,
+    browserDisconnectTimeout: 10000,
+    singleRun: process.env.CI === 'true',
+    restartOnFileChange: process.env.CI !== 'true'
   });
 };

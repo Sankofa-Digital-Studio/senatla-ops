@@ -1,0 +1,21 @@
+name: Security or data-boundary task
+description: Track authorization, RLS, secrets or privacy work without publishing exploit details
+title: "security: "
+labels: [security, intake]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include production credentials, personal data or weaponized exploit steps.
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Affected trust boundary
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Required control and negative test
+    validations:
+      required: true
+

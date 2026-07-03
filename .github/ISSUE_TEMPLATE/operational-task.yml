@@ -1,0 +1,24 @@
+name: Operational task
+description: Migration, release, runbook or verification work
+title: "ops: "
+labels: [operations, intake]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Required outcome
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Completion evidence
+    validations:
+      required: true
+  - type: textarea
+    id: rollback
+    attributes:
+      label: Rollback or recovery procedure
+    validations:
+      required: true
+

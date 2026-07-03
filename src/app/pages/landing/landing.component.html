@@ -3,6 +3,11 @@
     <div class="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center text-slate-950 text-2xl font-bold mb-4 mx-auto">S</div>
     <h1 class="text-3xl font-bold tracking-tight">Role Hub</h1>
     <p class="text-slate-400 mt-2 text-sm">Signed in as {{ auth.displayName() }}. Only the permitted workspace is actionable in this review build.</p>
+    <div *ngIf="!auth.isAuthenticated()" class="mt-6">
+      <a routerLink="/login" class="inline-flex items-center justify-center rounded-full bg-yellow-500 px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-950 shadow-lg shadow-yellow-500/20 transition hover:bg-yellow-400">
+        Sign in
+      </a>
+    </div>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-5xl">

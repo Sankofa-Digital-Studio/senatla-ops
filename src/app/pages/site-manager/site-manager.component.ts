@@ -1,18 +1,24 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, ElementRef, ViewChild, inject, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AttendanceCommentChange, AttendanceReasonChange, AttendanceRowComponent, AttendanceStatusChange } from '../../components/attendance-row.component';
+import { TimesheetSummaryComponent } from '../../components/timesheet-summary.component';
 import { DailyLog, Employee } from 'src/app/core/models/app.models';
 import { StaffDataService } from 'src/app/core/services/staff-data.service';
+import { TimesheetRegisterService } from 'src/app/core/services/timesheet-register.service';
+import { readFileAsDataUrl } from '../../core/utils/browser-file.util';
+import { toLocalDateKey } from '../../core/utils/date.util';
 
 @Component({
   selector: 'app-site-manager',
   templateUrl: './site-manager.component.html',
   styleUrls: ['./site-manager.component.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe],
+  imports: [CommonModule, FormsModule, DatePipe, AttendanceRowComponent, TimesheetSummaryComponent],
 })
 export class SiteManagerComponent {
   service = inject(StaffDataService);
+  private readonly timesheetRegister = inject(TimesheetRegisterService);
   @ViewChild('sigCanvas') sigCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('canvasContainer') canvasContainer!: ElementRef<HTMLDivElement>;
   @ViewChild('photoInput') photoInput!: ElementRef<HTMLInputElement>;
@@ -69,6 +75,20 @@ export class SiteManagerComponent {
     }
   }
 
+  setAttendanceStatus(emp: Employee, status: DailyLog['status']) {
+    if (this.isFuture || this.service.timeStatus() === 'blocked' || this.getLog(emp).status === status) return;
+    if (status === 'present') {
+      this.photoTargetEmp = emp;
+      this.capturedPhoto = null;
+      this.capturedLocationLabel = 'Location not captured yet.';
+      this.locationWarning = '';
+      this.showPhotoModal = true;
+      setTimeout(() => this.photoInput?.nativeElement?.click(), 50);
+      return;
+    }
+    this.service.updateStatus(emp.id, this.selectedDateStr, status);
+  }
+
   triggerPhotoInput() {
     this.photoInput?.nativeElement?.click();
   }
@@ -80,7 +100,7 @@ export class SiteManagerComponent {
       return;
     }
 
-    this.capturedPhoto = await this.readAsDataUrl(file);
+    this.capturedPhoto = await readFileAsDataUrl(file);
     await this.captureLocation();
   }
 
@@ -187,8 +207,8 @@ export class SiteManagerComponent {
   clearSignature() { if (!this.ctx) return; this.ctx.clearRect(0, 0, this.sigCanvas.nativeElement.width, this.sigCanvas.nativeElement.height); this.hasSigned = false; }
   getPos(e: MouseEvent | TouchEvent) { const canvas = this.sigCanvas.nativeElement; const rect = canvas.getBoundingClientRect(); const clientX = (e instanceof MouseEvent) ? e.clientX : e.touches[0].clientX; const clientY = (e instanceof MouseEvent) ? e.clientY : e.touches[0].clientY; return { x: clientX - rect.left, y: clientY - rect.top }; }
 
-  get selectedDateStr() { return this.toDateKey(this.selectedDate); }
-  get isFuture() { return this.selectedDateStr > this.toDateKey(this.service.currentTime()); }
+  get selectedDateStr() { return toLocalDateKey(this.selectedDate); }
+  get isFuture() { return this.selectedDateStr > toLocalDateKey(this.service.currentTime()); }
   get isFutureLimit() { return false; }
   getLog(emp: Employee): DailyLog { return emp.logs[this.selectedDateStr] || { date: this.selectedDateStr, status: 'pending' }; }
   getGroupName(id: string) { return this.service.groups().find(g => g.id === id)?.name || 'Unknown'; }
@@ -201,13 +221,21 @@ export class SiteManagerComponent {
     });
   }
 
+  registerSummary() {
+    return this.timesheetRegister.summarize(
+      this.timesheetRegister.buildRows(this.filteredEmployees(), this.service.sites(), this.selectedDateStr),
+    );
+  }
+
   changeDate(days: number) {
     const newDate = new Date(this.selectedDate);
     newDate.setDate(this.selectedDate.getDate() + days);
     this.selectedDate = newDate;
   }
 
-  updateComment(empId: string, event: any) { this.service.updateComment(empId, this.selectedDateStr, event.target.value); }
+  onAttendanceStatusChange(change: AttendanceStatusChange) { this.setAttendanceStatus(change.employee, change.status); }
+  onAttendanceReasonChange(change: AttendanceReasonChange) { this.service.updateReason(change.employeeId, this.selectedDateStr, change.reason); }
+  onAttendanceCommentChange(change: AttendanceCommentChange) { this.service.updateComment(change.employeeId, this.selectedDateStr, change.comment); }
   updateSiteName() { this.service.setSiteName(this.localSiteName); }
   createGroup() { if (this.newGroupName) { this.service.addGroup(this.newGroupName); this.newGroupName = ''; this.showGroupModal = false; } }
 
@@ -255,20 +283,5 @@ export class SiteManagerComponent {
     return null;
   }
 
-  private readAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-  }
-
-  private toDateKey(value: Date): string {
-    const year = value.getFullYear();
-    const month = `${value.getMonth() + 1}`.padStart(2, '0');
-    const day = `${value.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
 }
 
