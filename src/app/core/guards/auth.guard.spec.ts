@@ -23,7 +23,7 @@ describe('roleCanActivate', () => {
 
   it('permits only the authenticated role', async () => {
     const auth = TestBed.inject(AuthService);
-    await auth.login('office.admin', 'SenatlaDemo!');
+    await auth.login('office.admin@test.invalid', 'test-password');
 
     const officeResult = await TestBed.runInInjectionContext(() =>
       roleCanActivate('office')({} as never, { url: '/office-admin' } as never),

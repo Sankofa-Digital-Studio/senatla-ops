@@ -21,3 +21,15 @@ Preserve logs and audit events, rotate exposed credentials immediately, revoke a
 
 Do not delete failed outbox records. Inspect idempotency key, attempt count and error; correct the underlying conflict; retry once; escalate repeated failures with the original audit reference.
 
+
+## Authentication recovery
+
+1. Confirm the user exists in Supabase Auth and has one active protected profile.
+2. Confirm the profile organisation and profile_site_access assignments match approved access.
+3. Use the office-admin server workflow to request password reset, change role, activate or deactivate an account.
+4. Never edit role or active status from the browser client or user metadata.
+5. Review auth_activity_events for successful application events and Supabase Auth audit logs for failed sign-ins.
+6. For suspected token exposure, deactivate the profile, ban or revoke the Auth session, rotate affected credentials and preserve the audit reference.
+
+Rollback authentication changes with a new compensating migration and the prior immutable web artifact. Never re-enable demo credentials or the removed review bypass.
+

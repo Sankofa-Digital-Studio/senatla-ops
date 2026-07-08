@@ -10,10 +10,12 @@ values
   ('30000000-0000-4000-8000-000000000003', 'audit.other', 'Audit Other Site', 'site', true, '00000000-0000-4000-8000-000000000001');
 insert into public.sites (id, name, location, manager_profile_id, is_active, organization_id)
 values ('33000000-0000-4000-8000-000000000001', 'Audit Site', 'Test Yard', '30000000-0000-4000-8000-000000000002', true, '00000000-0000-4000-8000-000000000001');
+insert into public.profile_site_access (profile_id, site_id, organization_id)
+values ('30000000-0000-4000-8000-000000000002', '33000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001');
 set local session_replication_role = origin;
 
 set local role authenticated;
-set local "request.jwt.claims" = '{"sub":"30000000-0000-4000-8000-000000000002","role":"authenticated"}';
+set local "request.jwt.claims" = '{"sub":"30000000-0000-4000-8000-000000000002","role":"authenticated","exp":4102444800}';
 
 select lives_ok(
   $$ insert into public.attendance_audit_events (id, actor_id, actor_name, action, organization_id) values ('31000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'Spoofed Name', 'attendance_marked_present', '00000000-0000-4000-8000-000000000001') $$,
@@ -30,7 +32,7 @@ select throws_ok(
   '42501', null, 'site managers cannot append administrative audit events'
 );
 
-set local "request.jwt.claims" = '{"sub":"30000000-0000-4000-8000-000000000001","role":"authenticated"}';
+set local "request.jwt.claims" = '{"sub":"30000000-0000-4000-8000-000000000001","role":"authenticated","exp":4102444800}';
 select lives_ok(
   $$ insert into public.admin_audit_events (id, actor_id, actor_name, action, organization_id) values ('32000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000002', 'Spoofed Name', 'masked_payroll_export', '00000000-0000-4000-8000-000000000001') $$,
   'office administrator can append an administrative audit event'
@@ -39,10 +41,10 @@ select is((select actor_id from public.admin_audit_events where id = '32000000-0
 insert into public.attendance_audit_events (id, actor_id, actor_name, site_id, action, organization_id)
 values ('31000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000001', 'Audit Office', '33000000-0000-4000-8000-000000000001', 'sync_submitted', '00000000-0000-4000-8000-000000000001');
 
-set local "request.jwt.claims" = '{"sub":"30000000-0000-4000-8000-000000000002","role":"authenticated"}';
+set local "request.jwt.claims" = '{"sub":"30000000-0000-4000-8000-000000000002","role":"authenticated","exp":4102444800}';
 select is((select count(*) from public.attendance_audit_events where id = '31000000-0000-4000-8000-000000000002'), 1::bigint, 'assigned site manager can read the site audit slice');
 
-set local "request.jwt.claims" = '{"sub":"30000000-0000-4000-8000-000000000003","role":"authenticated"}';
+set local "request.jwt.claims" = '{"sub":"30000000-0000-4000-8000-000000000003","role":"authenticated","exp":4102444800}';
 select is((select count(*) from public.attendance_audit_events where id = '31000000-0000-4000-8000-000000000002'), 0::bigint, 'other site managers cannot read the site audit slice');
 
 select * from finish();

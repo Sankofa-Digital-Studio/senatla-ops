@@ -74,18 +74,13 @@ export interface Employee {
   taxRefNumber?: string;
 }
 
-export interface DemoUser {
-  username: string;
-  password: string;
-  role: AppRole;
-  displayName: string;
-}
-
 export interface AuthSession {
   userId: string;
   username: string;
   role: AppRole;
   displayName: string;
+  organizationId: string;
+  permittedSiteIds: string[];
   issuedAt: string;
   expiresAt: string;
 }
@@ -310,6 +305,7 @@ export interface IntegrationOutboxEvent {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   idempotencyKey: string;
   attempts: number;
+  lastError?: string | null;
   createdAt: string;
   processedAt?: string | null;
 }

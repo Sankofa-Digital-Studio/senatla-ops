@@ -68,10 +68,6 @@ export class AuthService {
     return this.validateSession() ? this.sessionState() : null;
   }
 
-  demoUsers() {
-    return this.authGateway.demoUsers();
-  }
-
   private async restoreSession() {
     try {
       const session = await this.authGateway.loadSession();

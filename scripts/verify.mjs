@@ -52,7 +52,6 @@ function buildChildEnv(step) {
     ...process.env,
     ...step.env,
     SENATLA_API_MODE: process.env.SENATLA_API_MODE ?? 'local',
-    SENATLA_AUTH_REVIEW_BYPASS: process.env.SENATLA_AUTH_REVIEW_BYPASS ?? 'false',
   };
 
   for (const key of Object.keys(childEnv)) {

@@ -15,9 +15,6 @@ const config = {
     supabaseUrl: process.env.SENATLA_SUPABASE_URL || '',
     supabaseAnonKey: process.env.SENATLA_SUPABASE_ANON_KEY || '',
   },
-  auth: {
-    reviewBypassEnabled: parseBoolean(process.env.SENATLA_AUTH_REVIEW_BYPASS),
-  },
 };
 
 mkdirSync(dirname(outputPath), { recursive: true });
@@ -53,8 +50,4 @@ function loadEnvFile(filePath) {
 
 function requireText(filePath) {
   return readFileSync(filePath, 'utf8');
-}
-
-function parseBoolean(value) {
-  return typeof value === 'string' && ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
 }

@@ -189,7 +189,7 @@ type AssetComplianceRow = { id: string; organization_id: string; asset_id: strin
 type AssetMeterRow = { id: string; organization_id: string; asset_id: string; meter_type: AssetMeterReading['meterType']; reading: number; recorded_at: string; recorded_by: string; source: AssetMeterReading['source'] };
 type AssetWorkOrderRow = { id: string; organization_id: string; asset_id: string; title: string; description: string | null; status: AssetWorkOrder['status']; priority: AssetWorkOrder['priority']; due_at: string | null; completed_at: string | null; cost: number };
 type AssetPlanRow = { id: string; organization_id: string; asset_id: string; name: string; interval_days: number | null; interval_meter: number | null; meter_type: AssetMaintenancePlan['meterType']; next_due_at: string | null; next_due_meter: number | null; is_active: boolean };
-type OutboxRow = { id: string; organization_id: string; event_type: string; aggregate_type: string; aggregate_id: string; payload: Record<string, unknown>; status: IntegrationOutboxEvent['status']; idempotency_key: string; attempts: number; created_at: string; processed_at: string | null };
+type OutboxRow = { id: string; organization_id: string; event_type: string; aggregate_type: string; aggregate_id: string; payload: Record<string, unknown>; status: IntegrationOutboxEvent['status']; idempotency_key: string; attempts: number; last_error: string | null; created_at: string; processed_at: string | null };
 
 const LOCAL_STORAGE_KEY = 'senatla_office_workspace_v1';
 const SENATLA_TRADING_ORGANIZATION: Organization = {
@@ -580,16 +580,13 @@ export class OfficeAdminService {
     }
 
     if (this.supabase) {
-      const { error } = await this.supabase
-        .from('profiles')
-        .update({
-          username: normalized.username,
-          display_name: normalized.displayName,
-          role: normalized.role,
-          is_active: normalized.isActive,
-        })
-        .eq('id', normalized.id);
-      if (error) throw error;
+      await this.callAdminUserApi('PATCH', {
+        action: 'update_profile',
+        userId: normalized.id,
+        email: normalized.username,
+        displayName: normalized.displayName,
+        role: normalized.role,
+      });
     }
 
     this.users.update((users) => [normalized, ...users.filter((entry) => entry.id !== normalized.id)]);
@@ -958,6 +955,21 @@ export class OfficeAdminService {
     await this.persistLocalWorkspace();
   }
 
+  async retryOutboxEvent(eventId: string) {
+    const event = this.integrationOutbox().find((entry) => entry.id === eventId);
+    if (!event) throw new Error('Outbox event not found.');
+    if (event.status !== 'failed') throw new Error('Only failed outbox events can be retried.');
+    if (event.attempts >= 2) throw new Error('Repeated failure requires escalation with the original audit reference.');
+    if (this.supabase) {
+      const { error } = await this.supabase.from('integration_outbox').update({ status: 'pending', processed_at: null }).eq('id', event.id).eq('status', 'failed').select('id').single();
+      if (error) throw error;
+    }
+    const retried: IntegrationOutboxEvent = { ...event, status: 'pending', processedAt: null };
+    this.integrationOutbox.update((events) => events.map((entry) => entry.id === event.id ? retried : entry));
+    await this.persistLocalWorkspace();
+    await this.logActivity('integration_outbox_retry_requested', 'integration_outbox', event.id, { idempotencyKey: event.idempotencyKey, attempts: event.attempts, lastError: event.lastError || null });
+  }
+
   async ensurePayrollPeriod(month: number, year: number) {
     const periodKey = `${year}-${`${month + 1}`.padStart(2, '0')}`;
     let period = this.payrollPeriods().find((entry) => entry.periodKey === periodKey);
@@ -1199,7 +1211,7 @@ export class OfficeAdminService {
       this.supabase!.from('asset_meter_readings').select('id, organization_id, asset_id, meter_type, reading, recorded_at, recorded_by, source').order('recorded_at', { ascending: false }),
       this.supabase!.from('asset_work_orders').select('id, organization_id, asset_id, title, description, status, priority, due_at, completed_at, cost').order('due_at'),
       this.supabase!.from('asset_maintenance_plans').select('id, organization_id, asset_id, name, interval_days, interval_meter, meter_type, next_due_at, next_due_meter, is_active').order('name'),
-      this.supabase!.from('integration_outbox').select('id, organization_id, event_type, aggregate_type, aggregate_id, payload, status, idempotency_key, attempts, created_at, processed_at').order('created_at', { ascending: false }).limit(100),
+      this.supabase!.from('integration_outbox').select('id, organization_id, event_type, aggregate_type, aggregate_id, payload, status, idempotency_key, attempts, last_error, created_at, processed_at').order('created_at', { ascending: false }).limit(100),
     ]);
 
     const results = [profileResult, siteResult, groupResult, employeeResult, financialTypeResult, issueResult, assetResult, activityResult, payrollPeriodResult, payrollExportResult, approvalResult, savedViewResult, organizationResult, custodyResult, complianceResult, meterResult, workOrderResult, maintenancePlanResult, outboxResult];
@@ -1640,7 +1652,7 @@ export class OfficeAdminService {
   }
 
   private mapOutbox(row: OutboxRow): IntegrationOutboxEvent {
-    return { id: row.id, organizationId: row.organization_id, eventType: row.event_type, aggregateType: row.aggregate_type, aggregateId: row.aggregate_id, payload: row.payload || {}, status: row.status, idempotencyKey: row.idempotency_key, attempts: row.attempts, createdAt: row.created_at, processedAt: row.processed_at };
+    return { id: row.id, organizationId: row.organization_id, eventType: row.event_type, aggregateType: row.aggregate_type, aggregateId: row.aggregate_id, payload: row.payload || {}, status: row.status, idempotencyKey: row.idempotency_key, attempts: row.attempts, lastError: row.last_error, createdAt: row.created_at, processedAt: row.processed_at };
   }
 
   private mapActivity(row: ActivityRow): AdminActivityEvent {

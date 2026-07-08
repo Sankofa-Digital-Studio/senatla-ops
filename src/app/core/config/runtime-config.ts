@@ -9,9 +9,6 @@ export interface RuntimeConfig {
     supabaseUrl: string;
     supabaseAnonKey: string;
   };
-  auth: {
-    reviewBypassEnabled: boolean;
-  };
 }
 
 export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
@@ -20,9 +17,6 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
     baseUrl: '',
     supabaseUrl: '',
     supabaseAnonKey: '',
-  },
-  auth: {
-    reviewBypassEnabled: false,
   },
 };
 
@@ -44,10 +38,6 @@ export async function loadRuntimeConfig(): Promise<RuntimeConfig> {
       api: {
         ...DEFAULT_RUNTIME_CONFIG.api,
         ...parsed.api,
-      },
-      auth: {
-        ...DEFAULT_RUNTIME_CONFIG.auth,
-        ...parsed.auth,
       },
     };
   } catch {
