@@ -14,6 +14,7 @@ import {
 } from '../../core/models/app.models';
 import { AssetRegistrationService } from '../../core/services/asset-registration.service';
 import { OfficeAdminService } from '../../core/services/office-admin.service';
+import { validateAssetRegistration } from '../../core/validation/asset-registration-rules';
 
 type AssetWorkspace = 'engineering' | 'fleet';
 type ReadinessState = 'ready' | 'attention' | 'blocked';
@@ -45,6 +46,7 @@ export class AssetRegisterComponent {
   readonly activeDraft = signal<AssetRegistrationDraft | null>(null);
   readonly registrationBusy = signal(false);
   readonly registrationMessage = signal('');
+  readonly detailsVerified = signal(false);
 
   readonly workspaceAssets = computed(() => this.service.assets().filter((asset) => this.assetWorkspace(asset) === this.activeWorkspace()));
   readonly filteredAssets = computed(() => {
@@ -84,8 +86,11 @@ export class AssetRegisterComponent {
     const draftId = this.activeDraft()?.id;
     return draftId ? this.registration.evidence().filter((item) => item.draftId === draftId) : [];
   });
-
   assetForm: VehicleAsset = this.newAsset('engineering');
+
+  assetRegistrationValidation() {
+    return validateAssetRegistration(this.assetForm, this.detailsVerified());
+  }
 
   switchWorkspace(workspace: AssetWorkspace) {
     this.activeWorkspace.set(workspace);
@@ -103,6 +108,7 @@ export class AssetRegisterComponent {
     this.activeDraft.set(this.registration.createDraft(this.assetForm));
     this.saveError.set('');
     this.registrationMessage.set('');
+    this.detailsVerified.set(false);
     this.overlayMode.set('register');
   }
 
@@ -111,6 +117,7 @@ export class AssetRegisterComponent {
     this.activeDraft.set(null);
     this.selectedAssetId.set(asset.id);
     this.saveError.set('');
+    this.detailsVerified.set(false);
     this.overlayMode.set('register');
   }
 
@@ -121,6 +128,10 @@ export class AssetRegisterComponent {
 
   async saveAsset() {
     this.saveError.set('');
+    if (!this.assetRegistrationReady() || !this.detailsVerified()) {
+      this.saveError.set('Complete every required field and verify the captured details before saving.');
+      return;
+    }
     this.registrationBusy.set(true);
     try {
       const draft = this.activeDraft();
@@ -165,6 +176,7 @@ export class AssetRegisterComponent {
     this.assetForm = { ...draft.asset };
     this.activeWorkspace.set(this.assetWorkspace(draft.asset));
     this.saveError.set('');
+    this.detailsVerified.set(false);
     this.registrationMessage.set(`Resuming ${draft.ownerName}'s ${this.registrationStateLabel(draft.state).toLowerCase()} registration.`);
     this.overlayMode.set('register');
   }
@@ -199,6 +211,7 @@ export class AssetRegisterComponent {
     this.registrationBusy.set(true);
     try {
       this.assetForm = await this.registration.applyExtraction(this.assetForm, evidence);
+      this.detailsVerified.set(false);
       const draft = this.activeDraft();
       if (draft) this.activeDraft.set(await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } }));
       this.registrationMessage.set('Detected values applied. Review every populated field before completing registration.');
@@ -220,10 +233,11 @@ export class AssetRegisterComponent {
     const evidence = await this.registration.addEvidence(draft, evidenceType, file);
     draft = await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } });
     this.activeDraft.set(draft);
+    this.detailsVerified.set(false);
     if (evidence.extractionState === 'review_required') {
       this.registrationMessage.set('Data detected. Review and apply the extracted values below.');
     } else if (evidence.extractionState === 'pending') {
-      this.registrationMessage.set('Image saved. No supported barcode was detected; keep it for office review and complete missing fields manually.');
+      this.registrationMessage.set('Image saved. No supported OCR or barcode text was detected; keep it visible for review and complete missing fields manually.');
     } else {
       this.registrationMessage.set('Evidence attached to this draft.');
     }
@@ -286,6 +300,14 @@ export class AssetRegisterComponent {
     }
   }
 
+
+  assetRegistrationReady() {
+    return this.assetRegistrationValidation().isValid;
+  }
+
+  registrationBlocker() {
+    return this.assetRegistrationValidation().blocker;
+  }
   assetWorkspace(asset: VehicleAsset): AssetWorkspace {
     const generalEquipment = /(generator|compressor|pump|welder|tool|trailer|compactor|mower|forklift)/i.test(asset.assetClass || `${asset.make} ${asset.model}`);
     return asset.type === 'Light Vehicle' || generalEquipment ? 'fleet' : 'engineering';

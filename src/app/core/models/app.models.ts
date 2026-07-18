@@ -202,6 +202,20 @@ export interface AssetRegistrationDraft {
   createdAt: string;
   updatedAt: string;
   completedAssetId?: string | null;
+  validationErrors?: string[];
+  verifiedAt?: string | null;
+  verifiedBy?: string | null;
+}
+
+export interface AssetRegistrationEvent {
+  id: string;
+  organizationId: string;
+  action: string;
+  entityId: string;
+  actorId: string;
+  actorName: string;
+  details?: Record<string, unknown> | null;
+  occurredAt: string;
 }
 
 export interface AssetRegistrationEvidence {
@@ -402,6 +416,3 @@ export interface Organization {
   isActive: boolean;
   createdAt: string;
 }
-
-
-
