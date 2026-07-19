@@ -42,7 +42,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   get modeHint() {
     return this.config.api.mode === 'supabase'
       ? 'Supabase-backed sign-in for operational roles'
-      : 'Secure access portal for operational roles';
+      : 'Supabase-backed sign-in for operational roles';
   }
 
   ngOnInit() {

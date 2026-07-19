@@ -137,7 +137,10 @@ export class OfficeAdminComponent {
   readonly timesheetSummary = computed(() => this.timesheetRegister.summarize(this.timesheetRows()));
   readonly recoveryOutbox = computed(() => this.service.integrationOutbox()
     .filter((event) => event.status === 'pending' || event.status === 'failed')
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt)));
+    .sort((left, right) => {
+      if (left.status !== right.status) return left.status === 'failed' ? -1 : 1;
+      return right.createdAt.localeCompare(left.createdAt);
+    }));
 
   async submitInvite() {
     await this.runAction(async () => {
