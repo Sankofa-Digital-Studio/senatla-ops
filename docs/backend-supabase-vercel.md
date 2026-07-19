@@ -33,7 +33,9 @@ Set these for local `.env` usage and in Vercel project settings:
 - `SENATLA_SUPABASE_URL=...`
 - `SENATLA_SUPABASE_ANON_KEY=...`
 
-Use `local` mode when you want the current demo gateway path.
+The runtime config generator also accepts common Vercel aliases: `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. If `SENATLA_API_MODE=supabase` is set without a URL and anon key, the build fails instead of deploying a blank runtime config.
+
+Use `local` mode only for the local app-state gateway. Authentication still uses Supabase Auth in every mode.
 
 ## Supabase setup
 

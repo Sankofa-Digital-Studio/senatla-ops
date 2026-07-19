@@ -12,13 +12,36 @@ const config = {
   api: {
     mode: process.env.SENATLA_API_MODE || 'local',
     baseUrl: process.env.SENATLA_API_BASE_URL || '',
-    supabaseUrl: process.env.SENATLA_SUPABASE_URL || '',
-    supabaseAnonKey: process.env.SENATLA_SUPABASE_ANON_KEY || '',
+    supabaseUrl: firstEnvValue('SENATLA_SUPABASE_URL', 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL'),
+    supabaseAnonKey: firstEnvValue(
+      'SENATLA_SUPABASE_ANON_KEY',
+      'SUPABASE_ANON_KEY',
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    ),
   },
 };
 
+if (config.api.mode === 'supabase' && (!config.api.supabaseUrl || !config.api.supabaseAnonKey)) {
+  throw new Error(
+    'SENATLA_API_MODE=supabase requires SENATLA_SUPABASE_URL and SENATLA_SUPABASE_ANON_KEY. ' +
+      'Common Vercel aliases SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and ' +
+      'SUPABASE_ANON_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY are also supported.',
+  );
+}
+
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, JSON.stringify(config, null, 2));
+
+function firstEnvValue(...keys) {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return '';
+}
 
 function loadEnvFile(filePath) {
   try {

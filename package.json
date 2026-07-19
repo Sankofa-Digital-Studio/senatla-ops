@@ -15,7 +15,8 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.spec.json --noEmit",
     "verify": "node scripts/verify.mjs",
     "lint": "ng lint",
-    "ion": "ionic serve"
+    "ion": "ionic serve",
+    "test:runtime-config": "node --test scripts/write-runtime-config.test.mjs"
   },
   "private": true,
   "dependencies": {
