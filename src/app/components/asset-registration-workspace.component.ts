@@ -39,6 +39,15 @@ export interface AssetEvidenceFileSelection {
         <div class="document-grid">
           <label *ngFor="let option of documentOptions"><strong>{{ option.label }}</strong><span>PDF or image</span><input type="file" accept="application/pdf,image/*" [disabled]="busy" (change)="selectFile($event, option.type)"></label>
         </div>
+        <aside *ngIf="showOcrGuide" class="ocr-guide" aria-live="polite">
+          <div><strong>How OCR review works</strong><p>Capture or upload a document, apply detected fields, then compare every value with the source before you verify and save.</p></div>
+          <button type="button" (click)="dismissOcrGuide()" title="Hide this guide on this device">Got it</button>
+        </aside>
+        <div class="ocr-review-input">
+          <label for="manual-ocr-text"><strong>OCR review text</strong><span id="manual-ocr-help">Paste text from an approved scanner when this browser cannot detect text. Only recognised form fields are used.</span></label>
+          <textarea id="manual-ocr-text" [(ngModel)]="manualOcrText" [disabled]="busy" maxlength="8000" rows="5" aria-describedby="manual-ocr-help" placeholder="Registration: ABC 123 GP&#10;VIN: ...&#10;Make: Toyota&#10;Model: Hilux&#10;Expiry: 2027-06-30"></textarea>
+          <app-ui-button size="sm" variant="secondary" [busy]="busy" (pressed)="applyManualOcrText()">Convert text to form</app-ui-button>
+        </div>
       </section>
 
       <section class="evidence-review" *ngIf="evidence.length">
@@ -46,7 +55,7 @@ export interface AssetEvidenceFileSelection {
         <div class="evidence-list">
           <article *ngFor="let item of evidence">
             <button *ngIf="item.previewUrl" type="button" class="preview-button" (click)="zoomedEvidence = item" [attr.aria-label]="'View ' + evidenceLabel(item.evidenceType)"><img [src]="item.previewUrl" [alt]="evidenceLabel(item.evidenceType)"></button>
-            <div><strong>{{ evidenceLabel(item.evidenceType) }}</strong><small>{{ item.fileName }}</small><span [class.needs-review]="item.extractionState === 'review_required'">{{ extractionLabel(item) }}</span></div>
+            <div><strong>{{ evidenceLabel(item.evidenceType) }}</strong><small>{{ item.fileName }}</small><span [class.needs-review]="item.extractionState === 'review_required'">{{ extractionLabel(item) }}</span><dl *ngIf="extractedEntries(item).length" class="extracted-fields"><div *ngFor="let field of extractedEntries(item)"><dt>{{ fieldLabel(field[0]) }}</dt><dd>{{ field[1] }}</dd></div></dl></div>
             <app-ui-button *ngIf="item.extractionState === 'review_required'" size="sm" variant="secondary" [busy]="busy" (pressed)="extractionRequested.emit(item)">Apply values</app-ui-button>
           </article>
         </div>
@@ -125,6 +134,12 @@ export interface AssetEvidenceFileSelection {
     .document-grid { margin-top: 10px; }
     .document-grid label { display: grid; gap: 3px; padding: 8px; border: 1px dashed #465463; border-radius: 6px; color: #dfe5ea; cursor: pointer; }
     .document-grid input { width: 100%; margin-top: 5px; }
+    .ocr-guide { display:flex; justify-content:space-between; gap:12px; margin-top:10px; padding:10px; border-left:3px solid #eab308; border-radius:4px; background:rgba(234,179,8,.08); color:#e8edf1; font-size:12px; }
+    .ocr-guide p { margin:4px 0 0; color:#aab7c3; line-height:1.45; }
+    .ocr-guide button { align-self:start; border:1px solid #637181; border-radius:4px; background:#18222c; color:#edf2f7; padding:5px 8px; white-space:nowrap; }
+    .ocr-review-input { display:grid; gap:7px; margin-top:10px; padding:10px; border:1px solid #3b4855; border-radius:6px; background:#131c24; }
+    .ocr-review-input label { display:grid; gap:3px; } .ocr-review-input label span { color:#9aa8b5; font-size:11px; line-height:1.4; }
+    .ocr-review-input textarea { min-height:92px; resize:vertical; border:1px solid #465463; border-radius:5px; padding:8px; background:#0e151c; color:#edf2f7; font:12px/1.45 ui-monospace,monospace; }
     .evidence-list { display: grid; gap: 8px; margin-top: 12px; }
     .evidence-list article { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 10px; min-height: 58px; padding: 7px; border-bottom: 1px solid #293541; }
     .preview-button { width: 56px; height: 48px; padding: 0; border: 0; border-radius: 4px; background: transparent; cursor: zoom-in; }
@@ -132,6 +147,7 @@ export interface AssetEvidenceFileSelection {
     .evidence-list article>div { display: grid; gap: 2px; }
     .evidence-list small,.evidence-list span { color: #8795a3; font-size: 10px; }
     .evidence-list .needs-review { color: #f0c746; }
+    .extracted-fields { grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px 8px; margin:5px 0 0; } .extracted-fields dt { font-size:9px; } .extracted-fields dd { overflow-wrap:anywhere; font-size:10px; }
     .validation-panel { border-color: rgba(234, 179, 8, .32); background: var(--sds-color-accent-soft, rgba(234,179,8,.1)); color: var(--sds-color-text, #f2f5f8); }
     .validation-panel strong { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
     .validation-panel ul { display: grid; gap: 5px; margin: 8px 0 0; padding-left: 18px; color: #fde68a; font-size: 12px; }
@@ -156,7 +172,7 @@ export interface AssetEvidenceFileSelection {
     .confirmation-modal footer button:last-child { background: #eab308; color: #111827; } .confirmation-modal footer .secondary { background: #263241; color: #edf2f7; }
     .confirmation-modal footer button:disabled { cursor: not-allowed; opacity: .55; }
     @media (max-width:980px) { .workflow { grid-template-columns:1fr; } .full-row { grid-column:auto; } }
-    @media (max-width:760px) { .capture-grid,.document-grid,.confirmation-body,dl { grid-template-columns:1fr; } .capture-grid button { min-height:82px; } .registration-status { position:sticky; top:0; z-index:4; } .evidence-list article { grid-template-columns:48px 1fr; } .preview-button,.preview-button img,.evidence-list img { width:48px; } .evidence-list app-ui-button { grid-column:1/-1; } li { grid-template-columns:82px 1fr; } li small { grid-column:2; } .confirmation-modal header,.confirmation-modal footer { align-items: stretch; flex-direction: column; } .confirmation-modal header button { justify-self: stretch; } }
+    @media (max-width:760px) { .capture-grid,.document-grid,.confirmation-body,dl { grid-template-columns:1fr; } .ocr-guide { align-items:stretch; flex-direction:column; } .capture-grid button { min-height:82px; } .registration-status { position:sticky; top:0; z-index:4; } .evidence-list article { grid-template-columns:48px 1fr; } .preview-button,.preview-button img,.evidence-list img { width:48px; } .evidence-list app-ui-button { grid-column:1/-1; } li { grid-template-columns:82px 1fr; } li small { grid-column:2; } .confirmation-modal header,.confirmation-modal footer { align-items: stretch; flex-direction: column; } .confirmation-modal header button { justify-self: stretch; } }
   `],
 })
 export class AssetRegistrationWorkspaceComponent {
@@ -187,11 +203,14 @@ export class AssetRegistrationWorkspaceComponent {
   @Output() readonly captureRequested = new EventEmitter<AssetEvidenceType>();
   @Output() readonly fileSelected = new EventEmitter<AssetEvidenceFileSelection>();
   @Output() readonly extractionRequested = new EventEmitter<AssetRegistrationEvidence>();
+  @Output() readonly manualExtractionRequested = new EventEmitter<string>();
   @Output() readonly completionRequested = new EventEmitter<void>();
   @Output() readonly detailsVerifiedChange = new EventEmitter<boolean>();
 
   confirmationOpen = false;
   zoomedEvidence: AssetRegistrationEvidence | null = null;
+  manualOcrText = '';
+  showOcrGuide = this.shouldShowOcrGuide();
 
   stateLabel(state: AssetRegistrationDraft['state']) {
     return { draft: 'Draft', review_required: 'Review required', ready: 'Ready to register', completed: 'Completed' }[state];
@@ -208,6 +227,25 @@ export class AssetRegistrationWorkspaceComponent {
     return 'Attached';
   }
 
+  applyManualOcrText() {
+    const raw = this.manualOcrText.trim();
+    if (!raw || this.busy) return;
+    this.manualExtractionRequested.emit(raw);
+  }
+
+  extractedEntries(evidence: AssetRegistrationEvidence) {
+    return Object.entries(evidence.extractedFields).filter(([, value]) => Boolean(value));
+  }
+
+  fieldLabel(field: string) {
+    return { registrationNumber: 'Registration', vin: 'VIN', serialNumber: 'Serial', make: 'Make', model: 'Model', licenseExpiry: 'Licence expiry' }[field] || field;
+  }
+
+  dismissOcrGuide() {
+    this.showOcrGuide = false;
+    try { localStorage.setItem('senatla.asset-registration.ocr-guide.dismissed', 'true'); } catch { /* Preference is optional. */ }
+  }
+
   dateLabel(date: Date) {
     return new Intl.DateTimeFormat('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
   }
@@ -217,6 +255,10 @@ export class AssetRegistrationWorkspaceComponent {
     const file = input.files?.[0];
     if (file) this.fileSelected.emit({ file, evidenceType });
     input.value = '';
+  }
+
+  private shouldShowOcrGuide() {
+    try { return localStorage.getItem('senatla.asset-registration.ocr-guide.dismissed') !== 'true'; } catch { return true; }
   }
 
   openConfirmation() {

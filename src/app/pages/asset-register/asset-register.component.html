@@ -168,6 +168,7 @@
         (captureRequested)="captureEvidence($event)"
         (fileSelected)="uploadEvidence($event)"
         (extractionRequested)="applyExtraction($event)"
+        (manualExtractionRequested)="applyManualExtraction($event)"
         (completionRequested)="saveAsset()"
       ></app-asset-registration-workspace>
       <div *ngIf="overlayMode() === 'import'" class="import-panel">

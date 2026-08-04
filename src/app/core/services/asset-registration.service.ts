@@ -47,6 +47,12 @@ type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => Brow
 type TextDetectorConstructor = new () => BrowserTextDetector;
 
 const LocalNotifications = registerPlugin<NativeLocalNotifications>('LocalNotifications');
+const EXTRACTABLE_EVIDENCE_TYPES: readonly AssetEvidenceType[] = [
+  'number_plate',
+  'licence_disc',
+  'registration_document',
+  'purchase_invoice',
+];
 
 @Injectable({ providedIn: 'root' })
 export class AssetRegistrationService {
@@ -172,7 +178,7 @@ export class AssetRegistrationService {
 
   async addEvidence(draft: AssetRegistrationDraft, evidenceType: AssetEvidenceType, file: File) {
     const session = this.requireSession();
-    const extractable = evidenceType === 'number_plate' || evidenceType === 'licence_disc';
+    const extractable = EXTRACTABLE_EVIDENCE_TYPES.includes(evidenceType);
     const extracted = extractable && file.type.startsWith('image/') ? await this.extractFromImage(file) : { raw: '', fields: {} };
     const id = crypto.randomUUID();
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '-').toLowerCase();
@@ -244,7 +250,15 @@ export class AssetRegistrationService {
       evidenceId: evidence.id,
       detectedFields: Object.keys(evidence.extractedFields),
     });
-    return { ...asset, ...evidence.extractedFields };
+    return this.applyExtractedFields(asset, evidence.extractedFields);
+  }
+
+  parseOcrText(raw: string): AssetRegistrationEvidence['extractedFields'] {
+    return this.parseRegistrationText(raw.slice(0, 8_000));
+  }
+
+  applyExtractedFields(asset: VehicleAsset, fields: AssetRegistrationEvidence['extractedFields']): VehicleAsset {
+    return { ...asset, ...fields };
   }
 
   evidenceFor(draftId: string) {
@@ -362,7 +376,7 @@ export class AssetRegistrationService {
         await this.extractOcrText(bitmap),
       ].filter(Boolean).join('\n');
       bitmap.close();
-      return { raw, fields: this.parseRegistrationText(raw) };
+      return { raw, fields: this.parseOcrText(raw) };
     } catch {
       return { raw: '', fields: {} };
     }

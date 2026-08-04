@@ -222,6 +222,29 @@ export class AssetRegisterComponent {
     }
   }
 
+  async applyManualExtraction(raw: string) {
+    const fields = this.registration.parseOcrText(raw);
+    const detectedFields = Object.keys(fields);
+    if (!detectedFields.length) {
+      this.registrationMessage.set('No recognised asset fields were found. Keep the source document visible and enter the details manually.');
+      return;
+    }
+
+    this.saveError.set('');
+    this.registrationBusy.set(true);
+    try {
+      this.assetForm = this.registration.applyExtractedFields(this.assetForm, fields);
+      this.detailsVerified.set(false);
+      const draft = this.activeDraft();
+      if (draft) this.activeDraft.set(await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } }));
+      this.registrationMessage.set(`OCR review populated ${detectedFields.length} field(s). Check each value against the source document before saving.`);
+    } catch (error) {
+      this.saveError.set(error instanceof Error ? error.message : 'Unable to apply OCR review text.');
+    } finally {
+      this.registrationBusy.set(false);
+    }
+  }
+
   registrationStateLabel(state: AssetRegistrationDraft['state']) {
     return { draft: 'Draft', review_required: 'Review required', ready: 'Ready to register', completed: 'Completed' }[state];
   }
