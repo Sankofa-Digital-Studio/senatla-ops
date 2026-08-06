@@ -16,7 +16,8 @@
     "verify": "node scripts/verify.mjs",
     "lint": "ng lint",
     "ion": "ionic serve",
-    "test:runtime-config": "node --test scripts/write-runtime-config.test.mjs"
+    "test:runtime-config": "node --test scripts/write-runtime-config.test.mjs",
+    "test:e2e:cypress": "cypress run"
   },
   "private": true,
   "dependencies": {
