@@ -36,7 +36,7 @@ export interface AttendanceCommentChange {
       </header>
 
       <div *ngIf="log.evidence?.capturedAt" class="evidence">
-        Verified at {{ log.evidence?.capturedAt | date:'shortTime' }}<span *ngIf="log.evidence?.location"> / GPS attached</span>
+        Verified at {{ log.evidence.capturedAt | date:'shortTime' }}<span *ngIf="log.evidence.location"> / GPS attached</span>
       </div>
 
       <section *ngIf="log.status !== 'pending'" class="details">
