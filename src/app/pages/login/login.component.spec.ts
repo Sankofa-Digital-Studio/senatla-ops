@@ -33,6 +33,6 @@ describe('LoginComponent', () => {
   });
 
   it('uses the production login hint', () => {
-    expect(component.modeHint).toContain('Supabase-backed sign-in');
+    expect(component.modeHint).toContain('Secure access portal');
   });
 });

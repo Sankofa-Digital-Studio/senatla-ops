@@ -322,7 +322,7 @@ export class OfficeAdminService {
       const ready = this.auth.isReady();
       const role = this.auth.role();
       const userId = this.auth.session()?.userId ?? null;
-      if (!ready || role !== 'office') return;
+      if (!ready || !role || !['site', 'office', 'director'].includes(role)) return;
       void this.loadWorkspace(userId);
     });
   }

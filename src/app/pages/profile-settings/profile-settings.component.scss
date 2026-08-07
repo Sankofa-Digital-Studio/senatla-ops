@@ -1,0 +1,10 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.profile-settings {
+  background-image:
+    radial-gradient(circle at top left, rgba(190, 242, 100, 0.14), transparent 24rem),
+    linear-gradient(180deg, #020617 0%, #111827 100%);
+}

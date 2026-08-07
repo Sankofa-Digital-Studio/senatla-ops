@@ -39,9 +39,15 @@ export const routes: Routes = [
   },
   {
     path: 'asset-register',
-    canMatch: [roleCanMatch('office')],
-    canActivate: [roleCanActivate('office')],
+    canMatch: [roleCanMatch(['site', 'office', 'director'], 'office')],
+    canActivate: [roleCanActivate(['site', 'office', 'director'], 'office')],
     loadComponent: () => import('./pages/asset-register/asset-register.component').then((m) => m.AssetRegisterComponent),
+  },
+  {
+    path: 'profile-settings',
+    canMatch: [roleCanMatch()],
+    canActivate: [roleCanActivate()],
+    loadComponent: () => import('./pages/profile-settings/profile-settings.component').then((m) => m.ProfileSettingsComponent),
   },
   {
     path: '**',
