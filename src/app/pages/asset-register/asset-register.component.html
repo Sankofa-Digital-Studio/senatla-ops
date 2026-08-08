@@ -159,10 +159,16 @@
         [busy]="registrationBusy()"
         [message]="registrationMessage()"
         [error]="saveError()"
+        [canComplete]="assetRegistrationReady()"
+        [completionBlocker]="registrationBlocker()"
+        [validationMessages]="assetRegistrationValidation().messages"
+        [detailsVerified]="detailsVerified()"
+        (detailsVerifiedChange)="detailsVerified.set($event)"
         (draftSaveRequested)="saveRegistrationDraft()"
         (captureRequested)="captureEvidence($event)"
         (fileSelected)="uploadEvidence($event)"
         (extractionRequested)="applyExtraction($event)"
+        (manualExtractionRequested)="applyManualExtraction($event)"
         (completionRequested)="saveAsset()"
       ></app-asset-registration-workspace>
       <div *ngIf="overlayMode() === 'import'" class="import-panel">

@@ -1,0 +1,24 @@
+<section class="profile-settings h-full overflow-auto bg-slate-950 p-6 text-white md:p-10">
+  <div class="mx-auto max-w-5xl">
+    <a routerLink="/landing" class="text-xs font-bold uppercase tracking-[0.18em] text-lime-200 hover:text-lime-100">Back to landing</a>
+
+    <div class="mt-6 rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-2xl md:p-8">
+      <p class="text-xs font-bold uppercase tracking-[0.24em] text-lime-200">Profile settings</p>
+      <h1 class="mt-3 text-3xl font-black tracking-tight md:text-4xl">Onboarding and role guidance</h1>
+      <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+        The startup wizard is disabled after completion so returning users can move faster. Use this section whenever you need to view the role walkthrough again.
+      </p>
+
+      <div class="mt-8 grid gap-4 md:grid-cols-3">
+        <article *ngFor="let feature of features()" class="rounded-2xl border border-white/10 bg-slate-950/70 p-5">
+          <h2 class="text-base font-black">{{ feature.title }}</h2>
+          <p class="mt-3 text-sm leading-6 text-slate-400">{{ feature.summary }}</p>
+        </article>
+      </div>
+
+      <button type="button" (click)="reviewOnboarding()" class="mt-8 rounded-full bg-lime-300 px-6 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-950 transition hover:bg-lime-200">
+        Review onboarding wizard
+      </button>
+    </div>
+  </div>
+</section>

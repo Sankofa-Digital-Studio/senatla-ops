@@ -15,12 +15,11 @@ export class AppComponent {
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   readonly showDebugControls = !environment.production;
-  readonly securedNavItems = [{ label: 'Landing', path: '/landing' }, { label: 'Login', path: '/login' }];
   readonly navLinks = computed(() => {
     const role = this.auth.role();
-    if (role === 'site') return [{ label: 'Site Manager', path: '/site-manager' }];
+    if (role === 'site') return [{ label: 'Site Manager', path: '/site-manager' }, { label: 'Asset Register', path: '/asset-register' }];
     if (role === 'office') return [{ label: 'Office Admin', path: '/office-admin' }, { label: 'Asset Register', path: '/asset-register' }];
-    if (role === 'director') return [{ label: 'Director', path: '/director' }];
+    if (role === 'director') return [{ label: 'Director', path: '/director' }, { label: 'Asset Register', path: '/asset-register' }];
     return [];
   });
 

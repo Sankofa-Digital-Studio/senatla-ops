@@ -1,15 +1,29 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+declare const process: { env: Record<string, string | undefined> };
+
+type AppRole = 'site' | 'office' | 'director';
 
 type UserInvitePayload = {
   email?: string;
   displayName?: string;
-  role?: 'site' | 'office' | 'director';
+  role?: AppRole;
 };
 
 type UserLifecyclePayload = {
-  action?: 'activate' | 'suspend' | 'send_reset';
+  action?: 'activate' | 'suspend' | 'send_reset' | 'update_profile';
   userId?: string;
   redirectTo?: string;
+  email?: string;
+  displayName?: string;
+  role?: AppRole;
+};
+
+type AdminProfile = {
+  role: AppRole;
+  is_active: boolean;
+  organization_id: string;
+  display_name: string;
 };
 
 export default async function handler(req: any, res: any) {
@@ -27,17 +41,13 @@ export default async function handler(req: any, res: any) {
     res.status(500).json({ error: 'Supabase admin configuration is missing.' });
     return;
   }
-
   if (!token) {
     res.status(401).json({ error: 'Missing bearer token.' });
     return;
   }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+    auth: { autoRefreshToken: false, persistSession: false },
   });
 
   const { data: authUserData, error: authUserError } = await adminClient.auth.getUser(token);
@@ -46,24 +56,25 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  const actorId = authUserData.user.id;
   const { data: profile, error: profileError } = await adminClient
     .from('profiles')
-    .select('role, display_name')
-    .eq('id', authUserData.user.id)
-    .maybeSingle();
+    .select('role, is_active, organization_id, display_name')
+    .eq('id', actorId)
+    .maybeSingle<AdminProfile>();
 
-  if (profileError || profile?.role !== 'office') {
-    res.status(403).json({ error: 'Only office admins can manage users.' });
+  if (profileError || profile?.role !== 'office' || !profile.is_active || !profile.organization_id) {
+    res.status(403).json({ error: 'Only active office admins can manage users.' });
     return;
   }
 
   if (req.method === 'POST') {
     const payload = (req.body || {}) as UserInvitePayload;
-    const email = `${payload.email || ''}`.trim().toLowerCase();
+    const email = normalizeEmail(payload.email);
     const displayName = `${payload.displayName || ''}`.trim();
     const role = payload.role;
 
-    if (!email || !displayName || (role !== 'site' && role !== 'office' && role !== 'director')) {
+    if (!email || !displayName || !isAppRole(role)) {
       res.status(400).json({ error: 'Email, display name, and role are required.' });
       return;
     }
@@ -80,22 +91,23 @@ export default async function handler(req: any, res: any) {
       display_name: displayName,
       role,
       is_active: true,
+      organization_id: profile.organization_id,
     };
-
     const { error: upsertError } = await adminClient.from('profiles').upsert(newProfile);
     if (upsertError) {
       res.status(400).json({ error: upsertError.message });
       return;
     }
 
+    await recordAuthEvent(adminClient, profile, actorId, invitedUserData.user.id, 'user_invited', { role });
     res.status(200).json({
       user: {
         id: newProfile.id,
-        username: newProfile.username,
+        username: email,
         displayName,
         role,
         isActive: true,
-        createdAt: new Date().toISOString(),
+        createdAt: invitedUserData.user.created_at,
       },
     });
     return;
@@ -104,17 +116,16 @@ export default async function handler(req: any, res: any) {
   const payload = (req.body || {}) as UserLifecyclePayload;
   const action = payload.action;
   const userId = `${payload.userId || ''}`.trim();
-  const redirectTo = `${payload.redirectTo || ''}`.trim();
-
-  if (!userId || (action !== 'activate' && action !== 'suspend' && action !== 'send_reset')) {
+  if (!userId || !action) {
     res.status(400).json({ error: 'Lifecycle action and userId are required.' });
     return;
   }
 
   const { data: targetProfile, error: targetProfileError } = await adminClient
     .from('profiles')
-    .select('id, username, display_name, role, is_active')
+    .select('id, username, display_name, role, is_active, organization_id')
     .eq('id', userId)
+    .eq('organization_id', profile.organization_id)
     .maybeSingle();
 
   if (targetProfileError || !targetProfile) {
@@ -123,28 +134,62 @@ export default async function handler(req: any, res: any) {
   }
 
   if (action === 'send_reset') {
-    const email = `${targetProfile.username || ''}`.trim().toLowerCase();
+    const email = normalizeEmail(targetProfile.username);
     if (!email) {
-      res.status(400).json({ error: 'Target user has no username/email.' });
+      res.status(400).json({ error: 'Target user has no work email.' });
+      return;
+    }
+    const redirectTo = `${payload.redirectTo || ''}`.trim();
+    const { error } = await adminClient.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
+    if (error) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    await recordAuthEvent(adminClient, profile, actorId, userId, 'password_reset_requested', {});
+    res.status(200).json({ ok: true, message: `Password reset email requested for ${email}.` });
+    return;
+  }
+
+  if (action === 'update_profile') {
+    const email = normalizeEmail(payload.email);
+    const displayName = `${payload.displayName || ''}`.trim();
+    const role = payload.role;
+    if (!email || !displayName || !isAppRole(role)) {
+      res.status(400).json({ error: 'Email, display name, and role are required.' });
       return;
     }
 
-    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      options: redirectTo ? { redirectTo } : undefined,
-    });
-
-    if (linkError) {
-      res.status(400).json({ error: linkError.message });
+    const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(userId, { email });
+    if (authUpdateError) {
+      res.status(400).json({ error: authUpdateError.message });
+      return;
+    }
+    const { error: profileUpdateError } = await adminClient
+      .from('profiles')
+      .update({ username: email, display_name: displayName, role })
+      .eq('id', userId)
+      .eq('organization_id', profile.organization_id);
+    if (profileUpdateError) {
+      res.status(400).json({ error: profileUpdateError.message });
       return;
     }
 
+    if (targetProfile.role !== role) {
+      await recordAuthEvent(adminClient, profile, actorId, userId, 'role_changed', { from: targetProfile.role, to: role });
+    }
     res.status(200).json({
       ok: true,
-      resetLink: linkData.properties?.action_link || null,
-      message: `Password reset link generated for ${email}.`,
+      user: { id: userId, username: email, displayName, role, isActive: targetProfile.is_active },
     });
+    return;
+  }
+
+  if (action !== 'activate' && action !== 'suspend') {
+    res.status(400).json({ error: 'Unsupported lifecycle action.' });
+    return;
+  }
+  if (action === 'suspend' && userId === actorId) {
+    res.status(400).json({ error: 'Office administrators cannot suspend their own account.' });
     return;
   }
 
@@ -152,8 +197,8 @@ export default async function handler(req: any, res: any) {
   const { error: profileUpdateError } = await adminClient
     .from('profiles')
     .update({ is_active: nextActive })
-    .eq('id', userId);
-
+    .eq('id', userId)
+    .eq('organization_id', profile.organization_id);
   if (profileUpdateError) {
     res.status(400).json({ error: profileUpdateError.message });
     return;
@@ -162,12 +207,19 @@ export default async function handler(req: any, res: any) {
   const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(userId, {
     ban_duration: nextActive ? 'none' : '876000h',
   });
-
   if (authUpdateError) {
     res.status(400).json({ error: authUpdateError.message });
     return;
   }
 
+  await recordAuthEvent(
+    adminClient,
+    profile,
+    actorId,
+    userId,
+    nextActive ? 'account_activated' : 'account_deactivated',
+    {},
+  );
   res.status(200).json({
     ok: true,
     user: {
@@ -179,4 +231,31 @@ export default async function handler(req: any, res: any) {
     },
     message: nextActive ? 'User account reactivated.' : 'User account suspended.',
   });
+}
+
+function normalizeEmail(value: unknown) {
+  const email = `${value || ''}`.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
+}
+
+function isAppRole(role: unknown): role is AppRole {
+  return role === 'site' || role === 'office' || role === 'director';
+}
+
+async function recordAuthEvent(
+  client: SupabaseClient,
+  actor: AdminProfile,
+  actorId: string,
+  targetProfileId: string,
+  eventType: string,
+  details: Record<string, unknown>,
+) {
+  const { error } = await client.from('auth_activity_events').insert({
+    organization_id: actor.organization_id,
+    actor_id: actorId,
+    target_profile_id: targetProfileId,
+    event_type: eventType,
+    details,
+  });
+  if (error) throw error;
 }

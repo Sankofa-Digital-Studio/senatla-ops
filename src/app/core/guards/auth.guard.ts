@@ -3,42 +3,55 @@ import { CanActivateFn, CanMatchFn, Route, Router, UrlSegment, UrlTree } from '@
 import { AppRole } from '../models/app.models';
 import { AuthService } from '../services/auth.service';
 
+type RoleRequirement = AppRole | AppRole[] | undefined;
+
 function sanitizeRequestedUrl(url: string) {
   if (!url || !url.startsWith('/')) return '/';
   if (url.startsWith('//') || url.startsWith('/login')) return '/';
   return url;
 }
 
-function getLoginTree(router: Router, expectedRole: AppRole | undefined, requestedUrl: string): UrlTree {
-  return router.createUrlTree(expectedRole ? ['/login', expectedRole] : ['/login'], {
+function loginRole(requirement: RoleRequirement): AppRole | undefined {
+  return Array.isArray(requirement) ? undefined : requirement;
+}
+
+function getLoginTree(router: Router, expectedRole: RoleRequirement, requestedUrl: string, preferredLoginRole?: AppRole): UrlTree {
+  const role = preferredLoginRole ?? loginRole(expectedRole);
+  return router.createUrlTree(role ? ['/login', role] : ['/login'], {
     queryParams: { redirect: sanitizeRequestedUrl(requestedUrl) },
   });
 }
 
-async function hasAccess(expectedRole?: AppRole, requestedUrl: string = '/') {
+function roleAllowed(actualRole: AppRole | null, requirement: RoleRequirement) {
+  if (!actualRole) return false;
+  if (!requirement) return true;
+  return Array.isArray(requirement) ? requirement.includes(actualRole) : actualRole === requirement;
+}
+
+async function hasAccess(expectedRole?: RoleRequirement, requestedUrl: string = '/', preferredLoginRole?: AppRole) {
   const auth = inject(AuthService);
   const router = inject(Router);
   await auth.ensureReady();
 
   if (!auth.canAccess()) {
-    return getLoginTree(router, expectedRole, requestedUrl);
+    return getLoginTree(router, expectedRole, requestedUrl, preferredLoginRole);
   }
 
-  if (expectedRole && !auth.canAccess(expectedRole)) {
+  if (!roleAllowed(auth.role(), expectedRole)) {
     void auth.logout();
-    return getLoginTree(router, expectedRole, requestedUrl);
+    return getLoginTree(router, expectedRole, requestedUrl, preferredLoginRole);
   }
 
   return true;
 }
 
-export function roleCanMatch(expectedRole?: AppRole): CanMatchFn {
+export function roleCanMatch(expectedRole?: RoleRequirement, preferredLoginRole?: AppRole): CanMatchFn {
   return async (_route: Route, segments: UrlSegment[]) => {
     const requestedUrl = '/' + segments.map((segment) => segment.path).join('/');
-    return await hasAccess(expectedRole, requestedUrl);
+    return await hasAccess(expectedRole, requestedUrl, preferredLoginRole);
   };
 }
 
-export function roleCanActivate(expectedRole?: AppRole): CanActivateFn {
-  return async (_route, state) => await hasAccess(expectedRole, state.url || '/');
+export function roleCanActivate(expectedRole?: RoleRequirement, preferredLoginRole?: AppRole): CanActivateFn {
+  return async (_route, state) => await hasAccess(expectedRole, state.url || '/', preferredLoginRole);
 }

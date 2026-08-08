@@ -20,7 +20,7 @@ import { OfficeAdminService } from '../../core/services/office-admin.service';
 import { TimesheetRegisterService } from '../../core/services/timesheet-register.service';
 import { downloadTextFile } from '../../core/utils/browser-file.util';
 
-type AdminTab = 'overview' | 'users' | 'people' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'payroll' | 'approvals' | 'activity';
+type AdminTab = 'overview' | 'users' | 'people' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'payroll' | 'approvals' | 'recovery' | 'activity';
 
 @Component({
   selector: 'app-office-admin',
@@ -43,6 +43,7 @@ export class OfficeAdminComponent {
     { id: 'assets', label: 'Assets' },
     { id: 'payroll', label: 'Payroll' },
     { id: 'approvals', label: 'Approvals' },
+    { id: 'recovery', label: 'Recovery' },
     { id: 'activity', label: 'Activity' },
   ];
 
@@ -134,6 +135,12 @@ export class OfficeAdminComponent {
         && (!siteId || row.siteId === siteId));
   });
   readonly timesheetSummary = computed(() => this.timesheetRegister.summarize(this.timesheetRows()));
+  readonly recoveryOutbox = computed(() => this.service.integrationOutbox()
+    .filter((event) => event.status === 'pending' || event.status === 'failed')
+    .sort((left, right) => {
+      if (left.status !== right.status) return left.status === 'failed' ? -1 : 1;
+      return right.createdAt.localeCompare(left.createdAt);
+    }));
 
   async submitInvite() {
     await this.runAction(async () => {
@@ -281,6 +288,13 @@ export class OfficeAdminComponent {
     await this.runAction(async () => {
       await this.service.rejectRequest(requestId);
       this.feedback.set('Approval rejected.');
+    });
+  }
+
+  async retryOutboxEvent(eventId: string) {
+    await this.runAction(async () => {
+      await this.service.retryOutboxEvent(eventId);
+      this.feedback.set('Retry requested. Monitor this audit reference for the next result.');
     });
   }
 

@@ -14,7 +14,7 @@ describe('AssetRegisterComponent', () => {
       providers: TEST_APP_PROVIDERS,
     }).compileComponents();
 
-    await TestBed.inject(AuthService).login('office.admin', 'SenatlaDemo!');
+    await TestBed.inject(AuthService).login('office.admin@test.invalid', 'test-password');
     fixture = TestBed.createComponent(AssetRegisterComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -25,7 +25,7 @@ describe('AssetRegisterComponent', () => {
   });
 
   it('shows the seeded demo assets and supports serial-only identity', async () => {
-    await TestBed.inject(AuthService).login('office.admin', 'SenatlaDemo!');
+    await TestBed.inject(AuthService).login('office.admin@test.invalid', 'test-password');
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -70,6 +70,41 @@ describe('AssetRegisterComponent', () => {
     expect(component.registration.activeDrafts().some((entry) => entry.id === draft?.id)).toBeTrue();
   });
 
+  it('blocks final asset save until required details are complete and verified', async () => {
+    component.openRegister();
+    component.assetForm = {
+      ...component.assetForm,
+      serialNumber: 'OCR-serial-001',
+      make: 'CAT',
+      model: '320',
+      assetClass: 'Excavator',
+      custodianName: 'Site Team A',
+      assignedSiteId: component.service.activeSites()[0]?.id,
+    };
+
+    await component.saveAsset();
+
+    expect(component.saveError()).toContain('verify');
+    expect(component.service.assets().some((asset) => asset.serialNumber === 'OCR-SERIAL-001')).toBeFalse();
+
+    component.detailsVerified.set(true);
+    await component.saveAsset();
+
+    expect(component.service.assets().some((asset) => asset.serialNumber === 'OCR-SERIAL-001')).toBeTrue();
+  });
+  it('records validation messages and inspect logs when a registration draft is saved', async () => {
+    component.openRegister();
+    component.assetForm.make = 'CAT';
+    component.assetForm.model = '';
+
+    await component.saveRegistrationDraft();
+
+    const draft = component.activeDraft();
+    expect(draft?.validationErrors).toContain('One identifier: number plate, VIN or serial number is required.');
+    expect(draft?.validationErrors).toContain('Model is required.');
+    expect(component.assetRegistrationValidation().messages).toContain('One identifier: number plate, VIN or serial number is required.');
+    expect(component.registration.events().some((event) => event.action === 'asset_registration_draft_saved')).toBeTrue();
+  });
   it('builds renewal and 30-day grace reminder milestones at 7, 5, 3 and 1 days', () => {
     const asset = {
       ...component.service.assets().find((entry) => entry.id === 'demo-bakkie')!,

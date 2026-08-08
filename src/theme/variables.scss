@@ -94,3 +94,21 @@
 
 // Tailwind directive integration (ensure this file is imported in global.scss)
 // Note: Actual tailwind directives are usually in global.scss, but variables are defined here.
+/* Senatla Design System Tokens */
+:root {
+  --sds-color-canvas: #090b0d;
+  --sds-color-surface: #10171e;
+  --sds-color-surface-raised: #151d25;
+  --sds-color-border: #2d3945;
+  --sds-color-text: #f2f5f8;
+  --sds-color-muted: #8f9dab;
+  --sds-color-accent: #eab308;
+  --sds-color-accent-soft: rgba(234, 179, 8, .1);
+  --sds-color-danger: #ef4444;
+  --sds-radius-sm: 6px;
+  --sds-radius-md: 8px;
+  --sds-space-2: 8px;
+  --sds-space-3: 12px;
+  --sds-space-4: 16px;
+  --sds-font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}

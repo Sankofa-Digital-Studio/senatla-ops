@@ -21,9 +21,18 @@ describe('roleCanActivate', () => {
     expect(router.serializeUrl(result as never)).toContain('redirect=%2Foffice-admin');
   });
 
+  it('redirects anonymous multi-role routes to the preferred role login', async () => {
+    const router = TestBed.inject(Router);
+    const result = await TestBed.runInInjectionContext(() =>
+      roleCanActivate(['site', 'office', 'director'], 'office')({} as never, { url: '/asset-register' } as never),
+    );
+
+    expect(result).not.toBeTrue();
+    expect(router.serializeUrl(result as never)).toBe('/login/office?redirect=%2Fasset-register');
+  });
   it('permits only the authenticated role', async () => {
     const auth = TestBed.inject(AuthService);
-    await auth.login('office.admin', 'SenatlaDemo!');
+    await auth.login('office.admin@test.invalid', 'test-password');
 
     const officeResult = await TestBed.runInInjectionContext(() =>
       roleCanActivate('office')({} as never, { url: '/office-admin' } as never),
@@ -35,5 +44,17 @@ describe('roleCanActivate', () => {
     );
     expect(directorResult).not.toBeTrue();
     expect(auth.isAuthenticated()).toBeFalse();
+  });
+
+  it('permits any authenticated role in an allowed role set', async () => {
+    const auth = TestBed.inject(AuthService);
+    await auth.login('director.exec@test.invalid', 'test-password');
+
+    const result = await TestBed.runInInjectionContext(() =>
+      roleCanActivate(['site', 'office', 'director'])({} as never, { url: '/asset-register' } as never),
+    );
+
+    expect(result).toBeTrue();
+    expect(auth.isAuthenticated()).toBeTrue();
   });
 });

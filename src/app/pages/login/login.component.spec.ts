@@ -22,9 +22,17 @@ describe('LoginComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('preloads the office demo without exposing a different role', () => {
-    component.useDemo('office');
-    expect(component.username).toBe('office.admin');
-    expect(component.requestedRole).toBe('office');
+  it('rejects a valid account when the selected role is wrong', async () => {
+    component.requestedRole = 'office';
+    component.username = 'director.exec@test.invalid';
+    component.password = 'test-password';
+
+    await component.handleLogin();
+
+    expect(component.errorMsg).toBe('Invalid credentials for the selected role.');
+  });
+
+  it('uses the production login hint', () => {
+    expect(component.modeHint).toContain('Secure access portal');
   });
 });

@@ -74,18 +74,13 @@ export interface Employee {
   taxRefNumber?: string;
 }
 
-export interface DemoUser {
-  username: string;
-  password: string;
-  role: AppRole;
-  displayName: string;
-}
-
 export interface AuthSession {
   userId: string;
   username: string;
   role: AppRole;
   displayName: string;
+  organizationId: string;
+  permittedSiteIds: string[];
   issuedAt: string;
   expiresAt: string;
 }
@@ -207,6 +202,20 @@ export interface AssetRegistrationDraft {
   createdAt: string;
   updatedAt: string;
   completedAssetId?: string | null;
+  validationErrors?: string[];
+  verifiedAt?: string | null;
+  verifiedBy?: string | null;
+}
+
+export interface AssetRegistrationEvent {
+  id: string;
+  organizationId: string;
+  action: string;
+  entityId: string;
+  actorId: string;
+  actorName: string;
+  details?: Record<string, unknown> | null;
+  occurredAt: string;
 }
 
 export interface AssetRegistrationEvidence {
@@ -310,6 +319,7 @@ export interface IntegrationOutboxEvent {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   idempotencyKey: string;
   attempts: number;
+  lastError?: string | null;
   createdAt: string;
   processedAt?: string | null;
 }
@@ -406,6 +416,3 @@ export interface Organization {
   isActive: boolean;
   createdAt: string;
 }
-
-
-
