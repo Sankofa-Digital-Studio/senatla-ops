@@ -60,12 +60,16 @@ test('uses common Vercel Supabase aliases when Senatla names are absent', async 
   }
 });
 
-test('fails fast when Supabase mode lacks browser-safe connection values', async () => {
-  const result = await runGenerator({ SENATLA_API_MODE: 'supabase' });
+test('fails fast and emits no runtime artifact when default local mode lacks Supabase authentication values', async () => {
+  const result = await runGenerator({});
 
   try {
     assert.notEqual(result.code, 0);
-    assert.match(result.stderr, /SENATLA_API_MODE=supabase requires SENATLA_SUPABASE_URL/);
+    assert.match(result.stderr, /Supabase authentication requires SENATLA_SUPABASE_URL/);
+    await assert.rejects(
+      readFile(resolve(result.cwd, 'src/assets/runtime-config.json'), 'utf8'),
+      (error) => error?.code === 'ENOENT',
+    );
   } finally {
     await rm(result.cwd, { recursive: true, force: true });
   }

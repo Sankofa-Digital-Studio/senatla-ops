@@ -21,9 +21,9 @@ const config = {
   },
 };
 
-if (config.api.mode === 'supabase' && (!config.api.supabaseUrl || !config.api.supabaseAnonKey)) {
+if (!config.api.supabaseUrl || !config.api.supabaseAnonKey) {
   throw new Error(
-    'SENATLA_API_MODE=supabase requires SENATLA_SUPABASE_URL and SENATLA_SUPABASE_ANON_KEY. ' +
+    'Supabase authentication requires SENATLA_SUPABASE_URL and SENATLA_SUPABASE_ANON_KEY. ' +
       'Common Vercel aliases SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and ' +
       'SUPABASE_ANON_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY are also supported.',
   );
