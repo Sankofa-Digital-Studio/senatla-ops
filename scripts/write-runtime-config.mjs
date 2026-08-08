@@ -21,7 +21,10 @@ const config = {
   },
 };
 
-if (!config.api.supabaseUrl || !config.api.supabaseAnonKey) {
+if (
+  (config.api.mode === 'supabase' || process.env.VERCEL === '1') &&
+  (!config.api.supabaseUrl || !config.api.supabaseAnonKey)
+) {
   throw new Error(
     'Supabase authentication requires SENATLA_SUPABASE_URL and SENATLA_SUPABASE_ANON_KEY. ' +
       'Common Vercel aliases SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and ' +
