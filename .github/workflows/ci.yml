@@ -42,6 +42,20 @@ jobs:
           cache: npm
       - run: npx --yes supabase@2.107.0 start
       - run: npx --yes supabase@2.107.0 db reset --local
+      - name: Cache pg_prove test image with bounded retries
+        run: |
+          for attempt in 1 2 3; do
+            if docker pull public.ecr.aws/supabase/pg_prove:3.36; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Unable to pull pg_prove after $attempt attempts." >&2
+              exit 1
+            fi
+
+            sleep $((attempt * 15))
+          done
       - run: npx --yes supabase@2.107.0 test db
       - if: always()
         run: npx --yes supabase@2.107.0 stop --no-backup
