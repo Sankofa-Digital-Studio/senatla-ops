@@ -9,7 +9,7 @@ export function injectSupabaseClient() {
 
   if (!client) {
     if (!config.api.supabaseUrl || !config.api.supabaseAnonKey) {
-      throw new Error('Supabase mode requires supabaseUrl and supabaseAnonKey.');
+      throw new Error('Supabase authentication requires supabaseUrl and supabaseAnonKey.');
     }
 
     client = createClient(config.api.supabaseUrl, config.api.supabaseAnonKey, {
