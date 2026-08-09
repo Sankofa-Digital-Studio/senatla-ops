@@ -7,7 +7,6 @@ type AppRole = 'site' | 'office' | 'director';
 type UserInvitePayload = {
   email?: string;
   displayName?: string;
-  role?: AppRole;
 };
 
 type UserLifecyclePayload = {
@@ -72,10 +71,10 @@ export default async function handler(req: any, res: any) {
     const payload = (req.body || {}) as UserInvitePayload;
     const email = normalizeEmail(payload.email);
     const displayName = `${payload.displayName || ''}`.trim();
-    const role = payload.role;
+    const role: AppRole = 'site';
 
-    if (!email || !displayName || !isAppRole(role)) {
-      res.status(400).json({ error: 'Email, display name, and role are required.' });
+    if (!email || !displayName) {
+      res.status(400).json({ error: 'Email and display name are required.' });
       return;
     }
 
@@ -259,3 +258,4 @@ async function recordAuthEvent(
   });
   if (error) throw error;
 }
+

@@ -16,8 +16,8 @@ jobs:
   application:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.15.0
           cache: npm
@@ -26,7 +26,7 @@ jobs:
         env:
           SENATLA_API_MODE: local
           SENATLA_AUTH_REVIEW_BYPASS: "false"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: senatla-ops-web
           path: www
@@ -35,13 +35,42 @@ jobs:
   supabase:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.15.0
           cache: npm
-      - run: npx --yes supabase@2.107.0 start
+      - name: Start Supabase with bounded retries
+        run: |
+          for attempt in 1 2 3; do
+            if npx --yes supabase@2.107.0 start; then
+              exit 0
+            fi
+
+            npx --yes supabase@2.107.0 stop --no-backup || true
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Unable to start Supabase after $attempt attempts." >&2
+              exit 1
+            fi
+
+            sleep $((attempt * 30))
+          done
       - run: npx --yes supabase@2.107.0 db reset --local
+      - name: Cache pg_prove test image with bounded retries
+        run: |
+          for attempt in 1 2 3; do
+            if docker pull public.ecr.aws/supabase/pg_prove:3.36; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Unable to pull pg_prove after $attempt attempts." >&2
+              exit 1
+            fi
+
+            sleep $((attempt * 15))
+          done
       - run: npx --yes supabase@2.107.0 test db
       - if: always()
         run: npx --yes supabase@2.107.0 stop --no-backup

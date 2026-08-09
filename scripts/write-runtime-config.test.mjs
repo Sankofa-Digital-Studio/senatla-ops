@@ -60,12 +60,31 @@ test('uses common Vercel Supabase aliases when Senatla names are absent', async 
   }
 });
 
-test('fails fast when Supabase mode lacks browser-safe connection values', async () => {
-  const result = await runGenerator({ SENATLA_API_MODE: 'supabase' });
+test('allows intentional local mode without Supabase authentication values', async () => {
+  const result = await runGenerator({});
+
+  try {
+    assert.equal(result.code, 0, result.stderr);
+    const contents = await readFile(resolve(result.cwd, 'src/assets/runtime-config.json'), 'utf8');
+    const parsed = JSON.parse(contents);
+    assert.equal(parsed.api.mode, 'local');
+    assert.equal(parsed.api.supabaseUrl, '');
+    assert.equal(parsed.api.supabaseAnonKey, '');
+  } finally {
+    await rm(result.cwd, { recursive: true, force: true });
+  }
+});
+
+test('fails fast and emits no runtime artifact when a hosted build lacks Supabase authentication values', async () => {
+  const result = await runGenerator({ VERCEL: '1' });
 
   try {
     assert.notEqual(result.code, 0);
-    assert.match(result.stderr, /SENATLA_API_MODE=supabase requires SENATLA_SUPABASE_URL/);
+    assert.match(result.stderr, /Supabase authentication requires SENATLA_SUPABASE_URL/);
+    await assert.rejects(
+      readFile(resolve(result.cwd, 'src/assets/runtime-config.json'), 'utf8'),
+      (error) => error?.code === 'ENOENT',
+    );
   } finally {
     await rm(result.cwd, { recursive: true, force: true });
   }

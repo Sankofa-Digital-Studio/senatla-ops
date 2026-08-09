@@ -542,7 +542,7 @@ export class OfficeAdminService {
         id: this.createId(),
         username: input.email.toLowerCase(),
         displayName: input.displayName,
-        role: input.role,
+        role: 'site',
         isActive: true,
         createdAt: new Date().toISOString(),
       };
