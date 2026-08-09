@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { SENATLA_TRADING_ORGANIZATION_ID } from '../../core/models/app.models';
+import { AuthService } from '../../core/services/auth.service';
 import { resetTestStorage, TEST_APP_PROVIDERS } from '../../test-providers';
 import { OfficeAdminComponent } from './office-admin.component';
 
@@ -21,6 +22,13 @@ describe('OfficeAdminComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('forces new email invitations to minimum site access', async () => {
+    await TestBed.inject(AuthService).login('office.admin@test.invalid', 'test-password');
+    component.inviteForm = { email: 'new@example.com', displayName: 'New User', role: 'director' };
+    await component.submitInvite();
+    expect(component.service.users()[0].role).toBe('site');
   });
 
   it('builds a reviewable timesheet register for the selected date', () => {
