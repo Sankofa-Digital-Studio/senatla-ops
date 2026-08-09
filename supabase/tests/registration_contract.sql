@@ -26,8 +26,8 @@ select is((select role::text from public.profiles where id = '40000000-0000-4000
 select is((select organization_id from public.profiles where id = '40000000-0000-4000-8000-000000000001'), '00000000-0000-4000-8000-000000000001'::uuid, 'signup profile receives the active organization');
 select is((select count(*) from public.profile_site_access where profile_id = '40000000-0000-4000-8000-000000000001'), 0::bigint, 'new profile receives no site assignment');
 
-insert into private.admin_invitation_codes (code_digest, expires_at)
-values (encode(extensions.digest('senatla-admin-test-0001', 'sha256'), 'hex'), now() + interval '10 minutes');
+insert into private.admin_invitation_codes (organization_id, label, code_suffix, code_digest, expires_at)
+values ('00000000-0000-4000-8000-000000000001', 'Registration contract', 't-0001', encode(extensions.digest('senatla-admin-test-0001', 'sha256'), 'hex'), now() + interval '10 minutes');
 
 set local role authenticated;
 set local "request.jwt.claims" = '{"sub":"40000000-0000-4000-8000-000000000001","role":"authenticated","exp":4102444800}';
