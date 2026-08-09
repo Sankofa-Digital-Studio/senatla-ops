@@ -36,6 +36,19 @@ class TestAuthGateway {
     return this.session;
   }
 
+  async register(request: { email: string; password: string; displayName: string; adminCode?: string }) {
+    const email = request.email.trim().toLowerCase();
+    if (!email || request.password.length < 8 || !request.displayName.trim()) {
+      return { success: false, confirmationRequired: false, adminGranted: false, message: 'Registration could not be completed.' };
+    }
+
+    return { success: true, confirmationRequired: false, adminGranted: false };
+  }
+
+  async redeemAdminCode(_code: string): Promise<boolean> {
+    return false;
+  }
+
   async logout(): Promise<void> {
     this.session = null;
   }
