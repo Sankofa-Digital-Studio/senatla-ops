@@ -40,7 +40,22 @@ jobs:
         with:
           node-version: 24.15.0
           cache: npm
-      - run: npx --yes supabase@2.107.0 start
+      - name: Start Supabase with bounded retries
+        run: |
+          for attempt in 1 2 3; do
+            if npx --yes supabase@2.107.0 start; then
+              exit 0
+            fi
+
+            npx --yes supabase@2.107.0 stop --no-backup || true
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Unable to start Supabase after $attempt attempts." >&2
+              exit 1
+            fi
+
+            sleep $((attempt * 30))
+          done
       - run: npx --yes supabase@2.107.0 db reset --local
       - name: Cache pg_prove test image with bounded retries
         run: |
