@@ -6,8 +6,10 @@ import {
   AssetMaintenancePlan,
   AssetMeterReading,
   AssetWorkOrder,
+  AssetFuelEntry,
   ApprovalRequest,
   Employee,
+  EmployeeOnboardingRecord,
   FinancialType,
   Group,
   Issue,
@@ -16,6 +18,7 @@ import {
   ManagedUserProfile,
   PayrollExportRecord,
   PayrollPeriod,
+  PpeIssueRecord,
   SavedAdminView,
   Site,
   VehicleAsset,
@@ -26,6 +29,8 @@ export interface OfficeAdminWorkspace {
   sites: Site[];
   groups: Group[];
   employees: Employee[];
+  employeeOnboarding: EmployeeOnboardingRecord[];
+  ppeIssues: PpeIssueRecord[];
   financialTypes: FinancialType[];
   issues: Issue[];
   assets: VehicleAsset[];
@@ -34,6 +39,7 @@ export interface OfficeAdminWorkspace {
   assetMeterReadings: AssetMeterReading[];
   assetWorkOrders: AssetWorkOrder[];
   assetMaintenancePlans: AssetMaintenancePlan[];
+  assetFuelEntries: AssetFuelEntry[];
   integrationOutbox: IntegrationOutboxEvent[];
   activity: AdminActivityEvent[];
   payrollPeriods: PayrollPeriod[];

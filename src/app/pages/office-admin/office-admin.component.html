@@ -169,6 +169,49 @@
         </div>
       </section>
 
+      <section *ngIf="activeTab() === 'workforce'" class="admin-tab-panel space-y-4">
+        <div class="grid gap-4 xl:grid-cols-2">
+          <article class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-gray-300">Employee bulk load</h2>
+            <p class="mt-2 text-xs text-gray-400">CSV headers: first_name, surname, id_number, role, site_id, start_date, basic_rate.</p>
+            <label class="mt-4 block cursor-pointer rounded-xl border border-dashed border-gray-700 bg-gray-950 p-5 text-center text-sm text-gray-300">Choose employee CSV<input type="file" accept=".csv,text/csv" (change)="importEmployees($event)" class="sr-only"></label>
+          </article>
+          <article class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-gray-300">New-hire screening & medical</h2>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+              <select [(ngModel)]="onboardingForm.employeeId" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white sm:col-span-2"><option value="">Select employee</option><option *ngFor="let employee of service.employees()" [value]="employee.id">{{ employeeName(employee.id) }}</option></select>
+              <label class="text-xs text-gray-400">Criminal check<select [(ngModel)]="onboardingForm.criminalCheckStatus" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="pending">Pending</option><option value="clear">Clear</option><option value="review">Review</option><option value="failed">Failed</option></select></label>
+              <label class="text-xs text-gray-400">Fingerprint check<select [(ngModel)]="onboardingForm.fingerprintCheckStatus" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="pending">Pending</option><option value="clear">Clear</option><option value="review">Review</option><option value="failed">Failed</option></select></label>
+              <label class="text-xs text-gray-400">Medical status<select [(ngModel)]="onboardingForm.medicalStatus" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="pending">Pending</option><option value="fit">Fit</option><option value="restricted">Restricted</option><option value="unfit">Unfit</option></select></label>
+              <label class="text-xs text-gray-400">Red ticket number<input [(ngModel)]="onboardingForm.redTicketNumber" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"></label>
+              <label class="text-xs text-gray-400">Issued<input [(ngModel)]="onboardingForm.redTicketIssuedAt" type="date" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"></label>
+              <label class="text-xs text-gray-400">Expires<input [(ngModel)]="onboardingForm.redTicketExpiresAt" type="date" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"></label>
+              <textarea [(ngModel)]="onboardingForm.notes" placeholder="Restricted-access notes" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white sm:col-span-2"></textarea>
+              <button type="button" (click)="submitOnboarding()" [disabled]="busy() || !onboardingForm.employeeId" class="rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50 sm:col-span-2">Save screening record</button>
+            </div>
+          </article>
+        </div>
+        <div class="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
+          <article class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-gray-300">Issue or request PPE</h2>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+              <select [(ngModel)]="ppeForm.employeeId" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white sm:col-span-2"><option value="">Select employee</option><option *ngFor="let employee of service.employees()" [value]="employee.id">{{ employeeName(employee.id) }}</option></select>
+              <select [(ngModel)]="ppeForm.itemType" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="overall_pants">Overall pants</option><option value="overall_jacket">Overall jacket</option><option value="safety_boots">Safety boots</option></select>
+              <input [(ngModel)]="ppeForm.brand" placeholder="Brand" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+              <input [(ngModel)]="ppeForm.size" placeholder="Size" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+              <input [(ngModel)]="ppeForm.unitCost" type="number" min="0" placeholder="Unit cost" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+              <label class="text-xs text-gray-400">Order date<input [(ngModel)]="ppeForm.orderDate" type="date" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"></label>
+              <label class="text-xs text-gray-400">Collection date<input [(ngModel)]="ppeForm.collectionDate" type="date" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"></label>
+              <select [(ngModel)]="ppeForm.status" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white sm:col-span-2"><option value="requested">Requested</option><option value="ordered">Ordered</option><option value="ready">Ready</option><option value="collected">Collected</option></select>
+              <button type="button" (click)="submitPpe()" [disabled]="busy() || !ppeForm.employeeId || !ppeForm.size" class="rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50 sm:col-span-2">Save PPE record</button>
+            </div>
+          </article>
+          <article class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-gray-300">PPE tracking & digital confirmation</h2>
+            <div class="mt-4 space-y-3"><div *ngFor="let issue of service.ppeIssues()" class="rounded-xl border border-gray-800 bg-gray-950 p-3"><div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p class="font-semibold">{{ employeeName(issue.employeeId) }} · {{ issue.itemType.replace('_', ' ') }}</p><p class="text-xs text-gray-500">{{ issue.brand || 'Brand pending' }} · Size {{ issue.size }} · R {{ issue.unitCost | number:'1.2-2' }} · {{ issue.status }}</p><p class="mt-1 text-[11px] text-gray-500">Office: {{ issue.officeConfirmedAt ? 'confirmed' : 'pending' }} · Employee: {{ issue.employeeConfirmedAt ? 'confirmed' : 'pending' }}</p></div><div class="flex gap-2"><button type="button" (click)="confirmPpe(issue.id, 'office')" [disabled]="!!issue.officeConfirmedAt" class="rounded-lg border border-yellow-800 px-3 py-2 text-xs text-yellow-200 disabled:opacity-40">Office confirm</button><button type="button" (click)="confirmPpe(issue.id, 'employee')" [disabled]="!!issue.employeeConfirmedAt" class="rounded-lg border border-green-800 px-3 py-2 text-xs text-green-200 disabled:opacity-40">Employee confirm</button></div></div></div></div>
+          </article>
+        </div>
+      </section>
       <section *ngIf="activeTab() === 'sites'" class="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
         <div class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
           <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Site Form</h2>

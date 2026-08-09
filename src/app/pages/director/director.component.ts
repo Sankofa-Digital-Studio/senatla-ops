@@ -1,6 +1,7 @@
 import { CommonModule, DecimalPipe, DatePipe } from '@angular/common';
 import { Component, inject, computed, signal } from '@angular/core';
 import { StaffDataService } from 'src/app/core/services/staff-data.service';
+import { OfficeAdminService } from 'src/app/core/services/office-admin.service';
 
 @Component({
   selector: 'app-director',
@@ -11,6 +12,7 @@ import { StaffDataService } from 'src/app/core/services/staff-data.service';
 })
 export class DirectorComponent  {
 service = inject(StaffDataService);
+ office = inject(OfficeAdminService);
  viewMode = signal<'day' | 'month' | 'year'>('day');
 
   // --- ANALYTICS LOGIC ---
@@ -53,6 +55,9 @@ service = inject(StaffDataService);
        .reduce((employeeTotal) => employeeTotal + employee.basicRate, 0), 0);
   });
 
+  ppeExpense = computed(() => this.office.ppeIssues().filter((entry) => this.isDateKeyInSelectedPeriod((entry.orderDate || entry.requestedAt).slice(0, 10))).reduce((total, entry) => total + entry.unitCost, 0));
+  fuelExpense = computed(() => this.office.assetFuelEntries().filter((entry) => this.isDateKeyInSelectedPeriod(entry.fuelDate)).reduce((total, entry) => total + entry.totalCost, 0));
+  operatingExpense = computed(() => this.displayedCost() + this.ppeExpense() + this.fuelExpense());
   // 4. Per-Site Breakdown
   siteStats = computed(() => {
      return this.service.sites().map(site => {
@@ -107,4 +112,3 @@ service = inject(StaffDataService);
     return `${year}-${month}-${day}`;
   }
 }
-

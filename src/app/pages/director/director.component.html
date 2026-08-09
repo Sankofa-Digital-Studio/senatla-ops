@@ -94,6 +94,11 @@
       </div>
     </div>
 
+    <section class="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Operating expenses">
+      <div class="rounded-xl border border-gray-700 bg-gray-800 p-4"><p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">PPE expense</p><p class="mt-2 font-mono text-2xl font-bold text-white">R {{ ppeExpense() | number:'1.2-2' }}</p></div>
+      <div class="rounded-xl border border-gray-700 bg-gray-800 p-4"><p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Fuel expense</p><p class="mt-2 font-mono text-2xl font-bold text-white">R {{ fuelExpense() | number:'1.2-2' }}</p></div>
+      <div class="rounded-xl border border-yellow-700/60 bg-gray-800 p-4"><p class="text-[10px] font-bold uppercase tracking-wider text-yellow-400">Total operating expense</p><p class="mt-2 font-mono text-2xl font-bold text-white">R {{ operatingExpense() | number:'1.2-2' }}</p></div>
+    </section>
     <div *ngIf="viewMode() !== 'day'" class="animate-fade-in">
       <h2 class="text-sm font-bold text-white uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">Spending Trend Analysis</h2>
       <div class="h-40 flex items-end gap-2 p-4 bg-gray-800 rounded-xl border border-gray-700">

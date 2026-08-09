@@ -24,8 +24,8 @@ export interface UiTabItem {
     </nav>
   `,
   styles: [`
-    .tab-nav { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0; scrollbar-width: thin; }
-    button { flex: 0 0 auto; min-height: 36px; border: 1px solid #3b4652; border-radius: 6px; background: transparent; color: #c5ced7; padding: 7px 12px; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; cursor: pointer; }
+    .tab-nav { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(9rem, 1fr); gap: 6px; overflow-x: auto; padding: 2px 0 8px; scrollbar-width: thin; }
+    button { width: 100%; min-height: 36px; border: 1px solid #3b4652; border-radius: 6px; background: transparent; color: #c5ced7; padding: 7px 12px; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; cursor: pointer; }
     button:hover:not(:disabled) { border-color: #657483; color: #fff; }
     button.active { border-color: #f5a800; background: #f5a800; color: #171000; }
     button:focus-visible { outline: 2px solid #f5a800; outline-offset: 2px; }
