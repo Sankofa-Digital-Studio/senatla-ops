@@ -437,3 +437,4 @@ export interface Organization {
   isActive: boolean;
   createdAt: string;
 }
+

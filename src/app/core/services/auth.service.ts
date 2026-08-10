@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AppRole, AuthSession } from '../models/app.models';
-import { AUTH_GATEWAY, AuthGateway } from '../gateways/auth.gateway';
+import { AUTH_GATEWAY, AuthGateway, RegistrationRequest } from '../gateways/auth.gateway';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -37,6 +37,14 @@ export class AuthService {
     this.sessionState.set(session);
     this.readyState.set(true);
     return session;
+  }
+
+  async register(request: RegistrationRequest) {
+    return await this.authGateway.register(request);
+  }
+
+  async redeemAdminCode(code: string) {
+    return await this.authGateway.redeemAdminCode(code);
   }
 
   async logout() {

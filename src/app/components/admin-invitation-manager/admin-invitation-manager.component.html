@@ -1,0 +1,45 @@
+<section class="invitation-shell" aria-labelledby="invitation-heading">
+  <header class="invitation-header">
+    <div><p class="eyebrow">Controlled privilege elevation</p><h2 id="invitation-heading">Administrator invitation codes</h2>
+      <p>Issue temporary codes without exposing stored secrets. New accounts remain least-privileged until successful redemption.</p></div>
+    <div class="active-count"><strong>{{ activeCount() }}</strong><span>Active codes</span></div>
+  </header>
+
+  <div class="invitation-layout">
+    <form class="issue-card" (ngSubmit)="issue()">
+      <h3>Issue a code</h3>
+      <label><span>Purpose label</span><input [(ngModel)]="label" name="invitationLabel" maxlength="80" placeholder="e.g. August finance administrator"></label>
+      <div class="field-grid">
+        <label><span>Expires after</span><select [(ngModel)]="expiresInHours" name="expiresInHours"><option [ngValue]="1">1 hour</option><option [ngValue]="8">8 hours</option><option [ngValue]="24">24 hours</option><option [ngValue]="72">3 days</option><option [ngValue]="168">7 days</option><option [ngValue]="720">30 days</option></select></label>
+        <label><span>Maximum uses</span><input [(ngModel)]="maxUses" name="maxUses" type="number" min="1" max="25"></label>
+      </div>
+      <p class="safety-note">Recommended: one use and 24 hours. Broader codes increase the impact of accidental sharing.</p>
+      <button type="submit" [disabled]="busy()">{{ busy() ? 'Securing…' : 'Issue secure code' }}</button>
+    </form>
+
+    <aside *ngIf="revealedCode()" class="reveal-card" aria-live="assertive">
+      <p class="eyebrow">Displayed once</p><h3>Copy this code now</h3><code>{{ revealedCode() }}</code>
+      <p>The database stores only a SHA-256 digest. This plaintext clears after 60 seconds and cannot be recovered.</p>
+      <div><button type="button" (click)="copyCode()">Copy code</button><button type="button" class="secondary" (click)="clearRevealedCode()">Clear now</button></div>
+    </aside>
+  </div>
+
+  <p *ngIf="feedback()" class="feedback" aria-live="polite">{{ feedback() }}</p>
+
+  <div class="directory-card">
+    <div class="directory-toolbar"><div><h3>Invitation register</h3><p>Only suffixes remain visible after issuance.</p></div>
+      <label><span class="sr-only">Filter invitation status</span><select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)"><option value="all">All statuses</option><option value="active">Active</option><option value="expired">Expired</option><option value="exhausted">Exhausted</option><option value="revoked">Revoked</option></select></label></div>
+    <div *ngIf="service.loading()" class="empty-state">Loading invitation register…</div>
+    <div *ngIf="!service.loading() && !filtered().length" class="empty-state">No invitations match this status.</div>
+    <div class="invitation-list">
+      <article *ngFor="let invitation of filtered()" class="invitation-row">
+        <div class="invitation-main"><span class="status" [attr.data-status]="invitation.status">{{ statusLabel(invitation.status) }}</span><h4>{{ invitation.label }}</h4><p>Code ending <strong>{{ invitation.codeSuffix }}</strong> · Issued by {{ invitation.createdByName }}</p></div>
+        <dl><div><dt>Usage</dt><dd>{{ invitation.usedCount }} / {{ invitation.maxUses }}</dd></div><div><dt>Expires</dt><dd>{{ invitation.expiresAt | date:'medium' }}</dd></div><div><dt>Last used</dt><dd>{{ invitation.lastUsedAt ? (invitation.lastUsedAt | date:'short') : 'Never' }}</dd></div></dl>
+        <div class="row-actions" *ngIf="invitation.status === 'active'">
+          <button *ngIf="pendingRevokeId() !== invitation.id" type="button" class="danger" (click)="requestRevoke(invitation.id)">Revoke</button>
+          <ng-container *ngIf="pendingRevokeId() === invitation.id"><span>Revoke now?</span><button type="button" class="danger" (click)="confirmRevoke(invitation)">Confirm</button><button type="button" class="secondary" (click)="cancelRevoke()">Cancel</button></ng-container>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
