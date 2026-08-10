@@ -1,38 +1,73 @@
-<div class="min-h-full flex flex-col items-center justify-center bg-slate-950 text-white p-6 space-y-8">
-  <div class="text-center max-w-2xl">
-    <div class="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center text-slate-950 text-2xl font-bold mb-4 mx-auto">S</div>
-    <h1 class="text-3xl font-bold tracking-tight">Role Hub</h1>
-    <p class="text-slate-400 mt-2 text-sm">Signed in as {{ auth.displayName() }}. Only the permitted workspace is actionable in this review build.</p>
-    <div *ngIf="!auth.isAuthenticated()" class="mt-6">
-      <a routerLink="/login" class="inline-flex items-center justify-center rounded-full bg-yellow-500 px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-950 shadow-lg shadow-yellow-500/20 transition hover:bg-yellow-400">
-        Sign in
-      </a>
+<section class="landing-shell min-h-full overflow-auto text-white">
+  <div class="landing-frame relative isolate mx-auto flex min-h-full w-full flex-col px-5 py-6">
+    <div class="ambient-layer absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+      <div class="ambient-orb ambient-orb--lime"></div>
+      <div class="ambient-orb ambient-orb--amber"></div>
+      <div class="ambient-rule"></div>
     </div>
-  </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-5xl">
-    <button
-      *ngFor="let card of cards()"
-      (click)="openRole(card.route, card.enabled)"
-      [disabled]="!card.enabled"
-      class="group p-6 bg-slate-900 rounded-2xl border border-slate-800 transition-all text-left disabled:opacity-40 disabled:cursor-not-allowed"
-      [class.hover:border-yellow-500]="card.role === 'site' && card.enabled"
-      [class.hover:border-blue-500]="card.role === 'office' && card.enabled"
-      [class.hover:border-emerald-500]="card.role === 'director' && card.enabled"
-      [class.border-yellow-500/60]="card.role === 'site' && card.enabled"
-      [class.border-blue-500/60]="card.role === 'office' && card.enabled"
-      [class.border-emerald-500/60]="card.role === 'director' && card.enabled"
-    >
-      <div class="flex items-center justify-between gap-4 mb-4">
-        <h3 class="font-bold text-lg">{{ card.title }}</h3>
-        <span class="text-[10px] uppercase tracking-[0.2em] text-slate-500">
-          {{ card.enabled ? 'Available' : 'Restricted' }}
+    <header class="site-header flex items-center justify-between gap-4">
+      <a routerLink="/landing" class="flex items-center gap-3" aria-label="Senatla Ops home">
+        <span class="brand-mark grid place-items-center rounded-2xl bg-lime-300 text-lg font-black text-slate-950 shadow-xl">S</span>
+        <span>
+          <span class="block text-xs font-semibold uppercase tracking-[0.32em] text-lime-200">Senatla Ops</span>
+          <span class="block text-xs text-white/50">Operations with a pulse</span>
         </span>
+      </a>
+
+      <nav class="desktop-menu" aria-label="Primary navigation">
+        <a href="#capabilities">Capabilities</a>
+        <a href="#assurance">Assurance</a>
+        <a routerLink="/register" class="nav-register">Register</a>
+        <a routerLink="/login" class="nav-login">Login</a>
+      </nav>
+
+      <details class="mobile-menu">
+        <summary aria-label="Open navigation menu"><span></span><span></span><span></span></summary>
+        <nav aria-label="Mobile navigation">
+          <a href="#capabilities">Capabilities</a>
+          <a href="#assurance">Assurance</a>
+          <a routerLink="/register">Register</a>
+          <a routerLink="/login">Login</a>
+        </nav>
+      </details>
+    </header>
+
+    <main class="hero-grid grid flex-1 items-center gap-10 py-12">
+      <div class="hero-copy max-w-3xl">
+        <p class="eyebrow mb-6 inline-flex rounded-full border border-lime-300/30 bg-lime-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-lime-100">
+          Clear operations. Confident decisions.
+        </p>
+        <h1 class="hero-title font-black leading-[0.94] tracking-tight text-white">
+          Command every moving part before it becomes a blocker.
+        </h1>
+        <p class="hero-summary mt-6 max-w-2xl leading-8 text-white/70">
+          Senatla Ops connects field activity, workforce controls, asset evidence, and approvals in one secure operating system built for accountable teams.
+        </p>
+        <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+          <a routerLink="/register" class="inline-flex items-center justify-center rounded-full bg-lime-300 px-7 py-4 text-sm font-black uppercase tracking-[0.18em] text-slate-950 shadow-2xl transition hover:bg-lime-200">
+            Create account
+          </a>
+          <a routerLink="/login" class="inline-flex items-center justify-center rounded-full border border-white/15 px-7 py-4 text-sm font-bold uppercase tracking-[0.18em] text-white/80 transition hover:border-white/40 hover:text-white">
+            Secure login
+          </a>
+        </div>
       </div>
-      <p class="text-sm text-slate-400 leading-6">{{ card.description }}</p>
-      <div class="mt-6 text-xs font-semibold text-slate-300">
-        {{ card.enabled ? 'Open workspace' : 'Role does not grant access' }}
-      </div>
-    </button>
+
+      <aside id="capabilities" class="capability-panel rounded-[2rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl backdrop-blur" aria-label="Platform capabilities">
+        <div class="rounded-[1.5rem] bg-slate-950/70 p-5">
+          <p class="text-xs font-bold uppercase tracking-[0.22em] text-lime-200">Live operating stack</p>
+          <div class="mt-5 space-y-3">
+            <article class="feature-card"><h2>Evidence-ready asset control</h2><p>Capture identifiers, documents, images, verification decisions, and accountable handovers.</p></article>
+            <article class="feature-card"><h2>Focused daily workflows</h2><p>Give every person the smallest useful workspace while keeping operational context connected.</p></article>
+            <article id="assurance" class="feature-card"><h2>Governance by design</h2><p>Protected data boundaries, auditable actions, and release gates keep trust visible.</p></article>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="flex flex-col gap-2 border-t border-white/10 py-5 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
+      <span>© 2026 Senatla Ops</span><span>Secure operations, designed to scale.</span>
+    </footer>
   </div>
-</div>
+</section>

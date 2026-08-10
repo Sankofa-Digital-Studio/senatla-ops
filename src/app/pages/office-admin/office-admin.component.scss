@@ -19,9 +19,11 @@
   scrollbar-width: none;
 }
 
-:host { display: block; min-height: 100%; background: #030712; }
-main { min-height: clamp(36rem, 72dvh, 72rem); background: #030712; }
-main > section { min-height: 32rem; align-content: start; }
+:host { display: block; min-height: 100dvh; background: #030712; color-scheme: dark; }
+.admin-shell, .admin-main { min-height: 100dvh; background: #030712; }
+.admin-main { min-height: calc(100dvh - 15rem); }
+main { background: #030712; }
+main > section { min-height: calc(100dvh - 18rem); align-content: start; background: #030712; }
 @media (min-width: 768px) { main > section { min-height: 40rem; } }
 @media (min-width: 1280px) { main > section { min-height: 46rem; } }
 @media (min-width: 1920px) { main { max-width: 1920px; width: 100%; margin: 0 auto; } main > section { min-height: 52rem; } }

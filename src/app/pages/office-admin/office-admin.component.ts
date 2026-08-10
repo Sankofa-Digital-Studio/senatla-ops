@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TimesheetSummaryComponent } from '../../components/timesheet-summary.component';
+import { AdminInvitationManagerComponent } from '../../components/admin-invitation-manager/admin-invitation-manager.component';
 import { UiButtonComponent } from '../../components/ui-button.component';
 import { UiFeedbackComponent } from '../../components/ui-feedback.component';
 import { UiTabNavComponent } from '../../components/ui-tab-nav.component';
@@ -22,34 +23,35 @@ import { OfficeAdminService } from '../../core/services/office-admin.service';
 import { TimesheetRegisterService } from '../../core/services/timesheet-register.service';
 import { downloadTextFile } from '../../core/utils/browser-file.util';
 
-type AdminTab = 'overview' | 'users' | 'people' | 'workforce' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'payroll' | 'approvals' | 'recovery' | 'activity';
+type AdminTab = 'overview' | 'users' | 'people' | 'workforce' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'payroll' | 'approvals' | 'recovery' | 'activity' | 'settings' | 'account';
 
 @Component({
   selector: 'app-office-admin',
   templateUrl: './office-admin.component.html',
   styleUrls: ['./office-admin.component.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, DecimalPipe, RouterLink, TimesheetSummaryComponent, UiButtonComponent, UiFeedbackComponent, UiTabNavComponent],
+  imports: [CommonModule, FormsModule, DatePipe, DecimalPipe, RouterLink, TimesheetSummaryComponent, AdminInvitationManagerComponent, UiButtonComponent, UiFeedbackComponent, UiTabNavComponent],
 })
 export class OfficeAdminComponent {
   readonly service = inject(OfficeAdminService);
   private readonly timesheetRegister = inject(TimesheetRegisterService);
 
-  readonly tabs: { id: AdminTab; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'users', label: 'Users' },
-    { id: 'people', label: 'People' },
-    { id: 'workforce', label: 'New Hires & PPE' },
-    { id: 'timesheets', label: 'Timesheets' },
-    { id: 'sites', label: 'Sites' },
-    { id: 'issues', label: 'Issues' },
-    { id: 'assets', label: 'Assets' },
-    { id: 'payroll', label: 'Payroll' },
-    { id: 'approvals', label: 'Approvals' },
-    { id: 'recovery', label: 'Recovery' },
-    { id: 'activity', label: 'Activity' },
+  readonly tabs: { id: AdminTab; label: string; group: string }[] = [
+    { id: 'overview', label: 'Overview', group: 'Workspace' },
+    { id: 'people', label: 'People', group: 'People' },
+    { id: 'workforce', label: 'New Hires & PPE', group: 'People' },
+    { id: 'timesheets', label: 'Timesheets', group: 'People' },
+    { id: 'users', label: 'Access', group: 'People' },
+    { id: 'sites', label: 'Sites', group: 'Operations' },
+    { id: 'assets', label: 'Assets', group: 'Operations' },
+    { id: 'issues', label: 'Issues', group: 'Operations' },
+    { id: 'payroll', label: 'Payroll', group: 'Finance' },
+    { id: 'approvals', label: 'Approvals', group: 'Finance' },
+    { id: 'recovery', label: 'Recovery', group: 'System' },
+    { id: 'activity', label: 'Activity', group: 'System' },
+    { id: 'settings', label: 'Settings', group: 'System' },
+    { id: 'account', label: 'Account', group: 'System' },
   ];
-
   readonly activeTab = signal<AdminTab>('overview');
   readonly searchTerm = signal('');
   readonly selectedSiteId = signal('');
@@ -62,6 +64,17 @@ export class OfficeAdminComponent {
   readonly busy = signal(false);
   readonly feedback = signal('');
   readonly resetLink = signal('');
+  readonly onboardingProgress = computed(() => {
+    const records = this.service.employeeOnboarding();
+    if (!records.length) return 0;
+    const completed = records.filter((record) => record.criminalCheckStatus === 'clear' && record.fingerprintCheckStatus === 'clear' && record.medicalStatus === 'fit').length;
+    return Math.round((completed / records.length) * 100);
+  });
+  readonly syncProgress = computed(() => {
+    const records = this.service.integrationOutbox();
+    if (!records.length) return 100;
+    return Math.round((records.filter((record) => record.status === 'completed').length / records.length) * 100);
+  });
   viewName = '';
 
   inviteForm: UserInviteInput = {
@@ -427,3 +440,4 @@ export class OfficeAdminComponent {
     };
   }
 }
+
