@@ -15,6 +15,7 @@ type UserLifecyclePayload = {
   redirectTo?: string;
   email?: string;
   displayName?: string;
+  role?: AppRole;
 };
 
 type AdminProfile = {
@@ -257,3 +258,4 @@ async function recordAuthEvent(
   });
   if (error) throw error;
 }
+
