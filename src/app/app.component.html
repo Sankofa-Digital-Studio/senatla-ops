@@ -16,27 +16,27 @@
         *ngFor="let link of navLinks()"
         [routerLink]="link.path"
         routerLinkActive="bg-yellow-500 text-black"
-        class="px-3 py-2 rounded border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
+        class="min-h-10 px-3 py-3 rounded border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
       >
         {{ link.label }}
       </a>
       <a
         routerLink="/landing"
         routerLinkActive="bg-yellow-500 text-black"
-        class="px-3 py-2 rounded border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
+        class="min-h-10 px-3 py-3 rounded border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
       >
         Landing
       </a>
       <a
         routerLink="/profile-settings"
         routerLinkActive="bg-yellow-500 text-black"
-        class="px-3 py-2 rounded border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
+        class="min-h-10 px-3 py-3 rounded border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
       >
         Profile Settings
       </a>
       <button
         (click)="logout()"
-        class="px-3 py-2 rounded border border-red-900 text-red-300 hover:bg-red-950 transition-colors"
+        class="min-h-10 px-3 py-3 rounded border border-red-900 text-red-300 hover:bg-red-950 transition-colors"
       >
         Sign out
       </button>
@@ -47,3 +47,4 @@
     <router-outlet></router-outlet>
   </div>
 </div>
+

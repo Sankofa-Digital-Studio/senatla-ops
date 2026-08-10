@@ -2,6 +2,8 @@ import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import {
   AdminAuditEvent,
   AttendanceAuditEvent,
+  AttendanceDeliveryPayload,
+  AttendanceQueueSubmission,
   AttendanceEvidence,
   Employee,
   Group,
@@ -45,6 +47,8 @@ export class StaffDataService {
   financialTypes = signal<FinancialType[]>([]);
   adminAuditTrail = signal<AdminAuditEvent[]>([]);
   attendanceAuditTrail = signal<AttendanceAuditEvent[]>([]);
+  attendanceQueue = signal<AttendanceQueueSubmission[]>([]);
+  deliveryError = signal<string | null>(null);
   auditPersistenceError = signal<string | null>(null);
 
   private employeeState = signal<Employee[]>([]);
@@ -54,6 +58,7 @@ export class StaffDataService {
   readonly activeSites = computed(() => this.sites().filter((site) => site.isActive));
   readonly activeFinancialTypes = computed(() => this.financialTypes().filter((type) => type.isActive));
   readonly pendingAttendanceSummary = computed(() => this.getAttendanceSummary());
+  readonly latestAttendanceDelivery = computed(() => this.attendanceQueue()[0] || null);
 
   constructor() {
     effect(() => {
@@ -74,10 +79,11 @@ export class StaffDataService {
     this.hydrated.set(false);
 
     try {
-      const [snapshotResult, adminAuditResult, attendanceAuditResult] = await Promise.all([
+      const [snapshotResult, adminAuditResult, attendanceAuditResult, attendanceQueueResult] = await Promise.all([
         this.settlePromise(this.appStateGateway.loadState()),
         this.settlePromise(this.appStateGateway.loadAdminAuditTrail()),
         this.settlePromise(this.appStateGateway.loadAttendanceAuditTrail()),
+        this.settlePromise(this.appStateGateway.loadAttendanceQueue()),
       ]);
       if (loadId !== this.loadSequence) return;
 
@@ -90,6 +96,7 @@ export class StaffDataService {
 
       this.adminAuditTrail.set(adminAuditResult.status === 'fulfilled' ? adminAuditResult.value : []);
       this.attendanceAuditTrail.set(attendanceAuditResult.status === 'fulfilled' ? attendanceAuditResult.value : []);
+      this.attendanceQueue.set(attendanceQueueResult.status === 'fulfilled' ? attendanceQueueResult.value : []);
       this.hydrated.set(true);
     } catch {
       if (loadId !== this.loadSequence) return;
@@ -373,27 +380,48 @@ export class StaffDataService {
     };
   }
 
-  performSync(signature: string, isRolloverAck: boolean = false) {
+  async performSync(signature: string, isRolloverAck: boolean = false, workDate = this.getTodayStr()) {
     const status = this.determineSyncStatus();
-    const summary = this.getAttendanceSummary();
-    this.syncHistory.update((history) => [
-      {
-        siteId: this.siteName(),
-        syncTime: this.currentTime(),
-        status,
-        acknowledgedWarning: isRolloverAck,
-        signatureData: signature,
-        safetyTopic: this.currentSafetyTopic() || 'None Recorded',
-        actor: this.currentActor(),
-        attendanceSummary: summary,
-      },
-      ...history
-    ]);
+    const summary = this.getAttendanceSummary(workDate);
+    const site = this.sites().find((entry) => entry.name === this.siteName()) || this.sites()[0];
+    if (!site) throw new Error('An assigned site is required before attendance can be delivered.');
+    const rows = this.employeeState().filter((employee) => employee.siteId === site.id).map((employee) => {
+      const log = employee.logs[workDate] || { date: workDate, status: 'pending' as const };
+      return { employeeId: employee.id, status: log.status, reason: log.reason, comment: log.comment, isFlagged: log.isFlagged };
+    });
+    const payload: AttendanceDeliveryPayload = { siteId: site.id, workDate, rows, summary, timingStatus: status, acknowledgedWarning: isRolloverAck, safetyTopic: this.currentSafetyTopic() || 'None Recorded' };
+    const idempotencyKey = `attendance:${site.id}:${workDate}`;
+    this.deliveryError.set(null);
+    let delivery: AttendanceQueueSubmission;
+    try {
+      delivery = await this.appStateGateway.submitAttendance(payload, idempotencyKey);
+      this.attendanceQueue.update((entries) => [delivery, ...entries.filter((entry) => entry.id !== delivery.id)]);
+    } catch (error) {
+      this.deliveryError.set(error instanceof Error ? error.message : 'Attendance delivery failed.');
+      this.unsyncedChanges.set(true);
+      throw error;
+    }
+    this.syncHistory.update((history) => [{ siteId: site.id, syncTime: this.currentTime(), status, acknowledgedWarning: isRolloverAck, signatureData: signature, safetyTopic: payload.safetyTopic, actor: this.currentActor(), attendanceSummary: summary }, ...history]);
     this.recordAttendanceAudit('sync_submitted', `Daily sync submitted with ${summary.present} present, ${summary.absent} absent, ${summary.pending} pending.`);
     this.lastSyncTime.set(this.currentTime());
-    this.unsyncedChanges.set(false);
+    this.unsyncedChanges.set(delivery.outcome !== 'accepted');
+    if (delivery.outcome !== 'accepted') this.deliveryError.set(delivery.lastError || 'Attendance delivery requires attention.');
+    return delivery;
   }
 
+  async retryAttendanceDelivery(submissionId: string) {
+    this.deliveryError.set(null);
+    try {
+      const delivery = await this.appStateGateway.retryAttendance(submissionId);
+      this.attendanceQueue.update((entries) => [delivery, ...entries.filter((entry) => entry.id !== delivery.id)]);
+      this.unsyncedChanges.set(delivery.outcome !== 'accepted');
+      if (delivery.outcome !== 'accepted') this.deliveryError.set(delivery.lastError || 'Attendance delivery remains retryable.');
+      return delivery;
+    } catch (error) {
+      this.deliveryError.set(error instanceof Error ? error.message : 'Attendance retry failed.');
+      throw error;
+    }
+  }
   private determineSyncStatus(): 'On Time' | 'Late' | 'Critical' | 'Rollover' {
     const status = this.timeStatus();
     if (status === 'late_window') return 'Late';
@@ -509,8 +537,8 @@ export class StaffDataService {
       });
   }
 
-  private getAttendanceSummary() {
-    const today = this.getTodayStr();
+  private getAttendanceSummary(dateStr = this.getTodayStr()) {
+    const today = dateStr;
     return this.employeeState().reduce(
       (summary, employee) => {
         const log = employee.logs[today] || { date: today, status: 'pending' as const };
