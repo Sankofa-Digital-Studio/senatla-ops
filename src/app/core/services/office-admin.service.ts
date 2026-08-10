@@ -12,6 +12,7 @@ import {
   AssetFuelEntry,
   AppRole,
   ApprovalRequest,
+  AttendanceQueueSubmission,
   ApprovalRequestType,
   ApprovalStatus,
   Employee,
@@ -195,6 +196,7 @@ type AssetPlanRow = { id: string; organization_id: string; asset_id: string; nam
 type EmployeeOnboardingRow = { id: string; organization_id: string; employee_id: string; criminal_check_status: EmployeeOnboardingRecord['criminalCheckStatus']; fingerprint_check_status: EmployeeOnboardingRecord['fingerprintCheckStatus']; medical_status: EmployeeOnboardingRecord['medicalStatus']; red_ticket_number: string | null; red_ticket_issued_at: string | null; red_ticket_expires_at: string | null; notes: string | null; updated_at: string };
 type PpeIssueRow = { id: string; organization_id: string; employee_id: string; item_type: PpeIssueRecord['itemType']; brand: string | null; size: string; unit_cost: number; order_date: string | null; collection_date: string | null; status: PpeIssueRecord['status']; requested_at: string; office_confirmed_at: string | null; office_confirmed_by: string | null; employee_confirmed_at: string | null; employee_confirmed_by: string | null };
 type AssetFuelRow = { id: string; organization_id: string; asset_id: string; fuel_date: string; litres: number; unit_cost: number; total_cost: number; odometer_km: number | null; engine_hours: number | null; supplier: string | null; reference_number: string | null; recorded_by: string; created_at: string };
+type AttendanceQueueRow = { id: string; organization_id: string; submitted_by: string; site_id: string; work_date: string; status: AttendanceQueueSubmission['status']; outcome: AttendanceQueueSubmission['outcome']; attempts: number; idempotency_key: string; last_error: string | null; diagnostic_context: Record<string, unknown> | null; created_at: string; processed_at: string | null };
 type OutboxRow = { id: string; organization_id: string; event_type: string; aggregate_type: string; aggregate_id: string; payload: Record<string, unknown>; status: IntegrationOutboxEvent['status']; idempotency_key: string; attempts: number; last_error: string | null; created_at: string; processed_at: string | null };
 
 const LOCAL_STORAGE_KEY = 'senatla_office_workspace_v1';
@@ -232,6 +234,7 @@ export class OfficeAdminService {
   readonly assetMaintenancePlans = signal<AssetMaintenancePlan[]>([]);
   readonly assetFuelEntries = signal<AssetFuelEntry[]>([]);
   readonly integrationOutbox = signal<IntegrationOutboxEvent[]>([]);
+  readonly attendanceQueue = signal<AttendanceQueueSubmission[]>([]);
   readonly activity = signal<AdminActivityEvent[]>([]);
   readonly payrollPeriods = signal<PayrollPeriod[]>([]);
   readonly payrollExports = signal<PayrollExportRecord[]>([]);
@@ -1031,6 +1034,22 @@ export class OfficeAdminService {
     await this.logActivity('integration_outbox_retry_requested', 'integration_outbox', event.id, { idempotencyKey: event.idempotencyKey, attempts: event.attempts, lastError: event.lastError || null });
   }
 
+  async retryAttendanceSubmission(submissionId: string) {
+    const submission = this.attendanceQueue().find((entry) => entry.id === submissionId);
+    if (!submission) throw new Error('Attendance submission not found.');
+    if (submission.outcome !== 'retryable') throw new Error('Only retryable attendance submissions can be retried.');
+    if (this.supabase) {
+      const { data, error } = await this.supabase.from('queued_sync_submissions').update({ status: 'processing' }).eq('id', submissionId).select('id, organization_id, submitted_by, site_id, work_date, status, outcome, attempts, idempotency_key, last_error, diagnostic_context, created_at, processed_at').single();
+      if (error || !data) throw error || new Error('Attendance retry returned no result.');
+      const updated = this.mapAttendanceQueue(data as AttendanceQueueRow);
+      this.attendanceQueue.update((entries) => entries.map((entry) => entry.id === updated.id ? updated : entry));
+      return updated;
+    }
+    const updated: AttendanceQueueSubmission = { ...submission, status: 'completed', outcome: 'accepted', attempts: submission.attempts + 1, lastError: null, processedAt: new Date().toISOString() };
+    this.attendanceQueue.update((entries) => entries.map((entry) => entry.id === updated.id ? updated : entry));
+    await this.persistLocalWorkspace();
+    return updated;
+  }
   async ensurePayrollPeriod(month: number, year: number) {
     const periodKey = `${year}-${`${month + 1}`.padStart(2, '0')}`;
     let period = this.payrollPeriods().find((entry) => entry.periodKey === periodKey);
@@ -1256,6 +1275,7 @@ export class OfficeAdminService {
       maintenancePlanResult,
       fuelResult,
       outboxResult,
+      attendanceQueueResult,
     ] = await Promise.all([
       this.supabase!.from('profiles').select('id, username, display_name, role, is_active, created_at').order('created_at', { ascending: false }),
       this.supabase!.from('sites').select('id, organization_id, name, location, manager_profile_id, is_active').order('name'),
@@ -1279,9 +1299,10 @@ export class OfficeAdminService {
       this.supabase!.from('asset_maintenance_plans').select('id, organization_id, asset_id, name, interval_days, interval_meter, meter_type, next_due_at, next_due_meter, is_active').order('name'),
       this.supabase!.from('asset_fuel_entries').select('id, organization_id, asset_id, fuel_date, litres, unit_cost, total_cost, odometer_km, engine_hours, supplier, reference_number, recorded_by, created_at').order('fuel_date', { ascending: false }),
       this.supabase!.from('integration_outbox').select('id, organization_id, event_type, aggregate_type, aggregate_id, payload, status, idempotency_key, attempts, last_error, created_at, processed_at').order('created_at', { ascending: false }).limit(100),
+      this.supabase!.from('queued_sync_submissions').select('id, organization_id, submitted_by, site_id, work_date, status, outcome, attempts, idempotency_key, last_error, diagnostic_context, created_at, processed_at').order('created_at', { ascending: false }).limit(100),
     ]);
 
-    const results = [profileResult, siteResult, groupResult, employeeResult, onboardingResult, ppeResult, financialTypeResult, issueResult, assetResult, activityResult, payrollPeriodResult, payrollExportResult, approvalResult, savedViewResult, organizationResult, custodyResult, complianceResult, meterResult, workOrderResult, maintenancePlanResult, fuelResult, outboxResult];
+    const results = [profileResult, siteResult, groupResult, employeeResult, onboardingResult, ppeResult, financialTypeResult, issueResult, assetResult, activityResult, payrollPeriodResult, payrollExportResult, approvalResult, savedViewResult, organizationResult, custodyResult, complianceResult, meterResult, workOrderResult, maintenancePlanResult, fuelResult, outboxResult, attendanceQueueResult];
     const firstError = results.find((result) => result.error)?.error;
     if (firstError) throw firstError;
 
@@ -1302,6 +1323,7 @@ export class OfficeAdminService {
       assetMaintenancePlans: (maintenancePlanResult.data as AssetPlanRow[]).map((row) => this.mapMaintenancePlan(row)),
       assetFuelEntries: (fuelResult.data as AssetFuelRow[]).map((row) => ({ id: row.id, organizationId: row.organization_id, assetId: row.asset_id, fuelDate: row.fuel_date, litres: row.litres, unitCost: row.unit_cost, totalCost: row.total_cost, odometerKm: row.odometer_km, engineHours: row.engine_hours, supplier: row.supplier || '', referenceNumber: row.reference_number || '', recordedBy: row.recorded_by, createdAt: row.created_at })),
       integrationOutbox: (outboxResult.data as OutboxRow[]).map((row) => this.mapOutbox(row)),
+      attendanceQueue: (attendanceQueueResult.data as AttendanceQueueRow[]).map((row) => this.mapAttendanceQueue(row)),
       activity: (activityResult.data as ActivityRow[]).map((row) => this.mapActivity(row)),
       payrollPeriods: (payrollPeriodResult.data as PayrollPeriodRow[]).map((row) => this.mapPayrollPeriod(row)),
       payrollExports: (payrollExportResult.data as PayrollExportRow[]).map((row) => this.mapPayrollExport(row)),
@@ -1335,6 +1357,7 @@ export class OfficeAdminService {
     this.assetMaintenancePlans.set(workspace.assetMaintenancePlans || []);
     this.assetFuelEntries.set(workspace.assetFuelEntries || []);
     this.integrationOutbox.set(workspace.integrationOutbox || []);
+    this.attendanceQueue.set(workspace.attendanceQueue || []);
     this.activity.set(workspace.activity);
     this.payrollPeriods.set(workspace.payrollPeriods);
     this.payrollExports.set(workspace.payrollExports);
@@ -1475,6 +1498,7 @@ export class OfficeAdminService {
       ],
       assetFuelEntries: [],
       integrationOutbox: [],
+      attendanceQueue: [],
       activity: [],
       payrollPeriods: [],
       payrollExports: [],
@@ -1504,6 +1528,7 @@ export class OfficeAdminService {
       assetMaintenancePlans: this.assetMaintenancePlans(),
       assetFuelEntries: this.assetFuelEntries(),
       integrationOutbox: this.integrationOutbox(),
+      attendanceQueue: this.attendanceQueue(),
       activity: this.activity(),
       payrollPeriods: this.payrollPeriods(),
       payrollExports: this.payrollExports(),
@@ -1730,6 +1755,9 @@ export class OfficeAdminService {
     return { id: row.id, organizationId: row.organization_id, assetId: row.asset_id, name: row.name, intervalDays: row.interval_days, intervalMeter: row.interval_meter, meterType: row.meter_type, nextDueAt: row.next_due_at, nextDueMeter: row.next_due_meter, isActive: row.is_active };
   }
 
+  private mapAttendanceQueue(row: AttendanceQueueRow): AttendanceQueueSubmission {
+    return { id: row.id, organizationId: row.organization_id, submittedBy: row.submitted_by, siteId: row.site_id, workDate: row.work_date, status: row.status, outcome: row.outcome, attempts: row.attempts, idempotencyKey: row.idempotency_key, lastError: row.last_error, diagnosticContext: row.diagnostic_context, createdAt: row.created_at, processedAt: row.processed_at };
+  }
   private mapOutbox(row: OutboxRow): IntegrationOutboxEvent {
     return { id: row.id, organizationId: row.organization_id, eventType: row.event_type, aggregateType: row.aggregate_type, aggregateId: row.aggregate_id, payload: row.payload || {}, status: row.status, idempotencyKey: row.idempotency_key, attempts: row.attempts, lastError: row.last_error, createdAt: row.created_at, processedAt: row.processed_at };
   }

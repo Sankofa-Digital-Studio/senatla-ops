@@ -36,6 +36,13 @@
     <div *ngIf="service.auditPersistenceError() as auditError" class="mb-2 rounded border border-red-500 bg-red-950 px-3 py-2 text-xs text-red-200">
       Audit write failed: {{ auditError }} Changes remain visible locally but are not release evidence until the write succeeds.
     </div>
+    <section *ngIf="service.latestAttendanceDelivery() as delivery" class="mb-2 rounded-xl border p-3" [class.border-emerald-700]="delivery.outcome === 'accepted'" [class.bg-emerald-950]="delivery.outcome === 'accepted'" [class.border-red-700]="delivery.outcome === 'rejected'" [class.bg-red-950]="delivery.outcome === 'rejected'" [class.border-amber-700]="delivery.outcome === 'retryable'" [class.bg-amber-950]="delivery.outcome === 'retryable'">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Attendance delivery</p><p class="mt-1 text-sm font-semibold">{{ delivery.workDate }} · {{ delivery.outcome }}</p><p class="mt-1 text-xs text-slate-300">Attempt {{ delivery.attempts }}<span *ngIf="delivery.lastError"> · {{ delivery.lastError }}</span></p></div>
+        <button *ngIf="delivery.outcome === 'retryable'" type="button" (click)="retryAttendanceDelivery(delivery.id)" [disabled]="deliveryBusy()" class="rounded-lg border border-amber-500 px-3 py-2 text-xs font-bold uppercase text-amber-200 disabled:opacity-50">Retry delivery</button>
+      </div>
+    </section>
+    <div *ngIf="service.deliveryError() as deliveryError" class="mb-2 rounded border border-red-500 bg-red-950 px-3 py-2 text-xs text-red-200">Delivery status: {{ deliveryError }}</div>
     <div *ngIf="service.unsyncedChanges()" class="bg-slate-900 border border-slate-700 text-slate-300 text-xs p-3 rounded mb-2">
       Pending sync summary:
       Present {{ service.pendingAttendanceSummary().present }},
@@ -260,7 +267,7 @@
       <div class="flex gap-3">
         <button (click)="clearSignature()" class="px-4 py-3 rounded border border-gray-300 text-gray-600 font-bold text-xs uppercase">Clear</button>
         <button (click)="submitSyncWithSignature()"
-                [disabled]="!hasSigned"
+                [disabled]="!hasSigned || deliveryBusy()"
                 class="flex-1 bg-black text-white py-3 rounded font-bold text-sm uppercase disabled:opacity-50">
           Confirm
         </button>

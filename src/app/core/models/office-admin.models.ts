@@ -8,6 +8,7 @@ import {
   AssetWorkOrder,
   AssetFuelEntry,
   ApprovalRequest,
+  AttendanceQueueSubmission,
   Employee,
   EmployeeOnboardingRecord,
   FinancialType,
@@ -41,6 +42,7 @@ export interface OfficeAdminWorkspace {
   assetMaintenancePlans: AssetMaintenancePlan[];
   assetFuelEntries: AssetFuelEntry[];
   integrationOutbox: IntegrationOutboxEvent[];
+  attendanceQueue: AttendanceQueueSubmission[];
   activity: AdminActivityEvent[];
   payrollPeriods: PayrollPeriod[];
   payrollExports: PayrollExportRecord[];
