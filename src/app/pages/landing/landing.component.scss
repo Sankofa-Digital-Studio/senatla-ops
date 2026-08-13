@@ -1,0 +1,10 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.landing-shell {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(190, 242, 100, 0.16), transparent 32rem),
+    linear-gradient(135deg, #10140f 0%, #172015 42%, #0f172a 100%);
+}

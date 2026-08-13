@@ -1,38 +1,64 @@
-<div class="min-h-full flex flex-col items-center justify-center bg-slate-950 text-white p-6 space-y-8">
-  <div class="text-center max-w-2xl">
-    <div class="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center text-slate-950 text-2xl font-bold mb-4 mx-auto">S</div>
-    <h1 class="text-3xl font-bold tracking-tight">Role Hub</h1>
-    <p class="text-slate-400 mt-2 text-sm">Signed in as {{ auth.displayName() }}. Only the permitted workspace is actionable in this review build.</p>
-    <div *ngIf="!auth.isAuthenticated()" class="mt-6">
-      <a routerLink="/login" class="inline-flex items-center justify-center rounded-full bg-yellow-500 px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-950 shadow-lg shadow-yellow-500/20 transition hover:bg-yellow-400">
-        Sign in
-      </a>
+<section class="landing-shell min-h-full overflow-auto bg-[#10140f] text-white">
+  <div class="relative isolate mx-auto flex min-h-full w-full max-w-7xl flex-col px-6 py-8 md:px-10 lg:px-14">
+    <div class="absolute inset-0 -z-10 overflow-hidden">
+      <div class="absolute left-[-10rem] top-[-10rem] h-80 w-80 rounded-full bg-lime-400/20 blur-3xl"></div>
+      <div class="absolute bottom-[-12rem] right-[-6rem] h-96 w-96 rounded-full bg-amber-500/20 blur-3xl"></div>
+      <div class="absolute inset-x-0 top-24 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
     </div>
-  </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-5xl">
-    <button
-      *ngFor="let card of cards()"
-      (click)="openRole(card.route, card.enabled)"
-      [disabled]="!card.enabled"
-      class="group p-6 bg-slate-900 rounded-2xl border border-slate-800 transition-all text-left disabled:opacity-40 disabled:cursor-not-allowed"
-      [class.hover:border-yellow-500]="card.role === 'site' && card.enabled"
-      [class.hover:border-blue-500]="card.role === 'office' && card.enabled"
-      [class.hover:border-emerald-500]="card.role === 'director' && card.enabled"
-      [class.border-yellow-500/60]="card.role === 'site' && card.enabled"
-      [class.border-blue-500/60]="card.role === 'office' && card.enabled"
-      [class.border-emerald-500/60]="card.role === 'director' && card.enabled"
-    >
-      <div class="flex items-center justify-between gap-4 mb-4">
-        <h3 class="font-bold text-lg">{{ card.title }}</h3>
-        <span class="text-[10px] uppercase tracking-[0.2em] text-slate-500">
-          {{ card.enabled ? 'Available' : 'Restricted' }}
-        </span>
+    <header class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="grid h-12 w-12 place-items-center rounded-2xl bg-lime-300 text-lg font-black text-slate-950 shadow-xl shadow-lime-950/30">S</div>
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.32em] text-lime-200">Senatla Ops</p>
+          <p class="text-xs text-white/50">Operations with a pulse</p>
+        </div>
       </div>
-      <p class="text-sm text-slate-400 leading-6">{{ card.description }}</p>
-      <div class="mt-6 text-xs font-semibold text-slate-300">
-        {{ card.enabled ? 'Open workspace' : 'Role does not grant access' }}
+      <a routerLink="/login" class="hidden rounded-full border border-white/15 px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-white/80 transition hover:border-lime-300 hover:text-lime-200 md:inline-flex">
+        Login
+      </a>
+    </header>
+
+    <main class="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
+      <div class="max-w-3xl">
+        <div class="mb-6 inline-flex rounded-full border border-lime-300/30 bg-lime-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-lime-100">
+          Built for sites, offices, and directors
+        </div>
+        <h1 class="text-5xl font-black leading-[0.95] tracking-tight text-white md:text-7xl">
+          Command every moving part before it becomes a blocker.
+        </h1>
+        <p class="mt-6 max-w-2xl text-lg leading-8 text-white/70 md:text-xl">
+          Senatla Ops turns field activity, workforce controls, asset evidence, and approvals into one role-aware operating system for teams that cannot afford blind spots.
+        </p>
+        <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+          <a routerLink="/login" class="inline-flex items-center justify-center rounded-full bg-lime-300 px-7 py-4 text-sm font-black uppercase tracking-[0.18em] text-slate-950 shadow-2xl shadow-lime-950/30 transition hover:bg-lime-200">
+            Start secure login
+          </a>
+          <a *ngIf="auth.isAuthenticated()" routerLink="/profile-settings" class="inline-flex items-center justify-center rounded-full border border-white/15 px-7 py-4 text-sm font-bold uppercase tracking-[0.18em] text-white/80 transition hover:border-white/40 hover:text-white">
+            Review onboarding
+          </a>
+        </div>
       </div>
-    </button>
+
+      <div class="rounded-[2rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/30 backdrop-blur">
+        <div class="rounded-[1.5rem] bg-slate-950/70 p-5">
+          <p class="text-xs font-bold uppercase tracking-[0.22em] text-lime-200">Live operating stack</p>
+          <div class="mt-5 space-y-3">
+            <div class="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <p class="text-sm font-bold">Asset evidence capture</p>
+              <p class="mt-1 text-xs leading-5 text-white/55">OCR-assisted serials, licence disks, image evidence, and verification gates.</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <p class="text-sm font-bold">Role-specific workflows</p>
+              <p class="mt-1 text-xs leading-5 text-white/55">Site managers act locally, office teams administer, directors approve and oversee.</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <p class="text-sm font-bold">Release-ready governance</p>
+              <p class="mt-1 text-xs leading-5 text-white/55">CI gates decide what reaches dev; RLS contracts protect the backend.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
-</div>
+</section>
