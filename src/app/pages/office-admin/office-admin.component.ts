@@ -3,11 +3,14 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { TimesheetSummaryComponent } from '../../components/timesheet-summary.component';
+import { AdminInvitationManagerComponent } from '../../components/admin-invitation-manager/admin-invitation-manager.component';
 import { UiButtonComponent } from '../../components/ui-button.component';
 import { UiFeedbackComponent } from '../../components/ui-feedback.component';
 import { UiTabNavComponent } from '../../components/ui-tab-nav.component';
 import {
   Employee,
+  EmployeeOnboardingRecord,
+  PpeIssueRecord,
   EmploymentStatus,
   FinancialType,
   Issue,
@@ -20,33 +23,35 @@ import { OfficeAdminService } from '../../core/services/office-admin.service';
 import { TimesheetRegisterService } from '../../core/services/timesheet-register.service';
 import { downloadTextFile } from '../../core/utils/browser-file.util';
 
-type AdminTab = 'overview' | 'users' | 'people' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'payroll' | 'approvals' | 'recovery' | 'activity';
+type AdminTab = 'overview' | 'users' | 'people' | 'workforce' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'payroll' | 'approvals' | 'recovery' | 'activity' | 'settings' | 'account';
 
 @Component({
   selector: 'app-office-admin',
   templateUrl: './office-admin.component.html',
   styleUrls: ['./office-admin.component.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, DecimalPipe, RouterLink, TimesheetSummaryComponent, UiButtonComponent, UiFeedbackComponent, UiTabNavComponent],
+  imports: [CommonModule, FormsModule, DatePipe, DecimalPipe, RouterLink, TimesheetSummaryComponent, AdminInvitationManagerComponent, UiButtonComponent, UiFeedbackComponent, UiTabNavComponent],
 })
 export class OfficeAdminComponent {
   readonly service = inject(OfficeAdminService);
   private readonly timesheetRegister = inject(TimesheetRegisterService);
 
-  readonly tabs: { id: AdminTab; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'users', label: 'Users' },
-    { id: 'people', label: 'People' },
-    { id: 'timesheets', label: 'Timesheets' },
-    { id: 'sites', label: 'Sites' },
-    { id: 'issues', label: 'Issues' },
-    { id: 'assets', label: 'Assets' },
-    { id: 'payroll', label: 'Payroll' },
-    { id: 'approvals', label: 'Approvals' },
-    { id: 'recovery', label: 'Recovery' },
-    { id: 'activity', label: 'Activity' },
+  readonly tabs: { id: AdminTab; label: string; group: string }[] = [
+    { id: 'overview', label: 'Overview', group: 'Workspace' },
+    { id: 'people', label: 'People', group: 'People' },
+    { id: 'workforce', label: 'New Hires & PPE', group: 'People' },
+    { id: 'timesheets', label: 'Timesheets', group: 'People' },
+    { id: 'users', label: 'Access', group: 'People' },
+    { id: 'sites', label: 'Sites', group: 'Operations' },
+    { id: 'assets', label: 'Assets', group: 'Operations' },
+    { id: 'issues', label: 'Issues', group: 'Operations' },
+    { id: 'payroll', label: 'Payroll', group: 'Finance' },
+    { id: 'approvals', label: 'Approvals', group: 'Finance' },
+    { id: 'recovery', label: 'Recovery', group: 'System' },
+    { id: 'activity', label: 'Activity', group: 'System' },
+    { id: 'settings', label: 'Settings', group: 'System' },
+    { id: 'account', label: 'Account', group: 'System' },
   ];
-
   readonly activeTab = signal<AdminTab>('overview');
   readonly searchTerm = signal('');
   readonly selectedSiteId = signal('');
@@ -59,6 +64,17 @@ export class OfficeAdminComponent {
   readonly busy = signal(false);
   readonly feedback = signal('');
   readonly resetLink = signal('');
+  readonly onboardingProgress = computed(() => {
+    const records = this.service.employeeOnboarding();
+    if (!records.length) return 0;
+    const completed = records.filter((record) => record.criminalCheckStatus === 'clear' && record.fingerprintCheckStatus === 'clear' && record.medicalStatus === 'fit').length;
+    return Math.round((completed / records.length) * 100);
+  });
+  readonly syncProgress = computed(() => {
+    const records = this.service.integrationOutbox();
+    if (!records.length) return 100;
+    return Math.round((records.filter((record) => record.status === 'completed').length / records.length) * 100);
+  });
   viewName = '';
 
   inviteForm: UserInviteInput = {
@@ -101,6 +117,12 @@ export class OfficeAdminComponent {
     ownerProfileId: null,
     dueAt: null,
   };
+  onboardingForm: Omit<EmployeeOnboardingRecord, 'id' | 'organizationId' | 'updatedAt'> & { id?: string } = {
+    employeeId: '', criminalCheckStatus: 'pending', fingerprintCheckStatus: 'pending', medicalStatus: 'pending', redTicketNumber: '', redTicketIssuedAt: null, redTicketExpiresAt: null, notes: '',
+  };
+  ppeForm: Omit<PpeIssueRecord, 'id' | 'organizationId' | 'requestedAt'> & { id?: string; requestedAt?: string } = {
+    employeeId: '', itemType: 'overall_pants', brand: '', size: '', unitCost: 0, orderDate: null, collectionDate: null, status: 'requested', officeConfirmedAt: null, officeConfirmedBy: null, employeeConfirmedAt: null, employeeConfirmedBy: null,
+  };
   financialTypeForm: FinancialType = {
     id: '',
     name: '',
@@ -121,6 +143,39 @@ export class OfficeAdminComponent {
     });
   });
 
+  employeeName(employeeId: string) {
+    const employee = this.service.employees().find((entry) => entry.id === employeeId);
+    return employee ? `${employee.firstName} ${employee.surname}` : 'Unknown employee';
+  }
+
+  async importEmployees(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.busy.set(true); this.feedback.set('');
+    try {
+      const rows = this.parseCsv(await file.text());
+      let imported = 0;
+      for (const row of rows) {
+        await this.service.saveEmployee({ id: '', firstName: row['first_name'] || row['firstname'] || '', surname: row['surname'] || '', idNumber: row['id_number'] || row['idnumber'] || '', role: (row['role'] as Employee['role']) || 'General Worker', siteId: row['site_id'] || '', startDate: row['start_date'] || new Date().toISOString().slice(0, 10), basicRate: Number(row['basic_rate'] || 0), salaryAdvances: 0, financials: { travel: 0, housing: 0, advance: 0 }, logs: {}, adjustments: {}, employmentStatus: 'active' });
+        imported += 1;
+      }
+      this.feedback.set(`${imported} employee(s) imported from CSV.`);
+    } catch (error) { this.feedback.set(error instanceof Error ? error.message : 'Employee import failed.'); }
+    finally { this.busy.set(false); input.value = ''; }
+  }
+
+  async submitOnboarding() { await this.runAction(async () => { await this.service.saveEmployeeOnboarding(this.onboardingForm); this.feedback.set('New-hire checks saved.'); }); }
+  async submitPpe() { await this.runAction(async () => { await this.service.savePpeIssue(this.ppeForm); this.feedback.set('PPE record saved.'); }); }
+  async confirmPpe(id: string, party: 'office' | 'employee') { await this.runAction(async () => { await this.service.confirmPpeIssue(id, party); this.feedback.set(party === 'office' ? 'Office confirmation recorded.' : 'Employee confirmation recorded.'); }); }
+
+  private parseCsv(text: string) {
+    const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length < 2) throw new Error('CSV must contain a header and at least one employee row.');
+    const split = (line: string) => { const values: string[] = []; let value = ''; let quoted = false; for (let index = 0; index < line.length; index += 1) { const char = line[index]; if (char === '"' && line[index + 1] === '"') { value += '"'; index += 1; } else if (char === '"') quoted = !quoted; else if (char === ',' && !quoted) { values.push(value.trim()); value = ''; } else value += char; } values.push(value.trim()); return values; };
+    const headers = split(lines[0]).map((header) => header.toLowerCase().replace(/\s+/g, '_'));
+    return lines.slice(1).map((line) => { const row: Record<string, string> = {}; split(line).forEach((value, index) => { if (headers[index]) row[headers[index]] = value; }); return row; });
+  }
   readonly payrollPeriod = computed(() => {
     const key = `${this.year()}-${`${this.month() + 1}`.padStart(2, '0')}`;
     return this.service.payrollPeriods().find((entry) => entry.periodKey === key) || null;
@@ -385,3 +440,4 @@ export class OfficeAdminComponent {
     };
   }
 }
+

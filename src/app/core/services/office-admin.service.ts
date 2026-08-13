@@ -9,11 +9,13 @@ import {
   AssetMaintenancePlan,
   AssetMeterReading,
   AssetWorkOrder,
+  AssetFuelEntry,
   AppRole,
   ApprovalRequest,
   ApprovalRequestType,
   ApprovalStatus,
   Employee,
+  EmployeeOnboardingRecord,
   EmploymentStatus,
   FinancialType,
   Group,
@@ -25,6 +27,7 @@ import {
   PayrollExportRecord,
   PayrollPeriod,
   PayrollPeriodStatus,
+  PpeIssueRecord,
   SENATLA_TRADING_ORGANIZATION_ID,
   SavedAdminView,
   Site,
@@ -189,6 +192,9 @@ type AssetComplianceRow = { id: string; organization_id: string; asset_id: strin
 type AssetMeterRow = { id: string; organization_id: string; asset_id: string; meter_type: AssetMeterReading['meterType']; reading: number; recorded_at: string; recorded_by: string; source: AssetMeterReading['source'] };
 type AssetWorkOrderRow = { id: string; organization_id: string; asset_id: string; title: string; description: string | null; status: AssetWorkOrder['status']; priority: AssetWorkOrder['priority']; due_at: string | null; completed_at: string | null; cost: number };
 type AssetPlanRow = { id: string; organization_id: string; asset_id: string; name: string; interval_days: number | null; interval_meter: number | null; meter_type: AssetMaintenancePlan['meterType']; next_due_at: string | null; next_due_meter: number | null; is_active: boolean };
+type EmployeeOnboardingRow = { id: string; organization_id: string; employee_id: string; criminal_check_status: EmployeeOnboardingRecord['criminalCheckStatus']; fingerprint_check_status: EmployeeOnboardingRecord['fingerprintCheckStatus']; medical_status: EmployeeOnboardingRecord['medicalStatus']; red_ticket_number: string | null; red_ticket_issued_at: string | null; red_ticket_expires_at: string | null; notes: string | null; updated_at: string };
+type PpeIssueRow = { id: string; organization_id: string; employee_id: string; item_type: PpeIssueRecord['itemType']; brand: string | null; size: string; unit_cost: number; order_date: string | null; collection_date: string | null; status: PpeIssueRecord['status']; requested_at: string; office_confirmed_at: string | null; office_confirmed_by: string | null; employee_confirmed_at: string | null; employee_confirmed_by: string | null };
+type AssetFuelRow = { id: string; organization_id: string; asset_id: string; fuel_date: string; litres: number; unit_cost: number; total_cost: number; odometer_km: number | null; engine_hours: number | null; supplier: string | null; reference_number: string | null; recorded_by: string; created_at: string };
 type OutboxRow = { id: string; organization_id: string; event_type: string; aggregate_type: string; aggregate_id: string; payload: Record<string, unknown>; status: IntegrationOutboxEvent['status']; idempotency_key: string; attempts: number; last_error: string | null; created_at: string; processed_at: string | null };
 
 const LOCAL_STORAGE_KEY = 'senatla_office_workspace_v1';
@@ -214,6 +220,8 @@ export class OfficeAdminService {
   readonly sites = signal<Site[]>([]);
   readonly groups = signal<Group[]>([]);
   readonly employees = signal<Employee[]>([]);
+  readonly employeeOnboarding = signal<EmployeeOnboardingRecord[]>([]);
+  readonly ppeIssues = signal<PpeIssueRecord[]>([]);
   readonly financialTypes = signal<FinancialType[]>([]);
   readonly issues = signal<Issue[]>([]);
   readonly assets = signal<VehicleAsset[]>([]);
@@ -222,6 +230,7 @@ export class OfficeAdminService {
   readonly assetMeterReadings = signal<AssetMeterReading[]>([]);
   readonly assetWorkOrders = signal<AssetWorkOrder[]>([]);
   readonly assetMaintenancePlans = signal<AssetMaintenancePlan[]>([]);
+  readonly assetFuelEntries = signal<AssetFuelEntry[]>([]);
   readonly integrationOutbox = signal<IntegrationOutboxEvent[]>([]);
   readonly activity = signal<AdminActivityEvent[]>([]);
   readonly payrollPeriods = signal<PayrollPeriod[]>([]);
@@ -533,7 +542,7 @@ export class OfficeAdminService {
         id: this.createId(),
         username: input.email.toLowerCase(),
         displayName: input.displayName,
-        role: input.role,
+        role: 'site',
         isActive: true,
         createdAt: new Date().toISOString(),
       };
@@ -689,6 +698,58 @@ export class OfficeAdminService {
     });
   }
 
+  async saveEmployeeOnboarding(record: Omit<EmployeeOnboardingRecord, 'id' | 'organizationId' | 'updatedAt'> & { id?: string }) {
+    const session = this.auth.currentSession();
+    if (!session) throw new Error('You must be signed in.');
+    const normalized: EmployeeOnboardingRecord = { ...record, id: record.id || this.createId(), organizationId: SENATLA_TRADING_ORGANIZATION_ID, notes: record.notes?.trim() || '', updatedAt: new Date().toISOString() };
+    if (this.supabase) {
+      const { error } = await this.supabase.from('employee_onboarding_records').upsert({ id: normalized.id, organization_id: normalized.organizationId, employee_id: normalized.employeeId, criminal_check_status: normalized.criminalCheckStatus, fingerprint_check_status: normalized.fingerprintCheckStatus, medical_status: normalized.medicalStatus, red_ticket_number: normalized.redTicketNumber || null, red_ticket_issued_at: normalized.redTicketIssuedAt || null, red_ticket_expires_at: normalized.redTicketExpiresAt || null, notes: normalized.notes, updated_by: session.userId });
+      if (error) throw error;
+    }
+    this.employeeOnboarding.update((records) => [normalized, ...records.filter((entry) => entry.id !== normalized.id && entry.employeeId !== normalized.employeeId)]);
+    await this.persistLocalWorkspace();
+    await this.logActivity('employee_onboarding_updated', 'employee', normalized.employeeId, { criminalCheckStatus: normalized.criminalCheckStatus, fingerprintCheckStatus: normalized.fingerprintCheckStatus, medicalStatus: normalized.medicalStatus });
+    return normalized;
+  }
+
+  async savePpeIssue(record: Omit<PpeIssueRecord, 'id' | 'organizationId' | 'requestedAt'> & { id?: string; requestedAt?: string }) {
+    const session = this.auth.currentSession();
+    if (!session) throw new Error('You must be signed in.');
+    const normalized: PpeIssueRecord = { ...record, id: record.id || this.createId(), organizationId: SENATLA_TRADING_ORGANIZATION_ID, brand: record.brand?.trim() || '', size: record.size.trim(), unitCost: Math.max(0, Number(record.unitCost) || 0), requestedAt: record.requestedAt || new Date().toISOString() };
+    if (!normalized.employeeId || !normalized.size) throw new Error('Employee and PPE size are required.');
+    if (this.supabase) {
+      const { error } = await this.supabase.from('ppe_issue_records').upsert({ id: normalized.id, organization_id: normalized.organizationId, employee_id: normalized.employeeId, item_type: normalized.itemType, brand: normalized.brand || null, size: normalized.size, unit_cost: normalized.unitCost, order_date: normalized.orderDate || null, collection_date: normalized.collectionDate || null, status: normalized.status, requested_at: normalized.requestedAt, office_confirmed_at: normalized.officeConfirmedAt || null, office_confirmed_by: normalized.officeConfirmedBy || null, employee_confirmed_at: normalized.employeeConfirmedAt || null, employee_confirmed_by: normalized.employeeConfirmedBy || null });
+      if (error) throw error;
+    }
+    this.ppeIssues.update((records) => [normalized, ...records.filter((entry) => entry.id !== normalized.id)]);
+    await this.persistLocalWorkspace();
+    await this.logActivity('ppe_issue_updated', 'employee', normalized.employeeId, { itemType: normalized.itemType, status: normalized.status, unitCost: normalized.unitCost });
+    return normalized;
+  }
+
+  async confirmPpeIssue(issueId: string, party: 'office' | 'employee') {
+    const session = this.auth.currentSession();
+    const current = this.ppeIssues().find((entry) => entry.id === issueId);
+    if (!session || !current) throw new Error('PPE record not found.');
+    const now = new Date().toISOString();
+    return this.savePpeIssue({ ...current, ...(party === 'office' ? { officeConfirmedAt: now, officeConfirmedBy: session.userId } : { employeeConfirmedAt: now, employeeConfirmedBy: session.userId }) });
+  }
+
+  async saveFuelEntry(record: Omit<AssetFuelEntry, 'id' | 'organizationId' | 'totalCost' | 'recordedBy' | 'createdAt'> & { id?: string }) {
+    const session = this.auth.currentSession();
+    if (!session) throw new Error('You must be signed in.');
+    const litres = Math.max(0, Number(record.litres) || 0); const unitCost = Math.max(0, Number(record.unitCost) || 0);
+    if (!record.assetId || !record.fuelDate || litres <= 0) throw new Error('Asset, fuel date, and litres are required.');
+    const normalized: AssetFuelEntry = { ...record, id: record.id || this.createId(), organizationId: SENATLA_TRADING_ORGANIZATION_ID, litres, unitCost, totalCost: Number((litres * unitCost).toFixed(2)), recordedBy: session.userId, createdAt: new Date().toISOString() };
+    if (this.supabase) {
+      const { error } = await this.supabase.from('asset_fuel_entries').insert({ id: normalized.id, organization_id: normalized.organizationId, asset_id: normalized.assetId, fuel_date: normalized.fuelDate, litres: normalized.litres, unit_cost: normalized.unitCost, odometer_km: normalized.odometerKm || null, engine_hours: normalized.engineHours || null, supplier: normalized.supplier || null, reference_number: normalized.referenceNumber || null, recorded_by: normalized.recordedBy });
+      if (error) throw error;
+    }
+    this.assetFuelEntries.update((records) => [normalized, ...records]);
+    await this.persistLocalWorkspace();
+    await this.logActivity('asset_fuel_recorded', 'asset', normalized.assetId, { litres, totalCost: normalized.totalCost });
+    return normalized;
+  }
   async saveFinancialType(financialType: FinancialType) {
     const normalized: FinancialType = {
       ...financialType,
@@ -1177,6 +1238,8 @@ export class OfficeAdminService {
       siteResult,
       groupResult,
       employeeResult,
+      onboardingResult,
+      ppeResult,
       financialTypeResult,
       issueResult,
       assetResult,
@@ -1191,12 +1254,15 @@ export class OfficeAdminService {
       meterResult,
       workOrderResult,
       maintenancePlanResult,
+      fuelResult,
       outboxResult,
     ] = await Promise.all([
       this.supabase!.from('profiles').select('id, username, display_name, role, is_active, created_at').order('created_at', { ascending: false }),
       this.supabase!.from('sites').select('id, organization_id, name, location, manager_profile_id, is_active').order('name'),
       this.supabase!.from('employee_groups').select('id, name, is_active').order('name'),
       this.supabase!.from('employees').select('id, organization_id, first_name, surname, id_number, role, site_id, group_id, employment_status, start_date, basic_rate, salary_advances, financials, logs, adjustments, tax_ref_number').order('surname'),
+      this.supabase!.from('employee_onboarding_records').select('id, organization_id, employee_id, criminal_check_status, fingerprint_check_status, medical_status, red_ticket_number, red_ticket_issued_at, red_ticket_expires_at, notes, updated_at').order('updated_at', { ascending: false }),
+      this.supabase!.from('ppe_issue_records').select('id, organization_id, employee_id, item_type, brand, size, unit_cost, order_date, collection_date, status, requested_at, office_confirmed_at, office_confirmed_by, employee_confirmed_at, employee_confirmed_by').order('requested_at', { ascending: false }),
       this.supabase!.from('financial_types').select('id, name, category, is_active, is_system').order('name'),
       this.supabase!.from('issues').select('id, organization_id, site_id, reported_by, category, description, status, severity, owner_profile_id, due_at, audit_trail, created_at').order('created_at', { ascending: false }),
       this.supabase!.from('assets').select('id, organization_id, registration_number, serial_number, vin, make, model, type, license_expiry, status, assigned_site_id, notes, custodian_name, asset_class, lifecycle_state, retired_at').order('license_expiry'),
@@ -1211,10 +1277,11 @@ export class OfficeAdminService {
       this.supabase!.from('asset_meter_readings').select('id, organization_id, asset_id, meter_type, reading, recorded_at, recorded_by, source').order('recorded_at', { ascending: false }),
       this.supabase!.from('asset_work_orders').select('id, organization_id, asset_id, title, description, status, priority, due_at, completed_at, cost').order('due_at'),
       this.supabase!.from('asset_maintenance_plans').select('id, organization_id, asset_id, name, interval_days, interval_meter, meter_type, next_due_at, next_due_meter, is_active').order('name'),
+      this.supabase!.from('asset_fuel_entries').select('id, organization_id, asset_id, fuel_date, litres, unit_cost, total_cost, odometer_km, engine_hours, supplier, reference_number, recorded_by, created_at').order('fuel_date', { ascending: false }),
       this.supabase!.from('integration_outbox').select('id, organization_id, event_type, aggregate_type, aggregate_id, payload, status, idempotency_key, attempts, last_error, created_at, processed_at').order('created_at', { ascending: false }).limit(100),
     ]);
 
-    const results = [profileResult, siteResult, groupResult, employeeResult, financialTypeResult, issueResult, assetResult, activityResult, payrollPeriodResult, payrollExportResult, approvalResult, savedViewResult, organizationResult, custodyResult, complianceResult, meterResult, workOrderResult, maintenancePlanResult, outboxResult];
+    const results = [profileResult, siteResult, groupResult, employeeResult, onboardingResult, ppeResult, financialTypeResult, issueResult, assetResult, activityResult, payrollPeriodResult, payrollExportResult, approvalResult, savedViewResult, organizationResult, custodyResult, complianceResult, meterResult, workOrderResult, maintenancePlanResult, fuelResult, outboxResult];
     const firstError = results.find((result) => result.error)?.error;
     if (firstError) throw firstError;
 
@@ -1223,6 +1290,8 @@ export class OfficeAdminService {
       sites: (siteResult.data as SiteRow[]).map((row) => this.mapSite(row)),
       groups: (groupResult.data as GroupRow[]).filter((row) => row.is_active).map((row) => ({ id: row.id, name: row.name })),
       employees: (employeeResult.data as EmployeeRow[]).map((row) => this.mapEmployee(row)),
+      employeeOnboarding: (onboardingResult.data as EmployeeOnboardingRow[]).map((row) => ({ id: row.id, organizationId: row.organization_id, employeeId: row.employee_id, criminalCheckStatus: row.criminal_check_status, fingerprintCheckStatus: row.fingerprint_check_status, medicalStatus: row.medical_status, redTicketNumber: row.red_ticket_number, redTicketIssuedAt: row.red_ticket_issued_at, redTicketExpiresAt: row.red_ticket_expires_at, notes: row.notes || '', updatedAt: row.updated_at })),
+      ppeIssues: (ppeResult.data as PpeIssueRow[]).map((row) => ({ id: row.id, organizationId: row.organization_id, employeeId: row.employee_id, itemType: row.item_type, brand: row.brand || '', size: row.size, unitCost: row.unit_cost, orderDate: row.order_date, collectionDate: row.collection_date, status: row.status, requestedAt: row.requested_at, officeConfirmedAt: row.office_confirmed_at, officeConfirmedBy: row.office_confirmed_by, employeeConfirmedAt: row.employee_confirmed_at, employeeConfirmedBy: row.employee_confirmed_by })),
       financialTypes: (financialTypeResult.data as FinancialTypeRow[]).map((row) => this.mapFinancialType(row)),
       issues: (issueResult.data as IssueRow[]).map((row) => this.mapIssue(row)),
       assets: (assetResult.data as AssetRow[]).map((row) => this.mapAsset(row)),
@@ -1231,6 +1300,7 @@ export class OfficeAdminService {
       assetMeterReadings: (meterResult.data as AssetMeterRow[]).map((row) => this.mapMeter(row)),
       assetWorkOrders: (workOrderResult.data as AssetWorkOrderRow[]).map((row) => this.mapWorkOrder(row)),
       assetMaintenancePlans: (maintenancePlanResult.data as AssetPlanRow[]).map((row) => this.mapMaintenancePlan(row)),
+      assetFuelEntries: (fuelResult.data as AssetFuelRow[]).map((row) => ({ id: row.id, organizationId: row.organization_id, assetId: row.asset_id, fuelDate: row.fuel_date, litres: row.litres, unitCost: row.unit_cost, totalCost: row.total_cost, odometerKm: row.odometer_km, engineHours: row.engine_hours, supplier: row.supplier || '', referenceNumber: row.reference_number || '', recordedBy: row.recorded_by, createdAt: row.created_at })),
       integrationOutbox: (outboxResult.data as OutboxRow[]).map((row) => this.mapOutbox(row)),
       activity: (activityResult.data as ActivityRow[]).map((row) => this.mapActivity(row)),
       payrollPeriods: (payrollPeriodResult.data as PayrollPeriodRow[]).map((row) => this.mapPayrollPeriod(row)),
@@ -1253,6 +1323,8 @@ export class OfficeAdminService {
     this.sites.set(workspace.sites.map((site) => ({ ...site, organizationId: SENATLA_TRADING_ORGANIZATION_ID })));
     this.groups.set(workspace.groups);
     this.employees.set(workspace.employees.map((employee) => ({ ...employee, organizationId: SENATLA_TRADING_ORGANIZATION_ID })));
+    this.employeeOnboarding.set(workspace.employeeOnboarding || []);
+    this.ppeIssues.set(workspace.ppeIssues || []);
     this.financialTypes.set(workspace.financialTypes);
     this.issues.set(workspace.issues.map((issue) => ({ ...issue, organizationId: SENATLA_TRADING_ORGANIZATION_ID })));
     this.assets.set(workspace.assets.map((asset) => this.normalizeAsset(asset)));
@@ -1261,6 +1333,7 @@ export class OfficeAdminService {
     this.assetMeterReadings.set(workspace.assetMeterReadings || []);
     this.assetWorkOrders.set(workspace.assetWorkOrders || []);
     this.assetMaintenancePlans.set(workspace.assetMaintenancePlans || []);
+    this.assetFuelEntries.set(workspace.assetFuelEntries || []);
     this.integrationOutbox.set(workspace.integrationOutbox || []);
     this.activity.set(workspace.activity);
     this.payrollPeriods.set(workspace.payrollPeriods);
@@ -1279,6 +1352,8 @@ export class OfficeAdminService {
       ],
       groups: [],
       employees: [],
+      employeeOnboarding: [],
+      ppeIssues: [],
       financialTypes: [
         { id: 'travel', name: 'Travel Allowance', category: 'Allowance', isActive: true, isSystem: true },
         { id: 'housing', name: 'Housing Allowance', category: 'Allowance', isActive: true, isSystem: true },
@@ -1398,6 +1473,7 @@ export class OfficeAdminService {
         { id: 'demo-plan-excavator', organizationId: SENATLA_TRADING_ORGANIZATION_ID, assetId: 'demo-excavator', name: '500-hour service', intervalDays: null, intervalMeter: 500, meterType: 'engine_hours', nextDueAt: null, nextDueMeter: 5000, isActive: true },
         { id: 'demo-plan-loader', organizationId: SENATLA_TRADING_ORGANIZATION_ID, assetId: 'demo-loader', name: 'Monthly plant inspection', intervalDays: 30, intervalMeter: null, meterType: null, nextDueAt: '2026-07-10', nextDueMeter: null, isActive: true },
       ],
+      assetFuelEntries: [],
       integrationOutbox: [],
       activity: [],
       payrollPeriods: [],
@@ -1416,6 +1492,8 @@ export class OfficeAdminService {
       sites: this.sites(),
       groups: this.groups(),
       employees: this.employees(),
+      employeeOnboarding: this.employeeOnboarding(),
+      ppeIssues: this.ppeIssues(),
       financialTypes: this.financialTypes(),
       issues: this.issues(),
       assets: this.assets(),
@@ -1424,6 +1502,7 @@ export class OfficeAdminService {
       assetMeterReadings: this.assetMeterReadings(),
       assetWorkOrders: this.assetWorkOrders(),
       assetMaintenancePlans: this.assetMaintenancePlans(),
+      assetFuelEntries: this.assetFuelEntries(),
       integrationOutbox: this.integrationOutbox(),
       activity: this.activity(),
       payrollPeriods: this.payrollPeriods(),

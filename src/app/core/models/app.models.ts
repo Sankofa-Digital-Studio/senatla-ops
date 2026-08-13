@@ -74,6 +74,23 @@ export interface Employee {
   taxRefNumber?: string;
 }
 
+export type ScreeningStatus = 'pending' | 'clear' | 'review' | 'failed';
+export type MedicalStatus = 'pending' | 'fit' | 'restricted' | 'unfit';
+
+export interface EmployeeOnboardingRecord {
+  id: string; organizationId: string; employeeId: string;
+  criminalCheckStatus: ScreeningStatus; fingerprintCheckStatus: ScreeningStatus; medicalStatus: MedicalStatus;
+  redTicketNumber?: string | null; redTicketIssuedAt?: string | null; redTicketExpiresAt?: string | null;
+  notes?: string; updatedAt: string;
+}
+
+export type PpeItemType = 'overall_pants' | 'overall_jacket' | 'safety_boots';
+export type PpeRequestStatus = 'requested' | 'ordered' | 'ready' | 'collected';
+export interface PpeIssueRecord {
+  id: string; organizationId: string; employeeId: string; itemType: PpeItemType; brand?: string; size: string;
+  unitCost: number; orderDate?: string | null; collectionDate?: string | null; status: PpeRequestStatus; requestedAt: string;
+  officeConfirmedAt?: string | null; officeConfirmedBy?: string | null; employeeConfirmedAt?: string | null; employeeConfirmedBy?: string | null;
+}
 export interface AuthSession {
   userId: string;
   username: string;
@@ -309,6 +326,10 @@ export interface AssetMaintenancePlan {
   isActive: boolean;
 }
 
+export interface AssetFuelEntry {
+  id: string; organizationId: string; assetId: string; fuelDate: string; litres: number; unitCost: number; totalCost: number;
+  odometerKm?: number | null; engineHours?: number | null; supplier?: string; referenceNumber?: string; recordedBy: string; createdAt: string;
+}
 export interface IntegrationOutboxEvent {
   id: string;
   organizationId: string;
@@ -416,3 +437,4 @@ export interface Organization {
   isActive: boolean;
   createdAt: string;
 }
+
