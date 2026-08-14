@@ -142,6 +142,61 @@
     </div>
   </div>
 
+
+  <div *ngIf="showDailySetup" class="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl rounded-2xl border border-yellow-500/30 bg-gray-900 p-5 text-white shadow-2xl">
+      <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-yellow-500">Start of shift</p>
+      <h2 class="mt-1 text-2xl font-black">Confirm site, targets and movement risk</h2>
+      <p class="mt-2 text-sm text-gray-400">Complete this before the safety talk. This keeps the site manager flow grounded in today's location and planned work.</p>
+      <div class="mt-5 grid gap-4 md:grid-cols-2">
+        <label class="text-xs font-bold uppercase tracking-wider text-gray-400">Current site
+          <input [(ngModel)]="localSiteName" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white" placeholder="Current site name">
+        </label>
+        <div class="rounded-lg border border-gray-700 bg-gray-950 p-3 text-xs text-gray-300">
+          <div class="font-bold uppercase tracking-wider text-gray-500">GPS site confirmation</div>
+          <div class="mt-1">{{ siteLocationLabel }}</div>
+          <div *ngIf="siteLocationWarning" class="mt-1 text-amber-300">{{ siteLocationWarning }}</div>
+          <button type="button" (click)="captureCurrentSiteLocation()" class="mt-3 rounded bg-yellow-500 px-3 py-2 text-xs font-black text-black">Capture current GPS</button>
+        </div>
+        <label class="text-xs font-bold uppercase tracking-wider text-gray-400 md:col-span-2">Planned work targets for today
+          <textarea [(ngModel)]="plannedTargets" rows="3" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white" placeholder="Example: Complete trenching at Block B, inspect generator, move Hilux to client site..."></textarea>
+        </label>
+      </div>
+      <div class="mt-5 rounded-xl border border-sky-500/20 bg-sky-500/10 p-4">
+        <h3 class="text-sm font-black text-sky-100">Trip away from site</h3>
+        <p class="mt-1 text-xs text-sky-100/70">Use this when a vehicle or asset leaves the confirmed site. Capture current KM and GPS before departure.</p>
+        <div class="mt-3 grid gap-3 md:grid-cols-2">
+          <label class="text-xs text-sky-100">Asset / vehicle
+            <select [(ngModel)]="tripAssetId" class="mt-1 w-full rounded border border-sky-800 bg-gray-950 px-3 py-2 text-white">
+              <option value="">Select asset</option>
+              <option *ngFor="let asset of siteAssets()" [value]="asset.id">{{ assetLabel(asset) }}</option>
+            </select>
+          </label>
+          <label class="text-xs text-sky-100">Current KM / meter
+            <input type="number" min="0" [(ngModel)]="tripCurrentKm" class="mt-1 w-full rounded border border-sky-800 bg-gray-950 px-3 py-2 text-white" placeholder="Current reading">
+          </label>
+          <label class="text-xs text-sky-100">Reason
+            <select [(ngModel)]="tripReason" class="mt-1 w-full rounded border border-sky-800 bg-gray-950 px-3 py-2 text-white">
+              <option value="">Select reason</option>
+              <option *ngFor="let reason of tripReasons" [value]="reason">{{ reason }}</option>
+            </select>
+          </label>
+          <div class="rounded border border-sky-800 bg-gray-950 p-3 text-xs text-sky-100">
+            <div>{{ tripLocationLabel }}</div>
+            <div *ngIf="tripLocationWarning" class="mt-1 text-amber-300">{{ tripLocationWarning }}</div>
+            <button type="button" (click)="captureTripLocation()" class="mt-2 rounded bg-sky-500 px-3 py-2 text-xs font-black text-black">Capture trip GPS</button>
+          </div>
+          <label class="text-xs text-sky-100 md:col-span-2">Custom reason / instruction
+            <textarea [(ngModel)]="tripCustomReason" rows="2" class="mt-1 w-full rounded border border-sky-800 bg-gray-950 px-3 py-2 text-white" placeholder="Add client instruction, breakdown note, destination, or other reason."></textarea>
+          </label>
+        </div>
+        <button type="button" (click)="logTripAway()" class="mt-3 rounded bg-sky-400 px-4 py-2 text-xs font-black uppercase tracking-wider text-black">Log trip away</button>
+      </div>
+      <div class="mt-5 flex justify-end gap-3">
+        <button type="button" (click)="confirmDailySetup()" class="rounded bg-yellow-500 px-5 py-3 text-xs font-black uppercase tracking-wider text-black">Confirm and continue to safety</button>
+      </div>
+    </div>
+  </div>
   <div *ngIf="!service.safetyTalkCompleted()" class="fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center p-6 backdrop-blur-sm">
     <div class="w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center mb-6 shadow-glow">
       <span class="text-xl font-black text-gray-950">Safe</span>

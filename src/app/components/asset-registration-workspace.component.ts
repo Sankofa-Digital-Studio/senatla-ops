@@ -287,3 +287,6 @@ export class AssetRegistrationWorkspaceComponent {
     return this.sites.find((site) => site.id === siteId)?.name || 'Unassigned';
   }
 }
+
+
+
