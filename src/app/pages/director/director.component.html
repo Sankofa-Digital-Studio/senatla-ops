@@ -97,7 +97,38 @@
     <section class="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Operating expenses">
       <div class="rounded-xl border border-gray-700 bg-gray-800 p-4"><p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">PPE expense</p><p class="mt-2 font-mono text-2xl font-bold text-white">R {{ ppeExpense() | number:'1.2-2' }}</p></div>
       <div class="rounded-xl border border-gray-700 bg-gray-800 p-4"><p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Fuel expense</p><p class="mt-2 font-mono text-2xl font-bold text-white">R {{ fuelExpense() | number:'1.2-2' }}</p></div>
+      <div class="rounded-xl border border-gray-700 bg-gray-800 p-4"><p class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Vendor payables</p><p class="mt-2 font-mono text-2xl font-bold text-white">R {{ vendorPayables() | number:'1.2-2' }}</p></div>
       <div class="rounded-xl border border-yellow-700/60 bg-gray-800 p-4"><p class="text-[10px] font-bold uppercase tracking-wider text-yellow-400">Total operating expense</p><p class="mt-2 font-mono text-2xl font-bold text-white">R {{ operatingExpense() | number:'1.2-2' }}</p></div>
+    </section>
+
+    <section class="rounded-xl border border-gray-700 bg-gray-800 p-4" aria-label="Supplier and vendor payables">
+      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-white uppercase tracking-widest">Supplier / Vendor Payables</h2>
+          <p class="mt-1 text-xs text-gray-400">Admin-submitted invoices awaiting Director review and vendor balance oversight.</p>
+        </div>
+        <div class="rounded-lg border border-yellow-700/60 bg-gray-900 px-3 py-2 text-xs text-yellow-200">{{ pendingVendorInvoices().length }} pending approval(s)</div>
+      </div>
+      <div class="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+        <div class="space-y-3">
+          <div *ngFor="let vendor of office.vendorAccounts()" class="rounded-xl border border-gray-700 bg-gray-900 p-3">
+            <div class="flex items-start justify-between gap-3">
+              <div><p class="font-bold text-white">{{ vendor.name }}</p><p class="mt-1 text-xs leading-5 text-gray-400">{{ vendor.description || 'No general description captured.' }}</p></div>
+              <p class="whitespace-nowrap font-mono text-sm font-bold text-yellow-400">R {{ vendor.totalOwingAmount | number:'1.2-2' }}</p>
+            </div>
+          </div>
+          <p *ngIf="!office.vendorAccounts().length" class="rounded-xl border border-gray-700 bg-gray-900 px-3 py-6 text-center text-sm text-gray-500">No vendor accounts captured yet.</p>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-gray-700 bg-gray-900">
+          <table class="w-full min-w-[760px] text-left text-xs">
+            <thead class="bg-gray-950 uppercase tracking-wider text-gray-500"><tr><th class="p-3">Date</th><th class="p-3">Vendor</th><th class="p-3">Order</th><th class="p-3">Items</th><th class="p-3">Responsible</th><th class="p-3 text-right">Total</th><th class="p-3">Status</th></tr></thead>
+            <tbody class="divide-y divide-gray-700">
+              <tr *ngFor="let invoice of recentVendorInvoices()"><td class="p-3">{{ invoice.invoiceDate | date:'mediumDate' }}</td><td class="p-3 font-semibold text-white">{{ vendorName(invoice.vendorId) }}</td><td class="p-3">{{ invoice.orderNumber }}</td><td class="p-3 text-gray-300">{{ invoice.itemsPurchased }}</td><td class="p-3">{{ invoice.responsiblePerson }}</td><td class="p-3 text-right font-mono text-yellow-400">R {{ invoice.total | number:'1.2-2' }}</td><td class="p-3"><span class="rounded-full border border-gray-600 px-2 py-1 uppercase">{{ invoice.status }}</span></td></tr>
+              <tr *ngIf="!recentVendorInvoices().length"><td colspan="7" class="p-8 text-center text-gray-500">No invoice records submitted yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
     <div *ngIf="viewMode() !== 'day'" class="animate-fade-in">
       <h2 class="text-sm font-bold text-white uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">Spending Trend Analysis</h2>
