@@ -57,7 +57,11 @@ service = inject(StaffDataService);
 
   ppeExpense = computed(() => this.office.ppeIssues().filter((entry) => this.isDateKeyInSelectedPeriod((entry.orderDate || entry.requestedAt).slice(0, 10))).reduce((total, entry) => total + entry.unitCost, 0));
   fuelExpense = computed(() => this.office.assetFuelEntries().filter((entry) => this.isDateKeyInSelectedPeriod(entry.fuelDate)).reduce((total, entry) => total + entry.totalCost, 0));
-  operatingExpense = computed(() => this.displayedCost() + this.ppeExpense() + this.fuelExpense());
+  vendorPayables = computed(() => this.office.vendorAccounts().reduce((total, vendor) => total + vendor.totalOwingAmount, 0));
+  pendingVendorInvoices = computed(() => this.office.vendorInvoices().filter((invoice) => invoice.status === 'pending_director'));
+  recentVendorInvoices = computed(() => this.office.vendorInvoices().slice(0, 8));
+  vendorName(vendorId: string) { return this.office.vendorAccounts().find((vendor) => vendor.id === vendorId)?.name || 'Unknown vendor'; }
+  operatingExpense = computed(() => this.displayedCost() + this.ppeExpense() + this.fuelExpense() + this.vendorPayables());
   // 4. Per-Site Breakdown
   siteStats = computed(() => {
      return this.service.sites().map(site => {

@@ -17,13 +17,16 @@ import {
   IssueSeverity,
   ManagedUserProfile,
   Site,
+  VendorAccount,
+  VendorInvoiceRecord,
+  VehicleAsset,
 } from '../../core/models/app.models';
 import { UserInviteInput } from '../../core/models/office-admin.models';
 import { OfficeAdminService } from '../../core/services/office-admin.service';
 import { TimesheetRegisterService } from '../../core/services/timesheet-register.service';
 import { downloadTextFile } from '../../core/utils/browser-file.util';
 
-type AdminTab = 'overview' | 'users' | 'people' | 'workforce' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'payroll' | 'approvals' | 'recovery' | 'activity' | 'settings' | 'account';
+type AdminTab = 'overview' | 'users' | 'people' | 'workforce' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'payroll' | 'vendors' | 'approvals' | 'recovery' | 'activity' | 'settings' | 'account';
 
 @Component({
   selector: 'app-office-admin',
@@ -38,14 +41,15 @@ export class OfficeAdminComponent {
 
   readonly tabs: { id: AdminTab; label: string; group: string }[] = [
     { id: 'overview', label: 'Overview', group: 'Workspace' },
-    { id: 'people', label: 'People', group: 'People' },
+    { id: 'people', label: 'Workforce', group: 'People' },
     { id: 'workforce', label: 'New Hires & PPE', group: 'People' },
-    { id: 'timesheets', label: 'Timesheets', group: 'People' },
-    { id: 'users', label: 'Access', group: 'People' },
+    { id: 'timesheets', label: 'Timesheets & Payroll', group: 'People' },
+    { id: 'users', label: 'Access Control', group: 'People' },
     { id: 'sites', label: 'Sites', group: 'Operations' },
     { id: 'assets', label: 'Assets', group: 'Operations' },
     { id: 'issues', label: 'Issues', group: 'Operations' },
     { id: 'payroll', label: 'Payroll', group: 'Finance' },
+    { id: 'vendors', label: 'Vendors', group: 'Finance' },
     { id: 'approvals', label: 'Approvals', group: 'Finance' },
     { id: 'recovery', label: 'Recovery', group: 'System' },
     { id: 'activity', label: 'Activity', group: 'System' },
@@ -57,6 +61,8 @@ export class OfficeAdminComponent {
   readonly selectedSiteId = signal('');
   readonly timesheetDate = signal(this.timesheetRegister.toDateKey(new Date()));
   readonly selectedEmployeeIds = signal<string[]>([]);
+  readonly selectedEmployeeId = signal('');
+  readonly showEmployeeForm = signal(false);
   readonly bulkSiteId = signal('');
   readonly month = signal(new Date().getMonth());
   readonly year = signal(new Date().getFullYear());
@@ -87,6 +93,10 @@ export class OfficeAdminComponent {
     name: '',
     location: '',
     managerId: undefined,
+    teamName: '',
+    jobNumber: '',
+    estimatedDuration: '',
+    complianceChecklist: [],
     isActive: true,
   };
   personForm: Employee & { employmentStatus?: EmploymentStatus } = {
@@ -129,7 +139,37 @@ export class OfficeAdminComponent {
     category: 'Allowance',
     isActive: true,
   };
+  vendorForm: Omit<VendorAccount, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'> & { id?: string } = {
+    name: '',
+    description: '',
+    totalOwingAmount: 0,
+  };
+  vendorInvoiceForm: Omit<VendorInvoiceRecord, 'id' | 'organizationId' | 'status' | 'requestedBy' | 'requestedByName' | 'directorReviewedBy' | 'directorReviewedAt' | 'createdAt' | 'updatedAt'> & { id?: string } = {
+    vendorId: '',
+    invoiceDate: new Date().toISOString().slice(0, 10),
+    orderNumber: '',
+    itemsPurchased: '',
+    total: 0,
+    responsiblePerson: '',
+  };
+  siteComplianceText = '';
 
+  readonly selectedEmployee = computed(() => {
+    const selectedId = this.selectedEmployeeId();
+    return this.service.employees().find((employee) => employee.id === selectedId) || this.filteredEmployees()[0] || null;
+  });
+  readonly selectedEmployeeAssets = computed<VehicleAsset[]>(() => {
+    const employee = this.selectedEmployee();
+    if (!employee) return [];
+    const fullName = `${employee.firstName} ${employee.surname}`.trim().toLowerCase();
+    return this.service.assets().filter((asset) => (asset.custodianName || '').trim().toLowerCase() === fullName);
+  });
+  readonly selectedEmployeeOpenIssues = computed(() => {
+    const employee = this.selectedEmployee();
+    if (!employee) return [];
+    const fullName = `${employee.firstName} ${employee.surname}`.trim().toLowerCase();
+    return this.service.issues().filter((issue) => issue.status === 'Open' && (issue.reportedBy.trim().toLowerCase() === fullName || issue.description.toLowerCase().includes(employee.surname.toLowerCase())));
+  });
   readonly filteredEmployees = computed(() => {
     const term = this.searchTerm().trim().toLowerCase();
     const siteId = this.selectedSiteId();
@@ -207,9 +247,10 @@ export class OfficeAdminComponent {
 
   async submitSite() {
     await this.runAction(async () => {
-      await this.service.saveSite(this.siteForm);
+      await this.service.saveSite({ ...this.siteForm, complianceChecklist: this.parseChecklist(this.siteComplianceText) });
       this.feedback.set('Site saved.');
-      this.siteForm = { id: '', name: '', location: '', managerId: undefined, isActive: true };
+      this.siteForm = { id: '', name: '', location: '', managerId: undefined, teamName: '', jobNumber: '', estimatedDuration: '', complianceChecklist: [], isActive: true };
+      this.siteComplianceText = '';
     });
   }
 
@@ -218,6 +259,7 @@ export class OfficeAdminComponent {
       await this.service.saveEmployee(this.personForm);
       this.feedback.set('Employee saved.');
       this.resetEmployeeForm();
+      this.showEmployeeForm.set(false);
     });
   }
 
@@ -241,6 +283,22 @@ export class OfficeAdminComponent {
     });
   }
 
+  async submitVendorAccount() {
+    await this.runAction(async () => {
+      const vendor = await this.service.saveVendorAccount(this.vendorForm);
+      this.feedback.set(`Vendor saved: ${vendor.name}`);
+      this.vendorInvoiceForm.vendorId = vendor.id;
+      this.vendorForm = { name: '', description: '', totalOwingAmount: 0 };
+    });
+  }
+
+  async submitVendorInvoice() {
+    await this.runAction(async () => {
+      await this.service.submitVendorInvoice(this.vendorInvoiceForm);
+      this.feedback.set('Invoice submitted to Director approval queue.');
+      this.vendorInvoiceForm = { vendorId: '', invoiceDate: new Date().toISOString().slice(0, 10), orderNumber: '', itemsPurchased: '', total: 0, responsiblePerson: '' };
+    });
+  }
   async submitFinancialType() {
     await this.runAction(async () => {
       await this.service.saveFinancialType(this.financialTypeForm);
@@ -383,11 +441,25 @@ export class OfficeAdminComponent {
 
   editEmployee(employee: Employee) {
     this.personForm = { ...employee, employmentStatus: employee.employmentStatus || 'active' };
+    this.selectedEmployeeId.set(employee.id);
+    this.showEmployeeForm.set(true);
     this.activeTab.set('people');
   }
 
+  selectEmployee(employeeId: string) {
+    this.selectedEmployeeId.set(employeeId);
+    this.showEmployeeForm.set(false);
+  }
+
+  createEmployeeProfile() {
+    this.resetEmployeeForm();
+    this.showEmployeeForm.set(true);
+    this.feedback.set(this.service.activeSites().length ? '' : 'Create at least one site before creating an employee profile.');
+  }
+
   editSite(site: Site) {
-    this.siteForm = { ...site };
+    this.siteForm = { ...site, complianceChecklist: site.complianceChecklist || [] };
+    this.siteComplianceText = (site.complianceChecklist || []).join(', ');
     this.activeTab.set('sites');
   }
 
@@ -409,6 +481,9 @@ export class OfficeAdminComponent {
     return this.service.calculateMonthlyPayroll(employeeId, this.month(), this.year());
   }
 
+  private parseChecklist(value: string) {
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
   private async runAction(action: () => Promise<void>) {
     this.busy.set(true);
     this.feedback.set('');
@@ -440,4 +515,3 @@ export class OfficeAdminComponent {
     };
   }
 }
-

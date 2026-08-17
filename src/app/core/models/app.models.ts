@@ -44,6 +44,10 @@ export interface Site {
   name: string;
   location: string;
   managerId?: string;
+  teamName?: string;
+  jobNumber?: string;
+  estimatedDuration?: string;
+  complianceChecklist?: string[];
   isActive: boolean;
 }
 
@@ -330,6 +334,36 @@ export interface AssetFuelEntry {
   id: string; organizationId: string; assetId: string; fuelDate: string; litres: number; unitCost: number; totalCost: number;
   odometerKm?: number | null; engineHours?: number | null; supplier?: string; referenceNumber?: string; recordedBy: string; createdAt: string;
 }
+export interface VendorAccount {
+  id: string;
+  organizationId: string;
+  name: string;
+  description: string;
+  totalOwingAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type VendorInvoiceStatus = 'pending_director' | 'approved' | 'rejected' | 'paid';
+
+export interface VendorInvoiceRecord {
+  id: string;
+  organizationId: string;
+  vendorId: string;
+  invoiceDate: string;
+  orderNumber: string;
+  itemsPurchased: string;
+  total: number;
+  responsiblePerson: string;
+  status: VendorInvoiceStatus;
+  requestedBy: string;
+  requestedByName: string;
+  directorReviewedBy?: string | null;
+  directorReviewedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface IntegrationOutboxEvent {
   id: string;
   organizationId: string;
@@ -390,7 +424,7 @@ export interface PayrollExportRecord {
   createdAt: string;
 }
 
-export type ApprovalRequestType = 'full_id_payroll_export' | 'user_suspension' | 'asset_return_to_service';
+export type ApprovalRequestType = 'full_id_payroll_export' | 'user_suspension' | 'asset_return_to_service' | 'vendor_invoice_approval';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'executed';
 
 export interface ApprovalRequest {
@@ -437,4 +471,3 @@ export interface Organization {
   isActive: boolean;
   createdAt: string;
 }
-
