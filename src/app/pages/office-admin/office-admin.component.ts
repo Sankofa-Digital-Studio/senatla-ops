@@ -41,10 +41,10 @@ export class OfficeAdminComponent {
 
   readonly tabs: { id: AdminTab; label: string; group: string }[] = [
     { id: 'overview', label: 'Overview', group: 'Workspace' },
-    { id: 'people', label: 'Workforce', group: 'People' },
-    { id: 'workforce', label: 'New Hires & PPE', group: 'People' },
-    { id: 'timesheets', label: 'Timesheets & Payroll', group: 'People' },
-    { id: 'users', label: 'Access Control', group: 'People' },
+    { id: 'people', label: 'Current', group: 'Workforce' },
+    { id: 'workforce', label: 'New Hires & PPE', group: 'Workforce' },
+    { id: 'timesheets', label: 'Timesheets & Payroll', group: 'Workforce' },
+    { id: 'users', label: 'Access Control', group: 'Administration' },
     { id: 'sites', label: 'Sites', group: 'Operations' },
     { id: 'assets', label: 'Assets', group: 'Operations' },
     { id: 'issues', label: 'Issues', group: 'Operations' },
