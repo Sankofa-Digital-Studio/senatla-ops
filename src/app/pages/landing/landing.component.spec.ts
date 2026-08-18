@@ -23,6 +23,19 @@ describe('LandingComponent', () => {
     expect(text).not.toContain('director');
   });
 
+  it('provides distinct in-page destinations for capabilities and assurance', () => {
+    const page = fixture.nativeElement as HTMLElement;
+    expect(page.querySelector('a[href="#capabilities"]')).not.toBeNull();
+    expect(page.querySelector('a[href="#assurance"]')).not.toBeNull();
+    expect(page.querySelector('#capabilities')).not.toBeNull();
+    expect(page.querySelector('#assurance')).not.toBeNull();
+  });
+
+  it('shows the cornerstone welcome gate while the landing page is preparing', () => {
+    const page = fixture.nativeElement as HTMLElement;
+    expect(page.querySelector('.cornerstone-loader')).not.toBeNull();
+    expect(page.textContent).toContain('Senatla means a rock');
+  });
   it('offers public registration and login navigation', () => {
     const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a')).map((link) => link.getAttribute('href'));
     expect(links).toContain('/register');

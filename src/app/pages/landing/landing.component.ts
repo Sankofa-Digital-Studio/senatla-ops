@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -10,6 +10,14 @@ import { AuthService } from '../../core/services/auth.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
 })
-export class LandingComponent {
+export class LandingComponent implements OnInit {
   readonly auth = inject(AuthService);
+  readonly landingReady = signal(false);
+
+  async ngOnInit() {
+    const startedAt = Date.now();
+    await this.auth.ensureReady();
+    const remaining = Math.max(0, 900 - (Date.now() - startedAt));
+    setTimeout(() => this.landingReady.set(true), remaining);
+  }
 }

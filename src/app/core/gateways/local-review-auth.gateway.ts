@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { AppRole, AuthSession } from '../models/app.models';
-import { AuthGateway } from './auth.gateway';
+import { cappedSessionExpiry, sessionHasExpired } from '../auth/session-policy';
+import { AuthGateway, RegistrationRequest, RegistrationResult } from './auth.gateway';
 
 type ReviewAccount = {
   password: string;
@@ -29,6 +30,7 @@ export class LocalReviewAuthGateway implements AuthGateway {
     const account = this.credentials.get(email);
     if (!account || account.password !== password.trim()) return null;
 
+    const issuedAt = new Date().toISOString();
     const session: AuthSession = {
       userId: `${account.role}-review-user`,
       username: email,
@@ -36,13 +38,21 @@ export class LocalReviewAuthGateway implements AuthGateway {
       displayName: account.displayName,
       organizationId: '00000000-0000-4000-8000-000000000001',
       permittedSiteIds: account.permittedSiteIds,
-      issuedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 8).toISOString(),
+      issuedAt,
+      expiresAt: cappedSessionExpiry(issuedAt),
     };
 
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
     this.emit(session);
     return session;
+  }
+
+  async register(_request: RegistrationRequest): Promise<RegistrationResult> {
+    return { success: false, confirmationRequired: false, adminGranted: false, message: 'Account registration is unavailable in local review mode.' };
+  }
+
+  async redeemAdminCode(_code: string): Promise<boolean> {
+    return false;
   }
 
   async logout(): Promise<void> {
@@ -58,7 +68,7 @@ export class LocalReviewAuthGateway implements AuthGateway {
   private readSession() {
     try {
       const parsed = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null') as AuthSession | null;
-      if (!parsed?.expiresAt || new Date(parsed.expiresAt).getTime() <= Date.now()) {
+      if (!parsed?.expiresAt || sessionHasExpired(parsed)) {
         sessionStorage.removeItem(SESSION_KEY);
         return null;
       }

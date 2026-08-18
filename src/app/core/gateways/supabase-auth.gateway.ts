@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { AppRole, AuthSession } from '../models/app.models';
+import { cappedSessionExpiry } from '../auth/session-policy';
 import { AuthGateway, RegistrationRequest, RegistrationResult } from './auth.gateway';
 import { injectSupabaseClient } from './supabase.client';
 
@@ -119,9 +120,10 @@ export class SupabaseAuthGateway implements AuthGateway {
       organizationId: profile.organization_id,
       permittedSiteIds: (siteAccess as SiteAccessRow[] | null)?.map((entry) => entry.site_id) || [],
       issuedAt: session.user.last_sign_in_at || session.user.created_at,
-      expiresAt: session.expires_at
-        ? new Date(session.expires_at * 1000).toISOString()
-        : new Date(Date.now() + 1000 * 60 * 60).toISOString(),
+      expiresAt: cappedSessionExpiry(
+        session.user.last_sign_in_at || session.user.created_at,
+        session.expires_at ? new Date(session.expires_at * 1000).toISOString() : undefined,
+      ),
     };
   }
 
