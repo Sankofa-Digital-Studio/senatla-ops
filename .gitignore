@@ -79,3 +79,4 @@ Thumbs.db
 # Local Codex runtime overrides
 /.codex/node-v24.18.0-win-x64/
 .vercel
+supabase/.temp/
