@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(49);
 
 set local session_replication_role = replica;
 insert into auth.users (
@@ -109,6 +109,7 @@ select is((select count(*) from public.attendance_audit_events where actor_id = 
 do $$ begin perform public.confirm_site_readiness('62000000-0000-4000-8000-000000000001'); end $$;
 select is((select count(*) from public.attendance_audit_events where actor_id = '61000000-0000-4000-8000-000000000003' and site_id = '62000000-0000-4000-8000-000000000001' and action = 'site_readiness_confirmed'), 1::bigint, 'same actor site and Johannesburg day is idempotent');
 select ok(not ((select details from public.attendance_audit_events where actor_id = '61000000-0000-4000-8000-000000000003' and action = 'site_readiness_confirmed') ~* 'medical|ticket|criminal|fingerprint|id_number|reference_number|notes'), 'confirmation audit contains no protected source detail');
+set local "request.jwt.claims" = '{"sub":"61000000-0000-4000-8000-000000000004","role":"authenticated","exp":4102444800}';
 select throws_ok($$ select public.confirm_site_readiness('62000000-0000-4000-8000-000000000002') $$, '55000', 'Site readiness must be ready or warning before start of shift', 'unknown readiness cannot be confirmed');
 
 set local "request.jwt.claims" = '{"sub":"61000000-0000-4000-8000-000000000005","role":"authenticated","exp":4102444800}';
