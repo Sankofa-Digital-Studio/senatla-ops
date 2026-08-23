@@ -3,6 +3,16 @@ create extension if not exists pgtap with schema extensions;
 select plan(48);
 
 set local session_replication_role = replica;
+insert into auth.users (
+  instance_id, id, aud, role, email, created_at, updated_at,
+  confirmation_token, email_change, email_change_token_new, recovery_token
+)
+values
+  ('00000000-0000-0000-0000-000000000000', '61000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'readiness.office@senatla.test', timezone('utc', now()), timezone('utc', now()), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '61000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 'readiness.director@senatla.test', timezone('utc', now()), timezone('utc', now()), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '61000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'readiness.site.a@senatla.test', timezone('utc', now()), timezone('utc', now()), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '61000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated', 'readiness.site.b@senatla.test', timezone('utc', now()), timezone('utc', now()), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '61000000-0000-4000-8000-000000000005', 'authenticated', 'authenticated', 'readiness.inactive@senatla.test', timezone('utc', now()), timezone('utc', now()), '', '', '', '');
 insert into public.profiles (id, username, display_name, role, is_active, organization_id)
 values
   ('61000000-0000-4000-8000-000000000001', 'readiness.office', 'Readiness Office', 'office', true, '00000000-0000-4000-8000-000000000001'),
