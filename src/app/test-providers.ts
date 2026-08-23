@@ -2,6 +2,7 @@ import { Provider } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { DEFAULT_RUNTIME_CONFIG, provideRuntimeConfig } from './core/config/runtime-config';
+import { SESSION_EXPIRY_SCHEDULER } from './core/auth/session-expiry.scheduler';
 import { AUTH_GATEWAY } from './core/gateways/auth.gateway';
 import { provideBackendGateways } from './core/gateways/backend.providers';
 import { AppRole, AuthSession } from './core/models/app.models';
@@ -59,6 +60,7 @@ export const TEST_APP_PROVIDERS = [
   provideRuntimeConfig(DEFAULT_RUNTIME_CONFIG),
   ...provideBackendGateways(DEFAULT_RUNTIME_CONFIG),
   { provide: AUTH_GATEWAY, useClass: TestAuthGateway },
+  { provide: SESSION_EXPIRY_SCHEDULER, useValue: { schedule: () => () => undefined } },
 ];
 
 export function resetTestStorage() {

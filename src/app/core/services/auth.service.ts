@@ -2,16 +2,18 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AppRole, AuthSession } from '../models/app.models';
 import { AUTH_GATEWAY, AuthGateway, RegistrationRequest } from '../gateways/auth.gateway';
+import { SESSION_EXPIRY_SCHEDULER } from '../auth/session-expiry.scheduler';
 import { sessionHasExpired } from '../auth/session-policy';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly authGateway = inject<AuthGateway>(AUTH_GATEWAY);
   private readonly router = inject(Router);
+  private readonly expiryScheduler = inject(SESSION_EXPIRY_SCHEDULER);
   private readonly sessionState = signal<AuthSession | null>(null);
   private readonly readyState = signal(false);
   private restorePromise: Promise<void> | null = null;
-  private expiryTimer: ReturnType<typeof setTimeout> | null = null;
+  private cancelExpiryTimer: (() => void) | null = null;
 
   readonly session = computed(() => this.currentSession());
   readonly isReady = this.readyState.asReadonly();
@@ -86,12 +88,12 @@ export class AuthService {
       void this.expireIfNeeded();
       return;
     }
-    this.expiryTimer = setTimeout(() => void this.expireIfNeeded(), delay);
+    this.cancelExpiryTimer = this.expiryScheduler.schedule(() => void this.expireIfNeeded(), delay);
   }
 
   private clearExpiryTimer() {
-    if (this.expiryTimer) clearTimeout(this.expiryTimer);
-    this.expiryTimer = null;
+    this.cancelExpiryTimer?.();
+    this.cancelExpiryTimer = null;
   }
 
   private async expireIfNeeded() {
