@@ -390,9 +390,9 @@ def build():
         ("Tests", "Typecheck and build pass; targeted lint pass; 22/22 focused Chrome Headless tests; 3/3 runtime-config tests; 48 pgTAP assertions authored pending database execution"),
         ("Visual evidence", "Focused Cypress passed at desktop and 390 px with test-only intercepted responses; no mock data persisted; full regression remains scheduled after Slice 3"),
         ("Credentials", "Five-user register will be created only after real remote-dev provisioning in ignored output/credentials; no passwords or service keys in this DOCX or Git"),
-        ("Result", "Local implementation verified; remote deployment pending clean integration, project identity verification, database execution, and real-user provisioning"),
-        ("Known gap", "Generated Supabase URL and public-key project references differ; verify intended dev project before any deployment"),
-        ("Next action", "Integrate Slice 0+1 onto current dev; execute and deploy against verified remote; provision five users; create controlled credential handoff; verify cross-site audit flow"),
+        ("Result", "Local implementation and clean integration onto current origin/dev verified at release-candidate commit 41c8e62; remote deployment and provisioning blocked by target configuration"),
+        ("Known gap", "Generated Supabase URL/key references differ; Vercel Preview Senatla values resolve empty; authenticated Supabase CLI lists no Senatla project"),
+        ("Next action", "Link authoritative remote dev; populate matching Preview runtime values; execute contracts/migration; deploy; invite five real users; create controlled credential handoff; verify cross-role and cross-site audit flow"),
     ]
     add_table(doc, ["Field", "Recorded implementation evidence"], slice_one_entries, [1.55, 4.95])
     doc.add_heading("7. Decision log", level=1)
