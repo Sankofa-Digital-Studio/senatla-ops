@@ -22,6 +22,7 @@ import {
   VehicleAsset,
 } from '../../core/models/app.models';
 import { UserInviteInput } from '../../core/models/office-admin.models';
+import { AssignmentDecision, AssignmentReview } from '../../core/assignment/assignment-planning';
 import { OfficeAdminService } from '../../core/services/office-admin.service';
 import { TimesheetRegisterService } from '../../core/services/timesheet-register.service';
 import { downloadTextFile } from '../../core/utils/browser-file.util';
@@ -64,6 +65,8 @@ export class OfficeAdminComponent {
   readonly selectedEmployeeId = signal('');
   readonly showEmployeeForm = signal(false);
   readonly bulkSiteId = signal('');
+  readonly assignmentReview = signal<AssignmentReview | null>(null);
+  readonly assignmentReasonCode = signal('');
   readonly month = signal(new Date().getMonth());
   readonly year = signal(new Date().getFullYear());
   readonly includeFullIds = signal(false);
@@ -352,14 +355,39 @@ export class OfficeAdminComponent {
     if (checked) current.add(employeeId);
     else current.delete(employeeId);
     this.selectedEmployeeIds.set([...current]);
+    this.assignmentReview.set(null);
   }
 
-  async runBulkSiteAssignment() {
+  setBulkSiteId(siteId: string) {
+    this.bulkSiteId.set(siteId);
+    this.assignmentReview.set(null);
+    this.assignmentReasonCode.set('');
+  }
+
+  reviewBulkSiteAssignment() {
+    this.feedback.set('');
+    this.assignmentReasonCode.set('');
+    this.assignmentReview.set(this.service.reviewEmployeeSiteAssignment(this.selectedEmployeeIds(), this.bulkSiteId()));
+  }
+
+  selectAssignmentAlternative(blockedEmployeeId: string, alternativeEmployeeId: string) {
+    this.selectedEmployeeIds.set(this.selectedEmployeeIds().map((id) => id === blockedEmployeeId ? alternativeEmployeeId : id));
+    this.reviewBulkSiteAssignment();
+  }
+
+  async runBulkSiteAssignment(decision: AssignmentDecision) {
     await this.runAction(async () => {
-      await this.service.bulkAssignSite(this.selectedEmployeeIds(), this.bulkSiteId());
-      this.feedback.set('Employees reassigned.');
+      await this.service.decideEmployeeSiteAssignment(this.selectedEmployeeIds(), this.bulkSiteId(), decision, this.assignmentReasonCode());
+      if (decision === 'reject') {
+        this.feedback.set('Assignment suggestion rejected and audited.');
+        this.assignmentReview.set(null);
+        return;
+      }
+      this.feedback.set(decision === 'override' ? 'Assignment warning overridden and audited.' : 'Employees reassigned and audited.');
       this.selectedEmployeeIds.set([]);
       this.bulkSiteId.set('');
+      this.assignmentReasonCode.set('');
+      this.assignmentReview.set(null);
     });
   }
 

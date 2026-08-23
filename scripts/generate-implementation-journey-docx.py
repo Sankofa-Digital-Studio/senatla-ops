@@ -155,16 +155,26 @@ def add_number(doc, text):
 
 
 def add_callout(doc, label, text, fill=LIGHT_BLUE):
-    table = doc.add_table(rows=1, cols=1)
-    set_table_widths(table, [6.5])
-    cell = table.cell(0, 0)
-    shade(cell, fill)
-    p = cell.paragraphs[0]
-    p.paragraph_format.space_after = Pt(0)
+    p = doc.add_paragraph()
+    p.paragraph_format.left_indent = Inches(0.12)
+    p.paragraph_format.right_indent = Inches(0.12)
+    p.paragraph_format.space_before = Pt(4)
+    p.paragraph_format.space_after = Pt(8)
+    p_pr = p._p.get_or_add_pPr()
+    shading = OxmlElement("w:shd")
+    shading.set(qn("w:fill"), fill)
+    p_pr.append(shading)
+    borders = OxmlElement("w:pBdr")
+    for edge in ("top", "left", "bottom", "right"):
+        border = OxmlElement(f"w:{edge}")
+        border.set(qn("w:val"), "single")
+        border.set(qn("w:sz"), "6")
+        border.set(qn("w:color"), "D7DEE8")
+        borders.append(border)
+    p_pr.append(borders)
     r = p.add_run(f"{label}: ")
     set_font(r, bold=True, color=BLUE)
     p.add_run(text)
-    doc.add_paragraph().paragraph_format.space_after = Pt(0)
 
 
 def add_table(doc, headers, rows, widths):
@@ -305,7 +315,7 @@ def build():
     slices = [
         ("Slice 0 - Readiness contract", "Define deterministic ready, warning, blocked, and unknown outcomes with stable reason codes, corrective actions, fail-closed safety behavior, and a versioned policy.", "Rule catalogue; evaluator tests; privacy review; no duplicate tables.", "Implemented locally; frontend policy verified; database runtime proof pending local Docker/Supabase"),
         ("Slice 1 - Site Manager readiness", "Show current crew and asset readiness inside the existing daily setup; confirm current policy evidence atomically through the immutable audit contract.", "Component, privacy, real-data boundary, role, desktop, and 390 px evidence.", "Implemented and locally verified; remote database/deployment gate pending"),
-        ("Slice 2 - Office Admin suggestions", "Detect conflicts, rank eligible alternatives transparently, and require human acceptance, rejection, or override reason.", "Ranking, conflict, blocker, audit, and role-negative tests.", "Planned; depends on Slices 0-1"),
+        ("Slice 2 - Office Admin suggestions", "Detect conflicts, rank eligible alternatives transparently, and require human acceptance, rejection, or override reason.", "Ranking, conflict, blocker, audit, and role-negative tests.", "Implemented and locally verified; 30-assertion database runtime proof and remote deployment pending"),
         ("Slice 3 - Site/job cost attribution", "Attribute labour, PPE, fuel, work-order, and approved vendor costs to existing sites/job numbers; expose unattributed costs.", "Cost reconciliation, allocation, invoice-state, RLS, and role tests.", "Planned; after vendor baseline stabilises"),
         ("Slice 4 - Director control view", "Add drillable readiness, utilisation, blocker, cost, freshness, and completeness metrics to the existing Director page.", "Metric reconciliation, partial-data, access, desktop, and mobile evidence.", "Planned; depends on Slices 1 and 3"),
         ("Slice 5 - Trip recommendation", "Use current trip data to recommend a deterministic stop order and compare estimated with actual execution.", "Algorithm, coordinate, offline, audit, and mobile tests.", "Planned; depends on Slice 1"),
@@ -395,6 +405,24 @@ def build():
         ("Next action", "Link authoritative remote dev; populate matching Preview runtime values; execute contracts/migration; deploy; invite five real users; create controlled credential handoff; verify cross-role and cross-site audit flow"),
     ]
     add_table(doc, ["Field", "Recorded implementation evidence"], slice_one_entries, [1.55, 4.95])
+    doc.add_heading("23 August 2026 - Slice 2 Office Admin reviewed assignments", level=2)
+    slice_two_entries = [
+        ("Slice", "Slice 2 - Office Admin conflicts and suggestions"),
+        ("Branch", "sankofa_xciv/slice-01-readiness-release"),
+        ("Outcome", "Existing employee bulk-site and asset custody workflows now include fail-closed reviews, ranked alternatives, controlled decisions, and atomic Supabase RPCs"),
+        ("Decision", "Keep browser recommendations advisory and re-evaluate role, organisation, target, resource state, readiness, compliance, and work orders inside the mutation transaction"),
+        ("Rejected alternative", "Client-only validation, local mutation, a new optimisation service, or an invented utilisation score without authoritative evidence"),
+        ("Changed contracts", "Office Admin and Asset Operations UI; OfficeAdminService; assignment planner; one migration; focused TypeScript/component tests; 30-assertion pgTAP contract"),
+        ("Security", "Office-only invoker RPCs call private definer implementations; hard blockers cannot be overridden; direct writes are trigger-blocked; protected details stay out of generic audit; trigger markers are cleared immediately"),
+        ("Three-pass challenge", "Pass 1 found false no-change warnings/custody; Pass 2 aligned browser and database decisions; Pass 3 found a reusable transaction-local trigger marker in an eight-file security diff scan"),
+        ("Improvements", "No-change is informational; unchanged rows are not rewritten; unchanged assets create no custody event; missing licence fails closed; marker lifetime is limited to the guarded update"),
+        ("Tests", "Typecheck passed; 14/14 focused Chrome Headless tests passed; 30 authorization, role, blocker, override, no-op, custody, direct-write, and leak assertions authored"),
+        ("Visual evidence", "Existing responsive interfaces retain 44 px decision controls; full visual regression remains scheduled after Slice 3"),
+        ("Result", "Partial: implementation, browser tests, and hardened security remediation pass; database execution blocked because Docker Desktop Linux engine is not running"),
+        ("Known gap", "Recent utilisation is excluded until an authoritative metric exists; remote deployment and five-user provisioning await a verified Senatla remote-dev target"),
+        ("Next action", "Commit the clean candidate; execute pgTAP and deploy only after remote target verification; then provision five real users and create the ignored credential handoff"),
+    ]
+    add_table(doc, ["Field", "Recorded implementation evidence"], slice_two_entries, [1.55, 4.95])
     doc.add_heading("7. Decision log", level=1)
     add_table(doc, ["ID", "Date", "Decision", "Rationale", "Status"], [
         ["D-001", "23 Aug 2026", "Enhance existing app", "Foundation already exists", "Accepted"],
@@ -406,6 +434,7 @@ def build():
         ["D-007", "23 Aug 2026", "No remote demo fallback", "Missing reads cannot create operational records", "Accepted"],
         ["D-008", "23 Aug 2026", "Atomic server confirmation", "Prevent stale UI self-certification", "Accepted"],
         ["D-009", "23 Aug 2026", "Credentials outside Git and DOCX", "Controlled UAT handoff", "Accepted"],
+        ["D-010", "23 Aug 2026", "Atomic assignment re-evaluation and short-lived trigger marker", "Prevent stale decisions and direct-write bypass", "Accepted"],
     ], [0.6, 0.9, 1.6, 2.45, 0.95])
 
     doc.add_heading("8. Evidence register", level=1)
@@ -423,6 +452,8 @@ def build():
             rows.append([f"E-{i:03}", str(i - 1), evidence, "Partial", "12/12 policy tests pass; 48 RPC assertions await database execution"])
         elif i == 2:
             rows.append([f"E-{i:03}", str(i - 1), evidence, "Partial", "22/22 focused tests, build, lint, and desktop/390 px pass; remote proof pending"])
+        elif i == 3:
+            rows.append([f"E-{i:03}", str(i - 1), evidence, "Partial", "14/14 focused tests and security remediation pass; 30 pgTAP assertions await execution"])
         else:
             rows.append([f"E-{i:03}", str(i - 1), evidence, "Pending", "To be recorded"])
     add_table(doc, ["ID", "Slice", "Evidence", "Status", "Reference"], rows, [0.7, 0.55, 3.0, 0.85, 1.4])

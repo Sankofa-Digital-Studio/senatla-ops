@@ -36,6 +36,7 @@ import {
   VehicleAsset,
 } from '../models/app.models';
 import { OfficeAdminWorkspace, UserInviteInput } from '../models/office-admin.models';
+import { AssignmentDecision, AssignmentReview, planAssetSiteTransfer, planEmployeeSiteAssignment } from '../assignment/assignment-planning';
 import { AuthService } from './auth.service';
 import { injectSupabaseClient } from '../gateways/supabase.client';
 
@@ -703,18 +704,33 @@ export class OfficeAdminService {
   }
 
   async bulkAssignSite(employeeIds: string[], siteId: string) {
-    const updates = this.employees()
-      .filter((employee) => employeeIds.includes(employee.id))
-      .map((employee) => ({ ...employee, siteId }));
+    await this.decideEmployeeSiteAssignment(employeeIds, siteId, 'accept', '');
+  }
 
-    for (const employee of updates) {
-      await this.saveEmployee(employee);
-    }
-
-    await this.logActivity('employees_bulk_reassigned', 'employee', siteId, {
-      count: updates.length,
-      siteId,
+  reviewEmployeeSiteAssignment(employeeIds: string[], siteId: string) {
+    return planEmployeeSiteAssignment({
+      employeeIds,
+      targetSiteId: siteId,
+      employees: this.employees(),
+      onboarding: this.employeeOnboarding(),
+      sites: this.sites(),
     });
+  }
+
+  async decideEmployeeSiteAssignment(employeeIds: string[], siteId: string, decision: AssignmentDecision, reasonCode: string) {
+    const review = this.reviewEmployeeSiteAssignment(employeeIds, siteId);
+    this.assertAssignmentDecision(review, decision, reasonCode);
+    if (!this.supabase) throw new Error('Controlled assignment requires the real Supabase runtime.');
+
+    const { error } = await this.supabase.rpc('apply_employee_site_assignment', {
+      p_employee_ids: employeeIds,
+      p_target_site_id: siteId,
+      p_decision: decision,
+      p_reason_code: reasonCode || null,
+    });
+    if (error) throw error;
+    if (decision !== 'reject') this.employees.update((employees) => employees.map((employee) => employeeIds.includes(employee.id) ? { ...employee, siteId } : employee));
+    return review;
   }
 
   async saveEmployeeOnboarding(record: Omit<EmployeeOnboardingRecord, 'id' | 'organizationId' | 'updatedAt'> & { id?: string }) {
@@ -1024,31 +1040,42 @@ export class OfficeAdminService {
     await this.logActivity('asset_import_committed', 'asset_import', this.createId(), { count: preview.validAssets.length });
   }
 
-  async transferAsset(assetId: string, toSiteId?: string, toCustodian?: string, notes?: string) {
-    const asset = this.assets().find((entry) => entry.id === assetId);
-    if (!asset) throw new Error('Asset not found.');
-    if ((asset.lifecycleState || 'active') === 'disposed') throw new Error('Disposed assets cannot be transferred.');
-    const event: AssetCustodyEvent = {
-      id: this.createId(), organizationId: SENATLA_TRADING_ORGANIZATION_ID, assetId,
-      fromSiteId: asset.assignedSiteId || null, toSiteId: toSiteId || null,
-      fromCustodian: asset.custodianName || null, toCustodian: toCustodian?.trim() || null,
-      acceptedBy: this.auth.displayName(), occurredAt: new Date().toISOString(), notes: notes?.trim() || undefined,
-    };
-    if (this.supabase) {
-      const { error } = await this.supabase.from('asset_custody_events').insert({
-        id: event.id, organization_id: event.organizationId, asset_id: event.assetId,
-        from_site_id: event.fromSiteId, to_site_id: event.toSiteId,
-        from_custodian: event.fromCustodian, to_custodian: event.toCustodian,
-        accepted_by: event.acceptedBy, occurred_at: event.occurredAt, notes: event.notes ?? null,
-      });
-      if (error) throw error;
-    }
-    await this.saveAsset({ ...asset, assignedSiteId: toSiteId || undefined, custodianName: toCustodian?.trim() || undefined });
-    this.assetCustodyEvents.update((events) => [event, ...events]);
-    await this.persistLocalWorkspace();
-    await this.logActivity('asset_transferred', 'asset', assetId, { toSiteId: toSiteId || null, toCustodian: toCustodian || null });
+  reviewAssetSiteTransfer(assetId: string, siteId: string) {
+    return planAssetSiteTransfer({
+      assetId,
+      targetSiteId: siteId,
+      assets: this.assets(),
+      sites: this.sites(),
+      compliance: this.assetComplianceRecords(),
+      workOrders: this.assetWorkOrders(),
+    });
   }
 
+  async transferAsset(
+    assetId: string,
+    toSiteId?: string,
+    toCustodian?: string,
+    notes?: string,
+    decision: AssignmentDecision = 'accept',
+    reasonCode = '',
+  ) {
+    if (!toSiteId) throw new Error('Select an active target site.');
+    const review = this.reviewAssetSiteTransfer(assetId, toSiteId);
+    this.assertAssignmentDecision(review, decision, reasonCode);
+    if (!this.supabase) throw new Error('Controlled assignment requires the real Supabase runtime.');
+
+    const { error } = await this.supabase.rpc('apply_asset_site_transfer', {
+      p_asset_id: assetId,
+      p_target_site_id: toSiteId,
+      p_to_custodian: toCustodian?.trim() || null,
+      p_handover_notes: notes?.trim() || null,
+      p_decision: decision,
+      p_reason_code: reasonCode || null,
+    });
+    if (error) throw error;
+    if (decision !== 'reject') this.assets.update((assets) => assets.map((asset) => asset.id === assetId ? { ...asset, assignedSiteId: toSiteId, custodianName: toCustodian?.trim() || undefined } : asset));
+    return review;
+  }
   async saveComplianceRecord(record: AssetComplianceRecord) {
     const normalized: AssetComplianceRecord = {
       ...record, id: record.id || this.createId(), organizationId: SENATLA_TRADING_ORGANIZATION_ID,
@@ -1966,6 +1993,21 @@ export class OfficeAdminService {
     return payload;
   }
 
+  private assertAssignmentDecision(review: AssignmentReview, decision: AssignmentDecision, reasonCode: string) {
+    const rejectReasons = new Set(['assignment_deferred', 'alternative_not_suitable', 'additional_evidence_required']);
+    const overrideReasons = new Set(['restricted_duties_confirmed', 'maintenance_plan_confirmed', 'operational_continuity', 'manager_authorized']);
+    if (decision === 'reject') {
+      if (!rejectReasons.has(reasonCode)) throw new Error('Select a controlled rejection reason.');
+      return;
+    }
+    if (review.outcome === 'blocked') throw new Error('Hard blockers must be resolved before assignment.');
+    if (review.outcome === 'unknown') throw new Error('Missing readiness evidence must be completed before assignment.');
+    if (review.outcome === 'warning') {
+      if (decision !== 'override' || !overrideReasons.has(reasonCode)) throw new Error('Warnings require an explicit controlled override reason.');
+      return;
+    }
+    if (decision !== 'accept') throw new Error('Ready assignments must be explicitly accepted.');
+  }
   private complianceStatus(expiresAt: string | null | undefined, fallback: AssetComplianceRecord['status']): AssetComplianceRecord['status'] {
     if (fallback === 'waived' || !expiresAt) return fallback;
     const expiry = new Date(`${expiresAt}T00:00:00`).getTime();

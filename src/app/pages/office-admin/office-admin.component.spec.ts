@@ -44,6 +44,27 @@ describe('OfficeAdminComponent', () => {
     expect(component.timesheetSummary().absent).toBe(1);
     expect(component.timesheetSummary().completionPercent).toBe(100);
   });
+  it('reviews assignment blockers and offers an eligible same-role alternative', () => {
+    component.service.sites.set([
+      { id: 'site-a', name: 'North', location: 'A', isActive: true },
+      { id: 'site-b', name: 'South', location: 'B', isActive: true },
+    ]);
+    component.service.employees.set([
+      { id: 'blocked', firstName: 'Mpho', surname: 'Zulu', idNumber: '9001015009087', role: 'Operator', siteId: 'site-a', startDate: '2026-01-01', basicRate: 500, salaryAdvances: 0, financials: {}, logs: {}, adjustments: {}, employmentStatus: 'active' },
+      { id: 'alternative', firstName: 'Anele', surname: 'Botha', idNumber: '9001015009088', role: 'Operator', siteId: 'site-a', startDate: '2026-01-01', basicRate: 500, salaryAdvances: 0, financials: {}, logs: {}, adjustments: {}, employmentStatus: 'active' },
+    ]);
+    component.service.employeeOnboarding.set([
+      { id: 'onboarding-alt', organizationId: SENATLA_TRADING_ORGANIZATION_ID, employeeId: 'alternative', criminalCheckStatus: 'pending', fingerprintCheckStatus: 'pending', medicalStatus: 'fit', updatedAt: '2026-08-23T00:00:00Z' },
+    ]);
+    component.selectedEmployeeIds.set(['blocked']);
+    component.setBulkSiteId('site-b');
+
+    component.reviewBulkSiteAssignment();
+
+    expect(component.assignmentReview()?.outcome).toBe('unknown');
+    expect(component.assignmentReview()?.items[0].alternatives[0].entityId).toBe('alternative');
+  });
+
   it('shows only pending and failed outbox events in recovery order', () => {
     component.service.integrationOutbox.set([outbox('completed', 8), outbox('failed', 10), outbox('pending', 9)]);
     expect(component.recoveryOutbox().map((event) => event.status)).toEqual(['failed', 'pending']);

@@ -98,7 +98,7 @@ At this baseline the existing application already includes:
 
 **Exit evidence:** Ranking tests; conflict tests; hard-blocker negative tests; audit evidence; Office/Site/Director role tests.
 
-**Status:** Planned; depends on Slices 0 and 1.
+**Status:** Implemented and locally verified. Browser policy and UI tests pass; the 30-assertion database contract is authored, with execution pending a running Docker/Supabase engine and deployment pending the verified remote-dev target.
 
 ### Slice 3 - Site and job cost attribution
 
@@ -243,6 +243,23 @@ Add one entry after every meaningful implementation or verification pass.
 **Credentials:** Passwords and service keys are excluded from this document and Git. The five-user credential register will be generated only after real remote-dev provisioning under ignored `output/credentials/`, with role, permitted site, activation, and rotation status.
 **Known gaps:** The generated Supabase URL and public-key project references do not match; Vercel Preview's three Senatla runtime variables currently resolve empty; and the authenticated Supabase CLI lists no Senatla project. Existing normalized remote data remains authoritative, and no local seed will be pushed.
 **Next action:** Link the authoritative Senatla remote-dev project, populate matching non-empty Vercel Preview runtime values, execute the database contracts and migration, deploy the verified application candidate, invite five real users, create the ignored credential handoff, and perform cross-role/cross-site audit checks.
+
+### 23 August 2026 - Slice 2 Office Admin reviewed assignments
+
+**Slice:** Slice 2 - Office Admin conflicts and suggestions.
+**Branch:** `sankofa_xciv/slice-01-readiness-release`.
+**Outcome:** Extended the existing employee bulk-site and asset custody workflows with fail-closed reviews, transparent ranked alternatives, controlled accept/reject/override decisions, and authoritative atomic Supabase RPCs.
+**Decision:** Keep recommendations advisory in the browser and re-evaluate role, organisation, target, resource state, readiness, compliance, and work orders inside the mutation transaction.
+**Alternative rejected:** Client-only validation, local state mutation, a new optimisation service, and an invented recent-utilisation score. Current records do not yet support a trustworthy utilisation metric.
+**Files/data contracts changed:** Existing Office Admin and Asset Operations interfaces; OfficeAdminService; src/app/core/assignment/; one Supabase migration; focused TypeScript/component tests; and a 30-assertion pgTAP contract.
+**Security and privacy impact:** Only active Office Admin users may call the public security-invoker RPCs. Private definer implementations enforce organisation scope and controlled reasons, hard blockers cannot be overridden, direct table reassignment is trigger-blocked, protected medical/compliance/handover detail is excluded from generic audit payloads, and the short-lived trigger marker is cleared immediately after its guarded update.
+**Hardened three-pass analysis:** Pass 1 found false warnings and false custody events for resources already at the target. Pass 2 aligned browser and database no-change, blocker, warning, and missing-licence behavior. Pass 3 completed an eight-file security diff scan and found a reusable transaction-local trigger marker.
+**Improvements applied:** No-change reviews are informational; unchanged employees are not rewritten; unchanged assets create no custody event; missing licence expiry fails closed; authoritative no-change review occurs only after blocker/warning checks; and employee/asset trigger markers are cleared before audit processing.
+**Tests executed:** TypeScript compilation passed; 14 of 14 focused planner and Office Admin component tests passed in Chrome Headless. The pgTAP contract contains 30 authorization, role, hard-blocker, override, no-op, direct-write, custody, and leak assertions.
+**Browser/mobile evidence:** The existing responsive interfaces retain 44 px minimum decision controls. The scheduled full visual-regression gate remains after Slice 3.
+**Result:** Partial verification: implementation, typecheck, focused browser tests, and hardened security review pass after remediation. Database execution is blocked because Docker Desktop's Linux engine is not running.
+**Known gaps:** The deterministic ranking uses compliance, fit, association, availability, and work-order state. Recent utilisation remains deliberately excluded until an authoritative measurement contract exists. Remote deployment and five-user provisioning remain blocked by the unverified Senatla remote-dev target.
+**Next action:** Commit Slice 2 as a clean candidate. Execute all pgTAP contracts and deploy only after the authoritative remote-dev project and matching runtime variables are verified; then provision five real users and create the ignored credential handoff.
 ## Decision log
 
 | ID | Date | Decision | Rationale | Status |
@@ -256,6 +273,7 @@ Add one entry after every meaningful implementation or verification pass.
 | D-007 | 23 Aug 2026 | Prohibit remote fallback to demonstration state | Missing or failed remote reads must never create client-facing records | Accepted |
 | D-008 | 23 Aug 2026 | Confirm readiness atomically at the server | Prevent stale UI evidence from self-certifying start of shift | Accepted |
 | D-009 | 23 Aug 2026 | Keep credential register outside Git and DOCX | Limit secret exposure and support controlled UAT handoff | Accepted |
+| D-010 | 23 Aug 2026 | Re-evaluate assignments atomically and clear trigger markers immediately | Prevent stale UI decisions, direct-write bypass, and reusable transaction authorization | Accepted |
 
 ## Evidence register
 
@@ -263,7 +281,7 @@ Add one entry after every meaningful implementation or verification pass.
 |---|---|---|---|---|
 | E-001 | 0 | Readiness rule catalogue and evaluator tests | Partial | Typecheck and 12/12 policy tests pass; combined RPC contract has 48 assertions pending database execution |
 | E-002 | 1 | Site Manager component, privacy, real-data boundary, audit, and browser proof | Partial | 22/22 focused tests, build, lint, and desktop/390 px Cypress pass; database and remote five-user proof pending |
-| E-003 | 2 | Conflict/ranking and audit tests | Pending | To be recorded |
+| E-003 | 2 | Conflict/ranking and audit tests | Partial | 14/14 focused tests and security remediation pass; 30 pgTAP assertions await database execution |
 | E-004 | 3 | Cost reconciliation and RLS tests | Pending | To be recorded |
 | E-005 | 4 | KPI reconciliation and responsive browser proof | Pending | To be recorded |
 | E-006 | 5 | Route heuristic, offline, audit, and field proof | Pending | To be recorded |
