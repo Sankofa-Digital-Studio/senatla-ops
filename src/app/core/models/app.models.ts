@@ -177,6 +177,7 @@ export interface AttendanceAuditEvent {
     | 'attendance_comment_updated'
     | 'safety_talk_completed'
     | 'safety_talk_updated'
+    | 'site_readiness_confirmed'
     | 'sync_submitted';
   occurredAt: Date;
   actor: string;

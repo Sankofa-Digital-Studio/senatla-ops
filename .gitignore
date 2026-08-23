@@ -70,6 +70,7 @@ testem.log
 /.env.*
 !/.env.example
 /src/assets/runtime-config.json
+/output/credentials/
 
 # System files
 .DS_Store

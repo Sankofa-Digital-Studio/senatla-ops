@@ -14,19 +14,24 @@ import {
 } from '../models/app.models';
 import { APP_STATE_GATEWAY, AppStateGateway, AppStateSnapshot } from '../gateways/app-state.gateway';
 import { AuthService } from './auth.service';
+import { RUNTIME_CONFIG } from '../config/runtime-config';
 
 @Injectable({ providedIn: 'root' })
 export class StaffDataService {
   private readonly appStateGateway = inject<AppStateGateway>(APP_STATE_GATEWAY);
   private readonly auth = inject(AuthService);
+  private readonly runtimeConfig = inject(RUNTIME_CONFIG);
   private readonly hydrated = signal(false);
+  private readonly persistenceEnabled = signal(false);
   private auditWriteSequence = Promise.resolve();
   private loadSequence = 0;
 
   currentTime = signal<Date>(new Date());
-  siteName = signal<string>('Senatla Shaft 1');
+  siteName = signal<string>(this.runtimeConfig.api.mode === 'local' ? 'Senatla Shaft 1' : '');
+  currentSiteId = signal<string>('');
   lastSyncTime = signal<Date | null>(null);
   unsyncedChanges = signal<boolean>(false);
+  dataLoadError = signal<string | null>(null);
 
   safetyTalkCompleted = signal<boolean>(false);
   currentSafetyTopic = signal<string | null>(null);
@@ -64,7 +69,7 @@ export class StaffDataService {
     });
 
     effect(() => {
-      if (!this.hydrated()) return;
+      if (!this.hydrated() || !this.persistenceEnabled()) return;
       void this.saveToGateway();
     });
   }
@@ -72,6 +77,8 @@ export class StaffDataService {
   private async loadForSession() {
     const loadId = ++this.loadSequence;
     this.hydrated.set(false);
+    this.persistenceEnabled.set(false);
+    this.dataLoadError.set(null);
 
     try {
       const [snapshotResult, adminAuditResult, attendanceAuditResult] = await Promise.all([
@@ -84,8 +91,13 @@ export class StaffDataService {
       const snapshot = snapshotResult.status === 'fulfilled' ? snapshotResult.value : null;
       if (snapshot) {
         this.applySnapshot(snapshot);
-      } else {
+        this.persistenceEnabled.set(true);
+      } else if (this.runtimeConfig.api.mode === 'local') {
         this.initializeDefaults();
+        this.persistenceEnabled.set(true);
+      } else {
+        this.clearRuntimeData();
+        this.dataLoadError.set('Live site data is unavailable. No local or demonstration records were loaded.');
       }
 
       this.adminAuditTrail.set(adminAuditResult.status === 'fulfilled' ? adminAuditResult.value : []);
@@ -93,7 +105,13 @@ export class StaffDataService {
       this.hydrated.set(true);
     } catch {
       if (loadId !== this.loadSequence) return;
-      this.initializeDefaults();
+      if (this.runtimeConfig.api.mode === 'local') {
+        this.initializeDefaults();
+        this.persistenceEnabled.set(true);
+      } else {
+        this.clearRuntimeData();
+        this.dataLoadError.set('Live site data could not be loaded. No local or demonstration records were loaded.');
+      }
       this.hydrated.set(true);
     }
   }
@@ -189,6 +207,25 @@ export class StaffDataService {
       { id: '4', firstName: 'Samuel', surname: 'Nkosi', idNumber: '9502285800080', role: 'General Worker', siteId: 's1', groupId: undefined, startDate: '2023-06-01', basicRate: 350, salaryAdvances: 0, financials: { travel: 0, housing: 0, advance: 0 }, logs: this.generateMockLogs(), adjustments: {} },
       { id: '5', firstName: 'Michael', surname: 'Khumalo', idNumber: '8207155800080', role: 'Driver', siteId: 's1', groupId: 'g2', startDate: '2020-03-10', basicRate: 550, salaryAdvances: 0, financials: { travel: 0, housing: 0, advance: 0 }, logs: this.generateMockLogs(), adjustments: {} }
     ]);
+  }
+
+  private clearRuntimeData() {
+    this.siteName.set('');
+    this.currentSiteId.set('');
+    this.lastSyncTime.set(null);
+    this.unsyncedChanges.set(false);
+    this.safetyTalkCompleted.set(false);
+    this.currentSafetyTopic.set(null);
+    this.safetyTalks.set([]);
+    this.safetyTopics.set([]);
+    this.syncHistory.set([]);
+    this.sites.set([]);
+    this.issues.set([]);
+    this.groups.set([]);
+    this.financialTypes.set([]);
+    this.adminAuditTrail.set([]);
+    this.attendanceAuditTrail.set([]);
+    this.employeeState.set([]);
   }
 
   setTime(hour: number, minute: number) { const d = new Date(); d.setHours(hour, minute, 0, 0); this.currentTime.set(d); }
@@ -373,12 +410,12 @@ export class StaffDataService {
     };
   }
 
-  performSync(signature: string, isRolloverAck: boolean = false) {
+  performSync(signature: string, isRolloverAck: boolean = false, siteId: string = this.currentSiteId()) {
     const status = this.determineSyncStatus();
     const summary = this.getAttendanceSummary();
     this.syncHistory.update((history) => [
       {
-        siteId: this.siteName(),
+        siteId: siteId || this.siteName(),
         syncTime: this.currentTime(),
         status,
         acknowledgedWarning: isRolloverAck,
@@ -389,6 +426,7 @@ export class StaffDataService {
       },
       ...history
     ]);
+    this.currentSiteId.set(siteId);
     this.recordAttendanceAudit('sync_submitted', `Daily sync submitted with ${summary.present} present, ${summary.absent} absent, ${summary.pending} pending.`);
     this.lastSyncTime.set(this.currentTime());
     this.unsyncedChanges.set(false);
@@ -402,7 +440,11 @@ export class StaffDataService {
     return 'Rollover';
   }
 
-  setSiteName(name: string) { this.siteName.set(this.cleanText(name).slice(0, 80) || 'Senatla Shaft 1'); }
+  setSiteName(name: string) { this.siteName.set(this.cleanText(name).slice(0, 80) || (this.runtimeConfig.api.mode === 'local' ? 'Senatla Shaft 1' : '')); }
+  setCurrentSite(siteId: string, siteName: string) {
+    this.currentSiteId.set(this.cleanText(siteId));
+    this.setSiteName(siteName);
+  }
   updateStatus(empId: string, dateStr: string, newStatus: DailyLog['status'], evidence?: DailyLog['evidence']) {
     this.unsyncedChanges.set(true);
     const todayStr = this.getTodayStr();
@@ -493,7 +535,7 @@ export class StaffDataService {
       employeeName,
       siteId: employeeId
         ? this.employeeState().find((employee) => employee.id === employeeId)?.siteId
-        : this.sites().find((site) => site.name === this.siteName())?.id,
+        : this.currentSiteId() || undefined,
       details: this.cleanText(details) || undefined,
     };
     this.attendanceAuditTrail.update((events) => [entry, ...events].slice(0, 40));
