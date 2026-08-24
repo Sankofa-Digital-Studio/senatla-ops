@@ -293,6 +293,22 @@ Add one entry after every meaningful implementation or verification pass.
 **Result:** Implementation, remote migrations, native CI, Supabase pgTAP, and both Vercel preview gates pass. PR #54 merged to `dev` as `05df90a`; the post-merge application, Supabase, Android, iOS, and both Vercel deployments passed. Signed physical-device QA remains the explicit store-release gate.
 **Known gaps:** The official client recomputes SHA-256 immediately before immutable upload, but the digest and capture source are not cryptographic device attestation. OCR accuracy on South African licence discs, low-light images, rotated pages, and platform-specific permission flows requires the five-role UAT matrix and signed devices.
 **Next action:** Execute signed physical-device UAT across the five-role matrix, covering permissions, capture, cancellation, interruption, OCR review, upload rollback, and role access without storing credentials in Git or this document.
+### 24 August 2026 - OCR-3 signed-device UAT gate
+
+**Slice:** OCR-3 - five-role signed-device release gate.
+**Branch:** `sankofa_xciv/ocr-3-device-uat-gate`.
+**Outcome:** Added an executable release-evidence contract for five real access variants, one signed Android device, one signed iOS device, and all 25 required device/access results. Added a private ignored UAT-results boundary plus responsive operator documentation. No user result, credential, or physical-device evidence was fabricated.
+**Decision:** Treat physical UAT as release evidence, not a seed dataset. Persist aliases and safe external evidence references only; require the exact remote-dev project and deployed commit; reject incomplete, duplicate, unknown, unsigned, cross-scope, or privacy-unsafe records.
+**Alternative rejected:** Committed credentials/results, a pass-by-checklist document without an executable gate, synthetic users presented as UAT, or a single happy-path site account. These would create leakage, false assurance, and access-control blind spots.
+**Files/contracts changed:** OCR device UAT contract, CLI validator, Node contract tests, release gate, private-output ignore rule, and Markdown/HTML operating guide.
+**Security and privacy impact:** The validator recursively rejects sensitive keys and values, including credentials, emails, identity numbers, raw OCR, native URIs, private paths, and device identifiers. It prints summaries/issues only and never echoes the submitted payload.
+**Hardened three-pass analysis:** Pass 1 reconciled 16 scenarios to 25 platform results and required exact five-user relationships. Pass 2 challenged secret/PII/path leakage, unsafe evidence references, unknown cases/platforms, and payload logging. Pass 3 challenged release semantics: signed-build proof, exact target/commit, unique results, in-progress isolation, and failure behavior.
+**Improvements applied:** Corrected the initial 24-result assertion to the canonical 25; rejected extra device platforms and unapproved case/platform pairs; isolated private records under ignored output; made `--allow-incomplete` structural-only so it cannot set release readiness.
+**Tests executed:** Six of six OCR UAT contract tests pass, covering a complete matrix, unknown additions, leakage, missing/failed evidence, and explicitly in-progress validation.
+**Browser/mobile evidence:** The guide is mobile-responsive for Android/iOS viewing. This slice changes the release gate and operator documentation, not application UI. Physical scanner visual evidence remains the purpose of the pending UAT run.
+**Result:** Gate implementation verified locally; physical UAT remains pending and OCR is not device-certified.
+**Known gaps:** Signed builds, the five real remote-dev participant assignments, controlled credential handoff, and physical evidence must be supplied/executed by authorised operators. No result will be inferred or backfilled.
+**Next action:** Deploy the gate to remote dev after the full repository and CI checks pass, then execute the controlled five-user signed-device run and validate its private JSON record.
 ## Decision log
 
 | ID | Date | Decision | Rationale | Status |
@@ -310,6 +326,7 @@ Add one entry after every meaningful implementation or verification pass.
 | D-011 | 24 Aug 2026 | Establish native security/build foundation before OCR logic | Native capture and OCR require controlled platform identity, privacy, and build evidence | Accepted |
 | D-012 | 24 Aug 2026 | Use native on-device scanning behind a strict cross-platform contract | Preserve privacy, offline capability, bounded resources, and testable lifecycle ownership | Accepted |
 | D-013 | 24 Aug 2026 | Treat OCR as reviewable evidence, not authoritative asset data | Prevent recognition errors from silently changing operational records | Accepted |
+| D-014 | 24 Aug 2026 | Keep physical UAT private, alias-only, and executable | Prevent false certification and sensitive-data leakage while proving five access variants | Accepted |
 
 ## Evidence register
 
@@ -324,7 +341,8 @@ Add one entry after every meaningful implementation or verification pass.
 | E-007 | 6 | Pilot measurements and solver decision | Pending | To be recorded |
 | E-008 | OCR-0 | Android/iOS identity, sync, security, and unsigned build proof | Verified | Local release gate and sync pass; PR #53 native CI recorded in journey log |
 | E-009 | OCR-1 | Contract validation, integrity, cleanup, fallback, and human-review proof | Verified locally | Full release gate passed with 92/92 browser tests; formal security scan covered all 20 changed source files |
-| E-010 | OCR-2 | Android ML Kit and iOS VisionKit/Vision compile and device proof | Partial | Native source and lifecycle review pass; remote CI and signed-device UAT pending |
+| E-010 | OCR-2 | Android ML Kit and iOS VisionKit/Vision compile and device proof | Partial | Remote Android/iOS CI passed; signed physical-device UAT pending |
+| E-011 | OCR-3 | Five-role signed-device UAT contract, privacy gate, and execution guide | Verified locally | 6/6 contract tests pass; physical UAT results intentionally pending |
 
 ## Risk register
 

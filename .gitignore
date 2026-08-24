@@ -71,6 +71,7 @@ testem.log
 !/.env.example
 /src/assets/runtime-config.json
 /output/credentials/
+/output/uat-private/
 
 # System files
 .DS_Store
