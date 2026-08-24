@@ -66,7 +66,7 @@ jobs:
       - run: npm run native:sync:android
       - name: Build unsigned Android debug package
         working-directory: android
-        run: ./gradlew lintDebug testDebugUnitTest assembleDebug assembleDebugAndroidTest --stacktrace
+        run: ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
 
   ios-simulator:
     runs-on: macos-latest
