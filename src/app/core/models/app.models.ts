@@ -240,6 +240,18 @@ export interface AssetRegistrationEvent {
   occurredAt: string;
 }
 
+export type AssetEvidenceCaptureSource = 'native_scan' | 'native_camera' | 'upload' | 'manual';
+export type AssetOcrEngine = 'android_mlkit_v2' | 'ios_vision' | 'browser_detector' | 'manual';
+
+export interface AssetEvidenceInput {
+  file: File;
+  captureSource: AssetEvidenceCaptureSource;
+  contentSha256: string;
+  ocrEngine: AssetOcrEngine | null;
+  ocrConfidence: number | null;
+  ocrPageCount: number;
+  rawOcrText?: string;
+}
 export interface AssetRegistrationEvidence {
   id: string;
   organizationId: string;
@@ -248,6 +260,12 @@ export interface AssetRegistrationEvidence {
   evidenceType: AssetEvidenceType;
   fileName: string;
   mimeType: string;
+  captureSource: AssetEvidenceCaptureSource;
+  contentSha256: string | null;
+  ocrEngine: AssetOcrEngine | null;
+  ocrConfidence: number | null;
+  ocrPageCount: number;
+  storageState: 'pending_upload' | 'ready';
   storagePath?: string | null;
   previewUrl?: string | null;
   extractionState: 'not_applicable' | 'pending' | 'review_required' | 'applied';

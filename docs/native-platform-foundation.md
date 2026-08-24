@@ -43,7 +43,16 @@ Keystores, certificates, provisioning profiles, service configuration files, and
 
 ## OCR dependency boundary
 
-OCR-0 does not add an OCR SDK. The next slice introduces a stable TypeScript scanning contract. Android ML Kit and Apple Vision/VisionKit implementations will be added only after that contract is tested.
+OCR-1/OCR-2 implement scanning behind the tested `SenatlaDocumentScanner` Capacitor contract.
+
+- Android uses the Google Play services ML Kit document scanner `16.0.0` and bundled Latin text recognition `16.0.1`. The scanner activity is internal and non-exported; app backup remains disabled.
+- iOS uses system VisionKit document capture and accurate Vision text recognition, so no third-party iOS OCR binary is added.
+- Both platforms return private `file://` JPEG artifacts with UUID identity, byte size, dimensions, SHA-256, bounded OCR text/blocks, and stable error codes.
+- The TypeScript coordinator accepts one page for the current asset-evidence record, verifies the native metadata against materialised bytes, serialises sessions, and releases native cache files in `finally`.
+- Native cache roots are dedicated, app-private, excluded from backup where supported, traversal/symlink guarded, and swept safely at plugin startup after interrupted sessions.
+- OCR is on-device and advisory. Raw OCR is excluded from activity logs, and detected values require explicit human application and verification before asset registration.
+
+The current SHA-256 is client-computed transport-integrity and duplicate-review evidence; it is not a server-attested forensic signature.
 
 ## Release gates
 
@@ -53,7 +62,8 @@ OCR-0 does not add an OCR SDK. The next slice introduces a stable TypeScript sca
 4. Release signing remains disabled until store identities and secret ownership are approved.
 5. No native OCR dependency is accepted without offline, privacy, licence, and maintenance review.
 6. Android application backup remains disabled and FileProvider sharing is limited to the dedicated capture cache.
-7. Android release shrinking, version allocation, store signing, and a committed Swift dependency resolution remain release-stage gates; OCR-0 proves unsigned debug/simulator builds only.
+7. Android release shrinking, version allocation, store signing, and a committed Swift dependency resolution remain release-stage gates; current CI proves unsigned debug/simulator builds only.
+8. Signed physical-device QA must cover permission denial, cancellation, low light, rotation, process interruption, stale-cache cleanup, and South African registration/licence-disc accuracy before store release.
 
 ## Install-script trust
 
