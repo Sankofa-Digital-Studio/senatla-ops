@@ -9,9 +9,9 @@ select has_column('public', 'asset_registration_evidence', 'ocr_confidence', 'OC
 select has_column('public', 'asset_registration_evidence', 'ocr_page_count', 'OCR page count is recorded');
 select has_column('public', 'asset_registration_evidence', 'storage_state', 'two-phase storage state is recorded');
 
-select col_default_is('public', 'asset_registration_evidence', 'capture_source', '''upload''::text', 'uploads remain the safe default capture source');
+select col_default_is('public', 'asset_registration_evidence', 'capture_source', 'upload', 'uploads remain the safe default capture source');
 select col_default_is('public', 'asset_registration_evidence', 'ocr_page_count', '1', 'single-page evidence remains the safe default');
-select col_default_is('public', 'asset_registration_evidence', 'storage_state', '''ready''::text', 'legacy evidence remains ready by default');
+select col_default_is('public', 'asset_registration_evidence', 'storage_state', 'ready', 'legacy evidence remains ready by default');
 select is((select file_size_limit from storage.buckets where id = 'asset-evidence'), 15728640::bigint, 'evidence bucket enforces the 15 MiB ceiling');
 select is(
   (select allowed_mime_types::text from storage.buckets where id = 'asset-evidence'),

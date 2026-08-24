@@ -2,7 +2,6 @@ package za.co.senatlatrading.ops;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.UUID;
 
 final class ScanCacheSafety {
@@ -82,7 +81,7 @@ final class ScanCacheSafety {
         if (!root.exists()) {
             return 0;
         }
-        if (Files.isSymbolicLink(root.toPath()) || !root.isDirectory()) {
+        if (isSymbolicLink(root) || !root.isDirectory()) {
             throw new SecurityException("Scan cache root is not a safe directory.");
         }
         File canonicalRoot = root.getCanonicalFile();
@@ -93,7 +92,7 @@ final class ScanCacheSafety {
         }
         int deletedFiles = 0;
         for (File session : sessions) {
-            if (Files.isSymbolicLink(session.toPath()) || !session.isDirectory()) {
+            if (isSymbolicLink(session) || !session.isDirectory()) {
                 throw new SecurityException("Scan cache contains an unsafe entry.");
             }
             String sessionId = requireCanonicalUuid(session.getName(), "sessionId");
@@ -105,9 +104,13 @@ final class ScanCacheSafety {
         return deletedFiles;
     }
 
+    private static boolean isSymbolicLink(File file) throws IOException {
+        return !file.getAbsoluteFile().equals(file.getCanonicalFile());
+    }
+
     private static int deleteContainedTree(File root, File candidate) throws IOException {
         File canonicalRoot = root.getCanonicalFile();
-        if (Files.isSymbolicLink(candidate.toPath())) {
+        if (isSymbolicLink(candidate)) {
             throw new SecurityException("Scan cache contains a symbolic link.");
         }
         File canonicalCandidate = candidate.getCanonicalFile();
