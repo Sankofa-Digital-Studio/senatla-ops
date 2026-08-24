@@ -242,7 +242,7 @@ def build():
     p.paragraph_format.space_after = Pt(24)
     r = p.add_run("Enhancing the existing operational system through evidence-led vertical slices")
     set_font(r, size=14, color=MUTED, italic=True)
-    add_table(doc, ["Document status", "Baseline", "Current branch"], [["Living working document", "23 August 2026", "sankofa_xciv/admin-grouping-vendor-invoices"]], [1.7, 1.5, 3.3])
+    add_table(doc, ["Document status", "Baseline", "Current branch"], [["Living working document", "24 August 2026", "sankofa_xciv/authoritative-slices-0-2"]], [1.7, 1.5, 3.3])
     add_callout(doc, "Scope boundary", "This record documents enhancements to the running Senatla Ops application. It is not a plan for a replacement application. Harmony/Saaiplass material remains illustrative until contractually validated.", "FFF8E1")
     doc.add_page_break()
 
@@ -423,6 +423,25 @@ def build():
         ("Next action", "Commit the clean candidate; execute pgTAP and deploy only after remote target verification; then provision five real users and create the ignored credential handoff"),
     ]
     add_table(doc, ["Field", "Recorded implementation evidence"], slice_two_entries, [1.55, 4.95])
+    doc.add_heading("24 August 2026 - OCR-0 native platform foundation", level=2)
+    ocr_zero_entries = [
+        ("Slice", "OCR-0 - production native backbone before OCR logic"),
+        ("Branch / PR", "sankofa_xciv/authoritative-slices-0-2; PR #53 into dev"),
+        ("Outcome", "Committed Android and iOS Capacitor projects under za.co.senatlatrading.ops, exact install-script approvals, unsigned native gates, and native privacy controls; no OCR SDK or replacement app"),
+        ("Decision", "Prove the native security and build boundary before scanning contracts or Android ML Kit and Apple Vision/VisionKit adapters"),
+        ("Rejected alternative", "Browser-only capture or an immediate cross-platform OCR dependency that would weaken native quality, offline behavior, privacy control, and platform ownership"),
+        ("Changed contracts", "Capacitor identity/dependencies; android and ios projects; native CI; Swift path normalizer; browser baseline; signing exclusions; native guide"),
+        ("Security", "Android backup disabled; FileProvider restricted to a dedicated evidence cache; iOS purposes explicit; signing/API keys ignored; no secret stored in Git or this document"),
+        ("Three-pass challenge", "Pass 1 aligned IDs, versions, browsers, permissions, and sync; Pass 2 found backup/file-sharing leaks, stale test identities, secret exclusions, trigger gaps, and silent normalization; Pass 3 ran executable and remote gates"),
+        ("Improvements", "Disabled backups; narrowed sharing; corrected native test packages; compiled Android tests in CI; expanded triggers; made iOS normalization fail closed; documented install-script trust and release gates"),
+        ("Tests", "Runtime-config 3/3, lint, typecheck, production build, and 80/80 browser tests passed; repeated Android/iOS sync passed; production dependency audit found zero vulnerabilities"),
+        ("Native evidence", "GitHub Actions run 32676423136 passed: Android app lint, unit tests, instrumentation-test APK compilation, and unsigned debug APK built on Linux in 3m54s; the unsigned iOS simulator app built on macOS in 2m14s. https://github.com/Sankofa-Digital-Studio/senatla-ops/actions/runs/32676423136"),
+        ("Visual evidence", "No rendered app UI changed; full regression remains after Slice 3 and scanner visual evidence begins with the first rendered OCR slice"),
+        ("Result", "Verified native foundation, subject to recorded release-stage gates"),
+        ("Known gaps", "Local Android compile unavailable without JDK/SDK; iOS requires macOS; release signing, shrinking/version allocation, store identity, and Swift dependency lock remain release-stage work"),
+        ("Next action", "OCR-1 adds the stable TypeScript scanning contract and privacy lifecycle before native OCR adapters"),
+    ]
+    add_table(doc, ["Field", "Recorded implementation evidence"], ocr_zero_entries, [1.55, 4.95])
     doc.add_heading("7. Decision log", level=1)
     add_table(doc, ["ID", "Date", "Decision", "Rationale", "Status"], [
         ["D-001", "23 Aug 2026", "Enhance existing app", "Foundation already exists", "Accepted"],
@@ -435,6 +454,7 @@ def build():
         ["D-008", "23 Aug 2026", "Atomic server confirmation", "Prevent stale UI self-certification", "Accepted"],
         ["D-009", "23 Aug 2026", "Credentials outside Git and DOCX", "Controlled UAT handoff", "Accepted"],
         ["D-010", "23 Aug 2026", "Atomic assignment re-evaluation and short-lived trigger marker", "Prevent stale decisions and direct-write bypass", "Accepted"],
+        ["D-011", "24 Aug 2026", "Native foundation before OCR logic", "Control identity, privacy, and build evidence first", "Accepted"],
     ], [0.6, 0.9, 1.6, 2.45, 0.95])
 
     doc.add_heading("8. Evidence register", level=1)
@@ -457,6 +477,8 @@ def build():
         else:
             rows.append([f"E-{i:03}", str(i - 1), evidence, "Pending", "To be recorded"])
     add_table(doc, ["ID", "Slice", "Evidence", "Status", "Reference"], rows, [0.7, 0.55, 3.0, 0.85, 1.4])
+
+    add_table(doc, ["ID", "Slice", "Evidence", "Status", "Reference"], [["E-008", "OCR-0", "Android/iOS identity, sync, security, and unsigned build proof", "Verified", "PR #53 native CI recorded in journey log"]], [0.7, 0.75, 2.75, 0.85, 1.45])
 
     doc.add_heading("9. Risk register", level=1)
     add_table(doc, ["Risk", "Consequence", "Control", "State"], [
