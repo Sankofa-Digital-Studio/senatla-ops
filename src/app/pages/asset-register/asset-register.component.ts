@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AssetEvidenceFileSelection, AssetRegistrationWorkspaceComponent } from '../../components/asset-registration-workspace.component';
 import { AssetOperationsComponent } from '../../components/asset-operations.component';
 import {
+  AssetEvidenceInput,
   AssetEvidenceType,
   AssetImportPreview,
   AssetMeterReading,
@@ -185,8 +186,8 @@ export class AssetRegisterComponent {
     this.saveError.set('');
     this.registrationBusy.set(true);
     try {
-      const file = await this.registration.captureImage(evidenceType);
-      await this.attachEvidence(file, evidenceType);
+      const evidenceInput = await this.registration.captureEvidence(evidenceType);
+      await this.attachEvidence(evidenceInput, evidenceType);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to capture image.';
       if (!/cancel/i.test(message)) this.saveError.set(message);
@@ -199,7 +200,8 @@ export class AssetRegisterComponent {
     this.saveError.set('');
     this.registrationBusy.set(true);
     try {
-      await this.attachEvidence(selection.file, selection.evidenceType);
+      const evidenceInput = await this.registration.prepareEvidenceFile(selection.file, 'upload');
+      await this.attachEvidence(evidenceInput, selection.evidenceType);
     } catch (error) {
       this.saveError.set(error instanceof Error ? error.message : 'Unable to attach evidence.');
     } finally {
@@ -250,11 +252,11 @@ export class AssetRegisterComponent {
     return { draft: 'Draft', review_required: 'Review required', ready: 'Ready to register', completed: 'Completed' }[state];
   }
 
-  private async attachEvidence(file: File, evidenceType: AssetEvidenceType) {
+  private async attachEvidence(input: AssetEvidenceInput, evidenceType: AssetEvidenceType) {
     let draft = this.activeDraft() || this.registration.createDraft(this.assetForm);
     draft = await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } });
     this.activeDraft.set(draft);
-    const evidence = await this.registration.addEvidence(draft, evidenceType, file);
+    const evidence = await this.registration.addEvidence(draft, evidenceType, input);
     draft = await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } });
     this.activeDraft.set(draft);
     this.detailsVerified.set(false);
@@ -402,4 +404,3 @@ export class AssetRegisterComponent {
     };
   }
 }
-

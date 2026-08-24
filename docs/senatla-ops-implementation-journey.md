@@ -277,6 +277,22 @@ Add one entry after every meaningful implementation or verification pass.
 **Result:** Verified native foundation, subject to the recorded release-stage gates.
 **Known gaps:** Local Android compilation is unavailable because this Windows host has no JDK/Android SDK; iOS compilation requires macOS. Release signing, Android shrinking/version allocation, store identities, and a committed Swift dependency resolution remain deliberately out of OCR-0.
 **Next action:** OCR-1 will add the stable TypeScript scanning contract and privacy lifecycle before platform OCR adapters.
+### 24 August 2026 - OCR-1 and OCR-2 production scanning bundle
+
+**Slice:** OCR-1 stable scan contract and OCR-2 Android/iOS native adapters.
+**Branch / PR:** `sankofa_xciv/ocr-1-2-native-scanning`; remote PR and deployment evidence are recorded when the release gate completes.
+**Outcome:** Enhanced the existing asset-registration flow with native document scanning, on-device OCR, evidence provenance, byte-integrity verification, and explicit human review. Android uses the Google Play services ML Kit document scanner plus bundled ML Kit text recognition. iOS uses VisionKit capture plus accurate Vision text recognition. Browser upload and device-camera capture remain controlled fallbacks; no replacement application or local production data source was introduced.
+**Decision:** Keep a strict TypeScript contract between application and native code, accept only private `file://` JPEG artifacts, validate dimensions/size/UUIDs/SHA-256 before materialising a `File`, and delete native artifacts before Supabase upload once JavaScript owns the verified bytes.
+**Alternative rejected:** Base64 bridge payloads, public/shared native files, cloud OCR as the default, automatic application of detected values, and silent fallback after cancellation or permission denial. These paths increase memory pressure, privacy exposure, ambiguity, or unsafe automation.
+**Files/contracts changed:** Existing asset-registration models, service, component, workspace and tests; `src/app/core/scanning/`; Android ML Kit adapter and internal scanner activity; iOS VisionKit/Vision adapter and bridge registration; evidence-provenance migration and pgTAP contract.
+**Security and privacy impact:** Native results are contract-validated; evidence is limited to 15 MiB and five pages at the platform boundary; native cache paths are never logged or persisted; OCR text is capped at 8,000 characters in the business record and excluded from activity logs; Supabase RLS/private Storage remain authoritative; OCR values cannot change an asset until a human applies and verifies them.
+**Hardened three-pass analysis:** Pass 1 challenged contract ambiguity, fallback semantics, content integrity, data minimisation, role boundaries, and human-review enforcement. Pass 2 challenged native lifecycle, traversal/symlink cleanup, process interruption, concurrency, resource bounds, and bridge error leakage. Pass 3 completed a Codex Security compact diff review across all 20 changed source files and the supporting RLS/Storage controls. The first pass retained two native defence-in-depth candidates. An independent adversarial pass then found two medium persistence weaknesses; both were remediated before the final 20-file scan closed with no reportable finding.
+**Improvements applied:** Android now holds its scanner guard until OCR/cache finalisation completes; Android and iOS safely sweep validated stale scan sessions on startup; Android cleanup rejects symbolic links; native failures resolve on the bridge main thread; malformed native results trigger whole-session cleanup; activity logs contain provenance and detected field names but no raw OCR or private URI; two-phase pending-row upload, checked rollback, immutable ready objects/provenance, and uploader-only finalisation close the independent critic findings.
+**Tests executed:** Runtime-config 3/3, lint, TypeScript compilation, production build, and 93/93 Chrome Headless tests passed. Focused OCR coordinator, web-fallback, MIME/size, provenance, and human-review tests are included. `git diff --check`, native structure checks, Capacitor Android/iOS synchronisation, linked Supabase database lint, and migration dry-run passed. Android and iOS compilation remain remote CI gates because this Windows host has no JDK/Android SDK or Apple SDK.
+**Browser/mobile evidence:** The existing capture workspace now explains human review and displays capture provenance/OCR confidence. Full visual regression remains scheduled after operational Slice 3. Signed physical-device proof of camera permission, capture, cancellation, process interruption, and cleanup remains mandatory before store release.
+**Result:** Implementation and local web/security gates pass. Remote migration, native CI, PR merge to `dev`, Vercel confirmation, and physical-device QA remain explicit release gates at this entry.
+**Known gaps:** The official client recomputes SHA-256 immediately before immutable upload, but the digest and capture source are not cryptographic device attestation. OCR accuracy on South African licence discs, low-light images, rotated pages, and platform-specific permission flows requires the five-role UAT matrix and signed devices.
+**Next action:** Apply the pending additive Supabase migrations to project `btdavpeyxtirtshovjdu`, push the branch, require green web/Android/iOS CI, merge to `dev`, confirm Vercel, then execute physical-device UAT without storing credentials in Git or this document.
 ## Decision log
 
 | ID | Date | Decision | Rationale | Status |
@@ -292,6 +308,8 @@ Add one entry after every meaningful implementation or verification pass.
 | D-009 | 23 Aug 2026 | Keep credential register outside Git and DOCX | Limit secret exposure and support controlled UAT handoff | Accepted |
 | D-010 | 23 Aug 2026 | Re-evaluate assignments atomically and clear trigger markers immediately | Prevent stale UI decisions, direct-write bypass, and reusable transaction authorization | Accepted |
 | D-011 | 24 Aug 2026 | Establish native security/build foundation before OCR logic | Native capture and OCR require controlled platform identity, privacy, and build evidence | Accepted |
+| D-012 | 24 Aug 2026 | Use native on-device scanning behind a strict cross-platform contract | Preserve privacy, offline capability, bounded resources, and testable lifecycle ownership | Accepted |
+| D-013 | 24 Aug 2026 | Treat OCR as reviewable evidence, not authoritative asset data | Prevent recognition errors from silently changing operational records | Accepted |
 
 ## Evidence register
 
@@ -305,6 +323,8 @@ Add one entry after every meaningful implementation or verification pass.
 | E-006 | 5 | Route heuristic, offline, audit, and field proof | Pending | To be recorded |
 | E-007 | 6 | Pilot measurements and solver decision | Pending | To be recorded |
 | E-008 | OCR-0 | Android/iOS identity, sync, security, and unsigned build proof | Verified | Local release gate and sync pass; PR #53 native CI recorded in journey log |
+| E-009 | OCR-1 | Contract validation, integrity, cleanup, fallback, and human-review proof | Verified locally | Full release gate passed with 92/92 browser tests; formal security scan covered all 20 changed source files |
+| E-010 | OCR-2 | Android ML Kit and iOS VisionKit/Vision compile and device proof | Partial | Native source and lifecycle review pass; remote CI and signed-device UAT pending |
 
 ## Risk register
 
@@ -317,6 +337,8 @@ Add one entry after every meaningful implementation or verification pass.
 | Dashboard totals drift from source records | Incorrect management decisions | Require drill-down and reconciliation tests | Open |
 | Recommendation mistaken for instruction | Accountability and safety risk | Human approval, explanation, and override audit | Controlled by plan |
 | Solver introduced before data is ready | Cost without operational value | Production evidence gate after deterministic pilot | Controlled by plan |
+| Interrupted native scan leaves sensitive cache residue | Recoverable evidence remains on a device longer than intended | Dedicated private/protected cache, finally cleanup, safe startup sweep, no backup, no path logging | Controlled in code; physical-device kill test pending |
+| OCR suggestion is mistaken for verified truth | Incorrect identifiers or expiry dates enter operations | Explicit apply-and-verify gate, confidence/provenance display, immutable audit metadata | Controlled in code; UAT accuracy matrix pending |
 
 ## Definition of done for each slice
 
