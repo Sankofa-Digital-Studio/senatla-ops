@@ -17,6 +17,8 @@
     "lint": "ng lint",
     "ion": "ionic serve",
     "test:runtime-config": "node --test scripts/write-runtime-config.test.mjs",
+    "test:ocr-device-uat-contract": "node --test scripts/ocr-device-uat-contract.test.mjs",
+    "validate:ocr-device-uat": "node scripts/validate-ocr-device-uat.mjs",
     "test:e2e:cypress": "cypress run",
     "native:sync:android": "cap sync android",
     "native:sync:ios": "cap sync ios && node scripts/normalize-capacitor-spm-paths.mjs"

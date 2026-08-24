@@ -242,7 +242,7 @@ def build():
     p.paragraph_format.space_after = Pt(24)
     r = p.add_run("Enhancing the existing operational system through evidence-led vertical slices")
     set_font(r, size=14, color=MUTED, italic=True)
-    add_table(doc, ["Document status", "Baseline", "Current branch"], [["Living working document", "24 August 2026", "sankofa_xciv/authoritative-slices-0-2"]], [1.7, 1.5, 3.3])
+    add_table(doc, ["Document status", "Baseline", "Current branch"], [["Living working document", "24 August 2026", "sankofa_xciv/ocr-3-device-uat-gate"]], [1.7, 1.5, 3.3])
     add_callout(doc, "Scope boundary", "This record documents enhancements to the running Senatla Ops application. It is not a plan for a replacement application. Harmony/Saaiplass material remains illustrative until contractually validated.", "FFF8E1")
     doc.add_page_break()
 
@@ -442,6 +442,39 @@ def build():
         ("Next action", "OCR-1 adds the stable TypeScript scanning contract and privacy lifecycle before native OCR adapters"),
     ]
     add_table(doc, ["Field", "Recorded implementation evidence"], ocr_zero_entries, [1.55, 4.95])
+    doc.add_heading("24 August 2026 - OCR-1 and OCR-2 production scanning bundle", level=2)
+    ocr_one_two_entries = [
+        ("Slice", "OCR-1 stable scan contract and OCR-2 Android/iOS native adapters"),
+        ("Branch / PR", "sankofa_xciv/ocr-1-2-native-scanning; PR #54 merged into dev as 05df90a"),
+        ("Outcome", "Existing asset registration enhanced with native scanning, on-device OCR, evidence provenance, byte-integrity verification, and explicit human review"),
+        ("Decision", "Use a strict TypeScript/native contract; private JPEG artifacts only; validate dimensions, size, UUID and SHA-256; delete native artifacts after verified JavaScript ownership"),
+        ("Rejected alternative", "Base64 bridge payloads, public native files, default cloud OCR, automatic field application, and silent fallback after denial/cancellation"),
+        ("Security", "Bounded evidence and OCR text; no native paths or raw OCR in logs; private Storage/RLS authoritative; human apply-and-verify required"),
+        ("Three-pass challenge", "Challenged contract/fallback/integrity, native lifecycle and cleanup, then all changed source and RLS/Storage controls; persistence findings were remediated before closure"),
+        ("Improvements", "Held Android guard through finalisation; safe startup sweeps; symlink rejection; main-thread bridge resolution; whole-session cleanup; checked rollback; immutable ready evidence"),
+        ("Tests", "Local release gate and 93/93 browser tests passed; PR #54 passed app, 208 pgTAP tests, Android, iOS and Vercel checks"),
+        ("Result", "Implementation, migrations, native CI and deployments passed; signed physical-device proof remains the store-release gate"),
+        ("Known gaps", "OCR accuracy and permission/lifecycle behavior on representative physical devices require the five-role signed-device UAT matrix"),
+        ("Next action", "Execute OCR-3 private signed-device UAT without placing credentials or direct identifiers in Git or this document"),
+    ]
+    add_table(doc, ["Field", "Recorded implementation evidence"], ocr_one_two_entries, [1.55, 4.95])
+    doc.add_heading("24 August 2026 - OCR-3 signed-device UAT gate", level=2)
+    ocr_three_entries = [
+        ("Slice", "OCR-3 - five-role signed-device release gate"),
+        ("Branch", "sankofa_xciv/ocr-3-device-uat-gate"),
+        ("Outcome", "Executable contract for five real access variants, signed Android/iOS devices, and 25 required results; private ignored evidence boundary and responsive guide"),
+        ("Decision", "Treat physical UAT as release evidence, not seed data; retain aliases and safe evidence references only; bind proof to exact remote target and deployed commit"),
+        ("Rejected alternative", "Committed credentials/results, document-only attestation, synthetic users presented as UAT, or a single happy-path account"),
+        ("Security", "Reject credentials, direct identifiers, raw OCR, native/private paths and device identifiers recursively; output summary/issues only, never the submitted payload or caller path"),
+        ("Three-pass challenge", "Pass 1 reconciled 16 scenarios to 25 results; Pass 2 challenged leakage, evidence traversal and unknown additions; Pass 3 challenged signed-build, commit and release semantics"),
+        ("Improvements", "Corrected result count; reject unknown platforms/cases; isolate private JSON; incomplete mode can validate structure but cannot mark release ready"),
+        ("Tests", "6/6 contract tests pass: complete matrix, unknown additions, leakage, missing/failed evidence, and in-progress behavior"),
+        ("Visual evidence", "Responsive guide supports Android/iOS viewing; application UI is unchanged; physical scanner proof remains pending"),
+        ("Result", "Gate verified locally; no UAT outcome fabricated and OCR is not yet device-certified"),
+        ("Known gaps", "Signed builds, five real assignments, controlled credential handoff, and physical evidence require authorised operators"),
+        ("Next action", "Deploy after full CI, execute controlled physical UAT, and validate the ignored private record"),
+    ]
+    add_table(doc, ["Field", "Recorded implementation evidence"], ocr_three_entries, [1.55, 4.95])
     doc.add_heading("7. Decision log", level=1)
     add_table(doc, ["ID", "Date", "Decision", "Rationale", "Status"], [
         ["D-001", "23 Aug 2026", "Enhance existing app", "Foundation already exists", "Accepted"],
@@ -455,6 +488,9 @@ def build():
         ["D-009", "23 Aug 2026", "Credentials outside Git and DOCX", "Controlled UAT handoff", "Accepted"],
         ["D-010", "23 Aug 2026", "Atomic assignment re-evaluation and short-lived trigger marker", "Prevent stale decisions and direct-write bypass", "Accepted"],
         ["D-011", "24 Aug 2026", "Native foundation before OCR logic", "Control identity, privacy, and build evidence first", "Accepted"],
+        ["D-012", "24 Aug 2026", "Native on-device OCR behind strict contract", "Private bounded evidence and offline capability", "Accepted"],
+        ["D-013", "24 Aug 2026", "OCR remains human-reviewed evidence", "Prevent recognition errors becoming authoritative data", "Accepted"],
+        ["D-014", "24 Aug 2026", "Private alias-only executable physical UAT", "Prevent false certification and sensitive-data leakage", "Accepted"],
     ], [0.6, 0.9, 1.6, 2.45, 0.95])
 
     doc.add_heading("8. Evidence register", level=1)
@@ -478,7 +514,12 @@ def build():
             rows.append([f"E-{i:03}", str(i - 1), evidence, "Pending", "To be recorded"])
     add_table(doc, ["ID", "Slice", "Evidence", "Status", "Reference"], rows, [0.7, 0.55, 3.0, 0.85, 1.4])
 
-    add_table(doc, ["ID", "Slice", "Evidence", "Status", "Reference"], [["E-008", "OCR-0", "Android/iOS identity, sync, security, and unsigned build proof", "Verified", "PR #53 native CI recorded in journey log"]], [0.7, 0.75, 2.75, 0.85, 1.45])
+    add_table(doc, ["ID", "Slice", "Evidence", "Status", "Reference"], [
+        ["E-008", "OCR-0", "Android/iOS identity, sync, security, and unsigned build proof", "Verified", "PR #53 native CI recorded in journey log"],
+        ["E-009", "OCR-1", "Contract, integrity, cleanup, fallback, and review proof", "Verified", "Release gate, security scan, and browser tests passed"],
+        ["E-010", "OCR-2", "Android ML Kit and iOS VisionKit/Vision compile and device proof", "Partial", "Remote native CI passed; signed physical-device UAT pending"],
+        ["E-011", "OCR-3", "Five-role UAT contract, privacy gate, and execution guide", "Verified locally", "6/6 contract tests pass; physical results pending"],
+    ], [0.7, 0.75, 2.75, 0.85, 1.45])
 
     doc.add_heading("9. Risk register", level=1)
     add_table(doc, ["Risk", "Consequence", "Control", "State"], [
@@ -489,6 +530,8 @@ def build():
         ["Dashboard drift", "Incorrect decisions", "Drill-down and reconciliation tests", "Open"],
         ["Recommendation mistaken for instruction", "Safety/accountability risk", "Human decision and override audit", "Controlled"],
         ["Premature solver", "Cost without value", "Production evidence gate", "Controlled"],
+        ["Interrupted scan leaves cache residue", "Private evidence persists", "Private cache, cleanup and startup sweep", "Code controlled; device test pending"],
+        ["OCR suggestion treated as truth", "Incorrect asset data", "Human apply/verify and immutable provenance", "Code controlled; UAT pending"],
     ], [1.65, 1.45, 2.45, 0.95])
 
     doc.add_heading("10. Definition of done", level=1)

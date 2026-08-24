@@ -4,6 +4,7 @@ const isWindows = process.platform === 'win32';
 
 const steps = [
   { name: 'runtime-config', script: 'npm run test:runtime-config', timeoutMs: 60_000 },
+  { name: 'ocr-device-uat-contract', script: 'npm run test:ocr-device-uat-contract', timeoutMs: 60_000 },
   { name: 'lint', script: 'npm run lint', timeoutMs: 180_000 },
   { name: 'typecheck', script: 'npm run typecheck', timeoutMs: 180_000 },
   { name: 'build', script: 'npm run build', timeoutMs: 600_000, env: { CI: null } },
@@ -166,4 +167,4 @@ for (const step of steps) {
   }
 }
 
-console.log(`[verify] ${now()} PASS release gate: runtime-config, lint, typecheck, build, tests`);
+console.log(`[verify] ${now()} PASS release gate: runtime-config, ocr-device-uat-contract, lint, typecheck, build, tests`);
