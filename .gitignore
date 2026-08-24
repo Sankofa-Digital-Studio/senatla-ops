@@ -80,3 +80,14 @@ Thumbs.db
 /.codex/node-v24.18.0-win-x64/
 .vercel
 supabase/.temp/
+# Native signing and service credentials (never commit)
+*.jks
+*.keystore
+*.p12
+*.p8
+*.mobileprovision
+*.provisionprofile
+/android/key.properties
+/android/keystore.properties
+/android/app/google-services.json
+/ios/App/App/GoogleService-Info.plist

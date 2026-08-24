@@ -260,6 +260,23 @@ Add one entry after every meaningful implementation or verification pass.
 **Result:** Partial verification: implementation, typecheck, focused browser tests, and hardened security review pass after remediation. Database execution is blocked because Docker Desktop's Linux engine is not running.
 **Known gaps:** The deterministic ranking uses compliance, fit, association, availability, and work-order state. Recent utilisation remains deliberately excluded until an authoritative measurement contract exists. Remote deployment and five-user provisioning remain blocked by the unverified Senatla remote-dev target.
 **Next action:** Commit Slice 2 as a clean candidate. Execute all pgTAP contracts and deploy only after the authoritative remote-dev project and matching runtime variables are verified; then provision five real users and create the ignored credential handoff.
+### 24 August 2026 - OCR-0 native platform foundation
+
+**Slice:** OCR-0 - production native backbone before OCR logic.
+**Branch / PR:** `sankofa_xciv/authoritative-slices-0-2`; PR #53 into `dev`.
+**Outcome:** Added committed Android and iOS Capacitor projects under the permanent identifier `za.co.senatlatrading.ops`, exact-version install-script approvals, unsigned native build gates, and native privacy controls. No replacement app and no OCR SDK were introduced.
+**Decision:** Establish and verify the native security/build boundary before defining scanning contracts or selecting Android ML Kit and Apple Vision/VisionKit adapters.
+**Alternative rejected:** Browser-only capture or an immediate cross-platform OCR dependency, because either would weaken native scanning quality, offline behavior, privacy control, and long-term platform ownership.
+**Files/contracts changed:** Capacitor identity and dependencies; generated `android/` and `ios/` projects; native CI workflow; Swift package path normalizer; browser support baseline; signing exclusions; native foundation guide.
+**Security and privacy impact:** Android backup is disabled; FileProvider grants are restricted to a dedicated evidence cache; iOS camera, photo-library, and location purposes are explicit; signing/API keys are ignored; no signing secret or service credential is stored in Git or this document.
+**Hardened three-pass analysis:** Pass 1 aligned application IDs, platform versions, browser floors, permissions, and deterministic sync. Pass 2 exposed backup leakage, root-storage sharing, stale template test identities, missing signing exclusions, incomplete CI triggers, and a silent Swift-normalizer failure mode. Pass 3 ran the full web gate, native synchronisation, manifest parsing, forbidden-pattern checks, dependency audits, and remote native CI.
+**Improvements applied:** Disabled Android backups; limited file sharing; corrected unit and instrumentation package identities; compiled Android tests in CI; expanded native CI triggers; made iOS normalization fail closed; documented exact install-script trust and release-stage gates.
+**Tests executed:** Local release gate passed: runtime-config 3/3, lint, typecheck, production build, and 80/80 Chrome Headless tests. Android and iOS synchronisation passed after repeated regeneration. Production dependency audit found zero vulnerabilities; nine development-tool advisories remain because the offered forced fix would downgrade Angular to an unsafe/incompatible version.
+**Native evidence:** GitHub Actions run 32676423136 passed: Android app lint, unit tests, instrumentation-test APK compilation, and unsigned debug APK built on Linux in 3m54s; the unsigned iOS simulator app built on macOS in 2m14s. https://github.com/Sankofa-Digital-Studio/senatla-ops/actions/runs/32676423136
+**Visual evidence:** No rendered application UI changed in OCR-0. The scheduled full visual-regression gate remains after Slice 3; native app launch/scanner visual evidence starts with the first rendered OCR slice.
+**Result:** Verified native foundation, subject to the recorded release-stage gates.
+**Known gaps:** Local Android compilation is unavailable because this Windows host has no JDK/Android SDK; iOS compilation requires macOS. Release signing, Android shrinking/version allocation, store identities, and a committed Swift dependency resolution remain deliberately out of OCR-0.
+**Next action:** OCR-1 will add the stable TypeScript scanning contract and privacy lifecycle before platform OCR adapters.
 ## Decision log
 
 | ID | Date | Decision | Rationale | Status |
@@ -274,6 +291,7 @@ Add one entry after every meaningful implementation or verification pass.
 | D-008 | 23 Aug 2026 | Confirm readiness atomically at the server | Prevent stale UI evidence from self-certifying start of shift | Accepted |
 | D-009 | 23 Aug 2026 | Keep credential register outside Git and DOCX | Limit secret exposure and support controlled UAT handoff | Accepted |
 | D-010 | 23 Aug 2026 | Re-evaluate assignments atomically and clear trigger markers immediately | Prevent stale UI decisions, direct-write bypass, and reusable transaction authorization | Accepted |
+| D-011 | 24 Aug 2026 | Establish native security/build foundation before OCR logic | Native capture and OCR require controlled platform identity, privacy, and build evidence | Accepted |
 
 ## Evidence register
 
@@ -286,6 +304,7 @@ Add one entry after every meaningful implementation or verification pass.
 | E-005 | 4 | KPI reconciliation and responsive browser proof | Pending | To be recorded |
 | E-006 | 5 | Route heuristic, offline, audit, and field proof | Pending | To be recorded |
 | E-007 | 6 | Pilot measurements and solver decision | Pending | To be recorded |
+| E-008 | OCR-0 | Android/iOS identity, sync, security, and unsigned build proof | Verified | Local release gate and sync pass; PR #53 native CI recorded in journey log |
 
 ## Risk register
 
