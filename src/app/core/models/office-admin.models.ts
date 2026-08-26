@@ -7,6 +7,8 @@ import {
   AssetMeterReading,
   AssetWorkOrder,
   AssetFuelEntry,
+  VendorAccount,
+  VendorInvoiceRecord,
   ApprovalRequest,
   AttendanceQueueSubmission,
   Employee,
@@ -41,6 +43,8 @@ export interface OfficeAdminWorkspace {
   assetWorkOrders: AssetWorkOrder[];
   assetMaintenancePlans: AssetMaintenancePlan[];
   assetFuelEntries: AssetFuelEntry[];
+  vendorAccounts: VendorAccount[];
+  vendorInvoices: VendorInvoiceRecord[];
   integrationOutbox: IntegrationOutboxEvent[];
   attendanceQueue: AttendanceQueueSubmission[];
   activity: AdminActivityEvent[];

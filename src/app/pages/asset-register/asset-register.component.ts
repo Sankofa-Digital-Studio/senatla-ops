@@ -207,6 +207,7 @@ export class AssetRegisterComponent {
     }
   }
 
+
   async applyExtraction(evidence: AssetRegistrationEvidence) {
     this.registrationBusy.set(true);
     try {
@@ -226,7 +227,7 @@ export class AssetRegisterComponent {
     const fields = this.registration.parseOcrText(raw);
     const detectedFields = Object.keys(fields);
     if (!detectedFields.length) {
-      this.registrationMessage.set('No recognised asset fields were found. Keep the source document visible and enter the details manually.');
+      this.registrationMessage.set('No structured asset fields were detected. Keep the source document visible and complete the form manually.');
       return;
     }
 
@@ -237,7 +238,7 @@ export class AssetRegisterComponent {
       this.detailsVerified.set(false);
       const draft = this.activeDraft();
       if (draft) this.activeDraft.set(await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } }));
-      this.registrationMessage.set(`OCR review populated ${detectedFields.length} field(s). Check each value against the source document before saving.`);
+      this.registrationMessage.set(`OCR review populated ${detectedFields.length} field${detectedFields.length === 1 ? '' : 's'}. Check each value against the source document before saving.`);
     } catch (error) {
       this.saveError.set(error instanceof Error ? error.message : 'Unable to apply OCR review text.');
     } finally {
@@ -401,3 +402,4 @@ export class AssetRegisterComponent {
     };
   }
 }
+

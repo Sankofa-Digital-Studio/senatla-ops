@@ -79,3 +79,7 @@ Thumbs.db
 output/playwright/
 supabase/.branches/
 supabase/.temp/
+
+# Local Codex runtime overrides
+/.codex/node-v24.18.0-win-x64/
+

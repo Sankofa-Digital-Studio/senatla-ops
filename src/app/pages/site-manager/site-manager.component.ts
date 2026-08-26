@@ -3,9 +3,10 @@ import { Component, ElementRef, ViewChild, inject, computed, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { AttendanceCommentChange, AttendanceReasonChange, AttendanceRowComponent, AttendanceStatusChange } from '../../components/attendance-row.component';
 import { TimesheetSummaryComponent } from '../../components/timesheet-summary.component';
-import { DailyLog, Employee } from 'src/app/core/models/app.models';
+import { DailyLog, Employee, VehicleAsset } from 'src/app/core/models/app.models';
 import { StaffDataService } from 'src/app/core/services/staff-data.service';
 import { TimesheetRegisterService } from 'src/app/core/services/timesheet-register.service';
+import { OfficeAdminService } from 'src/app/core/services/office-admin.service';
 import { readFileAsDataUrl } from '../../core/utils/browser-file.util';
 import { toLocalDateKey } from '../../core/utils/date.util';
 
@@ -18,6 +19,7 @@ import { toLocalDateKey } from '../../core/utils/date.util';
 })
 export class SiteManagerComponent {
   service = inject(StaffDataService);
+  readonly assets = inject(OfficeAdminService);
   private readonly timesheetRegister = inject(TimesheetRegisterService);
   @ViewChild('sigCanvas') sigCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('canvasContainer') canvasContainer!: ElementRef<HTMLDivElement>;
@@ -30,6 +32,18 @@ export class SiteManagerComponent {
   showGroupModal = false;
   newGroupName = '';
   reasonsList: Array<NonNullable<DailyLog['reason']>> = ['Sick', 'Family', 'AWOL', 'Confirm in Office'];
+  showDailySetup = true;
+  siteLocationLabel = 'Location not captured yet.';
+  siteLocationWarning = '';
+  plannedTargets = '';
+  tripAssetId = '';
+  tripCurrentKm: number | null = null;
+  tripReason = '';
+  tripCustomReason = '';
+  tripLocationLabel = 'Trip location not captured yet.';
+  tripLocationWarning = '';
+  tripLogs: Array<{ assetId: string; assetLabel: string; km: number | null; reason: string; customReason: string; location: string; capturedAt: Date }> = [];
+  readonly tripReasons = ['Fuel', 'Delivery', 'Collection', 'Maintenance', 'Breakdown support', 'Client instruction', 'Other'];
 
   selectedSafetyTopic: string | null = null;
   isManagingTopics = false;
@@ -54,12 +68,78 @@ export class SiteManagerComponent {
   readonly latestSyncRecord = computed(() => this.service.syncHistory()[0] || null);
   readonly recentAttendanceAudit = computed(() => this.service.attendanceAuditTrail().slice(0, 6));
   readonly deliveryBusy = signal(false);
+  readonly siteAssets = computed(() => this.assets.assets().filter((asset) => !asset.assignedSiteId || asset.assignedSiteId === 'demo-workshop' || asset.assignedSiteId === 'site-1'));
 
   constructor() {
     this.localSiteName = this.service.siteName();
   }
 
 
+  async captureCurrentSiteLocation() {
+    const location = await this.captureGpsLabel('site');
+    this.siteLocationLabel = location.label;
+    this.siteLocationWarning = location.warning;
+  }
+
+  confirmDailySetup() {
+    if (!this.localSiteName.trim() || !this.plannedTargets.trim() || !this.siteLocationLabel.includes(',')) {
+      this.siteLocationWarning = 'Confirm site name, planned work targets, and current GPS location before starting the day.';
+      return;
+    }
+    this.updateSiteName();
+    this.showDailySetup = false;
+  }
+
+  async captureTripLocation() {
+    const location = await this.captureGpsLabel('trip');
+    this.tripLocationLabel = location.label;
+    this.tripLocationWarning = location.warning;
+  }
+
+  logTripAway() {
+    const asset = this.siteAssets().find((entry) => entry.id === this.tripAssetId) || null;
+    if (!asset || !this.tripReason || !this.tripLocationLabel.includes(',')) {
+      this.tripLocationWarning = 'Select an asset or vehicle, capture GPS, and choose a reason before logging a trip away.';
+      return;
+    }
+
+    this.tripLogs = [{
+      assetId: asset.id,
+      assetLabel: this.assetLabel(asset),
+      km: this.tripCurrentKm,
+      reason: this.tripReason,
+      customReason: this.tripCustomReason.trim(),
+      location: this.tripLocationLabel,
+      capturedAt: new Date(this.service.currentTime()),
+    }, ...this.tripLogs].slice(0, 8);
+
+    this.tripAssetId = '';
+    this.tripCurrentKm = null;
+    this.tripReason = '';
+    this.tripCustomReason = '';
+    this.tripLocationLabel = 'Trip location not captured yet.';
+    this.tripLocationWarning = '';
+  }
+
+  assetLabel(asset: VehicleAsset) {
+    return [asset.registrationNumber || asset.serialNumber || asset.vin, asset.make, asset.model].filter(Boolean).join(' / ');
+  }
+
+  private async captureGpsLabel(context: 'site' | 'trip') {
+    if (!navigator.geolocation) {
+      return { label: context === 'site' ? 'Proceeding without GPS fix.' : 'Trip GPS unavailable.', warning: 'Browser geolocation is unavailable on this device.' };
+    }
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+      });
+      const { latitude, longitude } = position.coords;
+      return { label: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`, warning: '' };
+    } catch {
+      return { label: context === 'site' ? 'No GPS fix captured.' : 'Trip GPS not captured.', warning: 'Location capture failed. Check location permissions and try again.' };
+    }
+  }
   handleAttendanceToggle(emp: Employee) {
     if (this.isFuture || this.service.timeStatus() === 'blocked') return;
 

@@ -132,55 +132,70 @@
         </div>
       </section>
 
-      <section *ngIf="activeTab() === 'people'" class="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
+      <section *ngIf="activeTab() === 'people'" class="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <div class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-          <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Employee Form</h2>
-          <div class="mt-4 grid gap-3 md:grid-cols-2">
-            <input [(ngModel)]="personForm.firstName" placeholder="First name" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-            <input [(ngModel)]="personForm.surname" placeholder="Surname" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-            <input [(ngModel)]="personForm.idNumber" placeholder="ID number" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-            <input [(ngModel)]="personForm.basicRate" type="number" placeholder="Basic rate" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-            <select [(ngModel)]="personForm.siteId" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-              <option value="">Select site</option><option *ngFor="let site of service.activeSites()" [value]="site.id">{{ site.name }}</option>
-            </select>
-            <select [(ngModel)]="personForm.employmentStatus" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-              <option value="active">Active</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option>
-            </select>
-            <button type="button" (click)="submitEmployee()" [disabled]="busy()" class="rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50 md:col-span-2">Save Employee</button>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Workforce search</h2>
+              <p class="mt-1 text-xs text-gray-500">Sites must be created before employee profiles are added.</p>
+            </div>
+            <button type="button" (click)="createEmployeeProfile()" [disabled]="busy() || !service.activeSites().length" class="rounded-lg bg-yellow-500 px-3 py-2 text-xs font-bold uppercase tracking-wider text-black disabled:opacity-40" title="Start a new employee profile after at least one site exists">+ Create profile</button>
           </div>
-        </div>
-
-        <div class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-          <div class="flex flex-col gap-3 md:flex-row">
-            <input [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" placeholder="Search name or masked ID" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+          <div class="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+            <input [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" placeholder="Search name or masked ID" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
             <select [ngModel]="selectedSiteId()" (ngModelChange)="selectedSiteId.set($event)" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
               <option value="">All sites</option><option *ngFor="let site of service.activeSites()" [value]="site.id">{{ site.name }}</option>
             </select>
           </div>
-          <div class="mt-3 flex gap-2">
+          <div class="mt-3 flex flex-wrap gap-2">
             <select [ngModel]="bulkSiteId()" (ngModelChange)="bulkSiteId.set($event)" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-white">
               <option value="">Bulk target site</option><option *ngFor="let site of service.activeSites()" [value]="site.id">{{ site.name }}</option>
             </select>
             <button type="button" (click)="runBulkSiteAssignment()" [disabled]="busy() || !selectedEmployeeIds().length || !bulkSiteId()" class="rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-200 disabled:opacity-40">Bulk assign</button>
           </div>
-          <div class="mt-4 space-y-3">
-            <div *ngFor="let employee of filteredEmployees()" class="rounded-xl border border-gray-800 bg-gray-950 px-3 py-3">
-              <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div class="flex items-start gap-3">
-                  <input type="checkbox" [checked]="selectedEmployeeIds().includes(employee.id)" (change)="toggleSelectedEmployee(employee.id, $any($event.target).checked)" class="mt-1 accent-yellow-500">
-                  <div><p class="font-semibold">{{ employee.surname }}, {{ employee.firstName }}</p><p class="text-xs text-gray-500">{{ service.getSiteName(employee.siteId) }} · {{ service.maskIdNumber(employee.idNumber) }}</p></div>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                  <button type="button" (click)="editEmployee(employee)" class="rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-200">Edit</button>
-                  <button type="button" (click)="setEmployeeStatus(employee.id, 'inactive')" class="rounded-lg border border-red-900 px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-300">Deactivate</button>
-                </div>
+          <div class="mt-4 max-h-[34rem] space-y-3 overflow-y-auto pr-1">
+            <button *ngFor="let employee of filteredEmployees()" type="button" (click)="selectEmployee(employee.id)" class="w-full rounded-xl border border-gray-800 bg-gray-950 px-3 py-3 text-left hover:border-yellow-700" [class.border-yellow-500]="selectedEmployeeId() === employee.id">
+              <div class="flex items-start gap-3">
+                <input type="checkbox" [checked]="selectedEmployeeIds().includes(employee.id)" (click)="$event.stopPropagation()" (change)="toggleSelectedEmployee(employee.id, $any($event.target).checked)" class="mt-1 accent-yellow-500">
+                <div class="min-w-0"><p class="font-semibold text-white">{{ employee.surname }}, {{ employee.firstName }}</p><p class="truncate text-xs text-gray-500">{{ employee.role }} · {{ service.getSiteName(employee.siteId) }} · {{ service.maskIdNumber(employee.idNumber) }}</p></div>
               </div>
+            </button>
+            <p *ngIf="!filteredEmployees().length" class="rounded-xl border border-gray-800 bg-gray-950 px-3 py-8 text-center text-sm text-gray-500">No workforce records match this search.</p>
+          </div>
+        </div>
+        <div class="space-y-4">
+          <div *ngIf="selectedEmployee() as employee; else noEmployeeSelected" class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+            <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div><p class="text-[10px] font-bold uppercase tracking-wider text-yellow-400">Read-only employee summary</p><h2 class="mt-1 text-xl font-bold">{{ employee.firstName }} {{ employee.surname }}</h2><p class="mt-1 text-sm text-gray-400">{{ employee.role }} · {{ service.getSiteName(employee.siteId) }}</p></div>
+              <button type="button" (click)="editEmployee(employee)" class="rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-200">Edit profile</button>
+            </div>
+            <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+              <div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-[10px] uppercase tracking-wider text-gray-500">Masked ID</dt><dd class="mt-1 font-semibold">{{ service.maskIdNumber(employee.idNumber) }}</dd></div>
+              <div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-[10px] uppercase tracking-wider text-gray-500">Designation</dt><dd class="mt-1 font-semibold">{{ employee.role }}</dd></div>
+              <div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-[10px] uppercase tracking-wider text-gray-500">Status</dt><dd class="mt-1 font-semibold">{{ employee.employmentStatus || 'active' }}</dd></div>
+              <div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-[10px] uppercase tracking-wider text-gray-500">Basic rate</dt><dd class="mt-1 font-semibold">R {{ employee.basicRate | number:'1.2-2' }}</dd></div>
+            </dl>
+            <div class="mt-4 grid gap-3 md:grid-cols-2">
+              <article class="rounded-xl border border-gray-800 bg-gray-950 p-3"><h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Asset custodian</h3><p class="mt-2 text-sm text-gray-300">{{ selectedEmployeeAssets().length ? 'Assigned company asset' : 'No assigned company asset' }}</p><div class="mt-2 space-y-2"><p *ngFor="let asset of selectedEmployeeAssets()" class="text-xs text-gray-500">{{ asset.registrationNumber || asset.vin || asset.serialNumber }} · {{ asset.make }} {{ asset.model }}</p></div></article>
+              <article class="rounded-xl border border-gray-800 bg-gray-950 p-3"><h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Current issue</h3><p class="mt-2 text-sm text-gray-300">{{ selectedEmployeeOpenIssues().length || 0 }} open item(s)</p><p *ngFor="let issue of selectedEmployeeOpenIssues().slice(0, 2)" class="mt-2 text-xs text-gray-500">{{ issue.description }}</p></article>
+            </div>
+          </div>
+          <ng-template #noEmployeeSelected><div class="rounded-2xl border border-gray-800 bg-gray-900 px-4 py-12 text-center text-sm text-gray-500">Select a workforce record to view the summary.</div></ng-template>
+          <div *ngIf="showEmployeeForm()" class="rounded-2xl border border-yellow-900/60 bg-gray-900 p-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Employee profile form</h2>
+            <div class="mt-4 grid gap-3 md:grid-cols-2">
+              <input [(ngModel)]="personForm.firstName" placeholder="First name" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+              <input [(ngModel)]="personForm.surname" placeholder="Surname" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+              <input [(ngModel)]="personForm.idNumber" placeholder="13-digit ID number" maxlength="13" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+              <input [(ngModel)]="personForm.basicRate" type="number" placeholder="Basic rate" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+              <select [(ngModel)]="personForm.role" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="General Worker">General Worker</option><option value="Driver">Driver</option><option value="Safety Rep">SHE Rep</option><option value="Operator">Heavy Machinery Operator</option><option value="Foreman">Foreman</option></select>
+              <select [(ngModel)]="personForm.siteId" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="">Select site</option><option *ngFor="let site of service.activeSites()" [value]="site.id">{{ site.name }}</option></select>
+              <select [(ngModel)]="personForm.employmentStatus" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="active">Active</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option></select>
+              <button type="button" (click)="submitEmployee()" [disabled]="busy() || !personForm.firstName.trim() || !personForm.surname.trim() || !personForm.siteId || !personForm.idNumber.match('^[0-9]{13}$')" class="rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50 md:col-span-2">Save Employee</button>
             </div>
           </div>
         </div>
-      </section>
-
-      <section *ngIf="activeTab() === 'workforce'" class="admin-tab-panel space-y-4">
+      </section>      <section *ngIf="activeTab() === 'workforce'" class="admin-tab-panel space-y-4">
         <div class="grid gap-4 xl:grid-cols-2">
           <article class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
             <h2 class="text-sm font-bold uppercase tracking-wider text-gray-300">Employee bulk load</h2>
@@ -229,7 +244,12 @@
           <div class="mt-4 space-y-3">
             <input [(ngModel)]="siteForm.name" placeholder="Site name" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
             <input [(ngModel)]="siteForm.location" placeholder="Location" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-            <button type="button" (click)="submitSite()" [disabled]="busy()" class="w-full rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50">Save Site</button>
+            <select [(ngModel)]="siteForm.managerId" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option [ngValue]="undefined">Select site manager</option><option *ngFor="let user of service.users()" [ngValue]="user.id">{{ user.displayName }}</option></select>
+            <input [(ngModel)]="siteForm.teamName" placeholder="Team name" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+            <input [(ngModel)]="siteForm.jobNumber" placeholder="Job number" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+            <input [(ngModel)]="siteForm.estimatedDuration" placeholder="Estimated duration" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+            <textarea [(ngModel)]="siteComplianceText" rows="3" placeholder="Compliance checklist, comma separated: safety file, inspections, induction register" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"></textarea>
+            <button type="button" (click)="submitSite()" [disabled]="busy() || !siteForm.name.trim() || !siteForm.location.trim()" class="w-full rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50">Save Site</button>
           </div>
         </div>
         <div class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
@@ -406,6 +426,13 @@
         </div>
       </section>
 
+      <section *ngIf="activeTab() === 'vendors'" class="space-y-4">
+        <div class="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
+          <article class="rounded-2xl border border-gray-800 bg-gray-900 p-4"><h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Supplier / vendor account</h2><p class="mt-1 text-xs text-gray-500">Create the vendor first, then submit invoice details to Director approval.</p><div class="mt-4 space-y-3"><input [(ngModel)]="vendorForm.name" placeholder="Vendor name" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><textarea [(ngModel)]="vendorForm.description" rows="3" placeholder="General description" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"></textarea><input [(ngModel)]="vendorForm.totalOwingAmount" type="number" min="0" placeholder="Opening amount owing" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><button type="button" (click)="submitVendorAccount()" [disabled]="busy() || !vendorForm.name.trim()" class="w-full rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50">Save Vendor</button></div></article>
+          <article class="rounded-2xl border border-gray-800 bg-gray-900 p-4"><h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Invoice to Director</h2><div class="mt-4 grid gap-3 md:grid-cols-2"><select [(ngModel)]="vendorInvoiceForm.vendorId" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white md:col-span-2"><option value="">Select vendor</option><option *ngFor="let vendor of service.vendorAccounts()" [value]="vendor.id">{{ vendor.name }}</option></select><input [(ngModel)]="vendorInvoiceForm.invoiceDate" type="date" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><input [(ngModel)]="vendorInvoiceForm.orderNumber" placeholder="Order number" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><textarea [(ngModel)]="vendorInvoiceForm.itemsPurchased" rows="3" placeholder="Items purchased" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white md:col-span-2"></textarea><input [(ngModel)]="vendorInvoiceForm.total" type="number" min="0" placeholder="Invoice total" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><input [(ngModel)]="vendorInvoiceForm.responsiblePerson" placeholder="Responsible person" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><button type="button" (click)="submitVendorInvoice()" [disabled]="busy() || !vendorInvoiceForm.vendorId || !vendorInvoiceForm.invoiceDate || !vendorInvoiceForm.orderNumber.trim() || !vendorInvoiceForm.itemsPurchased.trim() || !vendorInvoiceForm.responsiblePerson.trim() || vendorInvoiceForm.total <= 0" class="rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50 md:col-span-2">Submit invoice for Director approval</button></div></article>
+        </div>
+        <div class="grid gap-4 xl:grid-cols-2"><article class="rounded-2xl border border-gray-800 bg-gray-900 p-4"><h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Vendor balances</h2><div class="mt-4 space-y-3"><div *ngFor="let vendor of service.vendorAccounts()" class="rounded-xl border border-gray-800 bg-gray-950 p-3"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">{{ vendor.name }}</p><p class="mt-1 text-xs text-gray-500">{{ vendor.description || 'No description' }}</p></div><p class="font-mono text-sm font-bold text-yellow-400">R {{ vendor.totalOwingAmount | number:'1.2-2' }}</p></div></div></div></article><article class="rounded-2xl border border-gray-800 bg-gray-900 p-4"><h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Invoice status</h2><div class="mt-4 space-y-3"><div *ngFor="let invoice of service.vendorInvoices()" class="rounded-xl border border-gray-800 bg-gray-950 p-3"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">{{ invoice.orderNumber }} · R {{ invoice.total | number:'1.2-2' }}</p><p class="mt-1 text-xs text-gray-500">{{ invoice.invoiceDate | date:'mediumDate' }} · {{ invoice.responsiblePerson }}</p><p class="mt-1 text-xs text-gray-400">{{ invoice.itemsPurchased }}</p></div><span class="rounded-full border border-gray-700 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-yellow-300">{{ invoice.status }}</span></div></div></div></article></div>
+      </section>
       <section *ngIf="activeTab() === 'approvals'" class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
         <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Approval Queue</h2>
         <p class="mt-1 text-xs text-gray-500">Maker-checker enforced for sensitive actions. The requester cannot approve their own item.</p>

@@ -51,6 +51,9 @@
           <a routerLink="/login" class="inline-flex items-center justify-center rounded-full border border-white/15 px-7 py-4 text-sm font-bold uppercase tracking-[0.18em] text-white/80 transition hover:border-white/40 hover:text-white">
             Secure login
           </a>
+          <a *ngIf="auth.isAuthenticated()" routerLink="/profile-settings" class="inline-flex items-center justify-center rounded-full border border-lime-300/30 px-7 py-4 text-sm font-bold uppercase tracking-[0.18em] text-lime-100 transition hover:border-lime-200 hover:text-lime-200">
+            Review onboarding
+          </a>
         </div>
       </div>
 
@@ -58,16 +61,26 @@
         <div class="rounded-[1.5rem] bg-slate-950/70 p-5">
           <p class="text-xs font-bold uppercase tracking-[0.22em] text-lime-200">Live operating stack</p>
           <div class="mt-5 space-y-3">
-            <article class="feature-card"><h2>Evidence-ready asset control</h2><p>Capture identifiers, documents, images, verification decisions, and accountable handovers.</p></article>
-            <article class="feature-card"><h2>Focused daily workflows</h2><p>Give every person the smallest useful workspace while keeping operational context connected.</p></article>
-            <article id="assurance" class="feature-card"><h2>Governance by design</h2><p>Protected data boundaries, auditable actions, and release gates keep trust visible.</p></article>
+            <article class="feature-card">
+              <h2>Evidence-ready asset control</h2>
+              <p>Capture identifiers, documents, images, verification decisions, and accountable handovers.</p>
+            </article>
+            <article class="feature-card">
+              <h2>Focused daily workflows</h2>
+              <p>Give every person the smallest useful workspace while keeping operational context connected.</p>
+            </article>
+            <article id="assurance" class="feature-card">
+              <h2>Governance by design</h2>
+              <p>Protected data boundaries, auditable actions, and release gates keep trust visible.</p>
+            </article>
           </div>
         </div>
       </aside>
     </main>
 
     <footer class="flex flex-col gap-2 border-t border-white/10 py-5 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between">
-      <span>© 2026 Senatla Ops</span><span>Secure operations, designed to scale.</span>
+      <span>© 2026 Senatla Ops</span>
+      <span>Secure operations, designed to scale.</span>
     </footer>
   </div>
 </section>

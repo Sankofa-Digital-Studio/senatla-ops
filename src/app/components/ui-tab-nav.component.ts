@@ -14,14 +14,19 @@ export interface UiTabItem {
   imports: [CommonModule],
   template: `
     <nav class="tab-nav" [attr.aria-label]="ariaLabel">
-      <button
-        *ngFor="let tab of tabs; trackBy: trackById"
-        type="button"
-        [attr.aria-current]="activeId === tab.id ? 'page' : null"
-        [class.active]="activeId === tab.id"
-        [disabled]="tab.disabled"
-        (click)="selected.emit(tab.id)"
-      >{{ tab.label }}</button>
+      <div *ngFor="let group of groupedTabs; trackBy: trackByGroup" class="tab-group">
+        <span *ngIf="group.label" class="group-label">{{ group.label }}</span>
+        <div class="group-actions">
+          <button
+            *ngFor="let tab of group.tabs; trackBy: trackById"
+            type="button"
+            [attr.aria-current]="activeId === tab.id ? 'page' : null"
+            [class.active]="activeId === tab.id"
+            [disabled]="tab.disabled"
+            (click)="selected.emit(tab.id)"
+          >{{ tab.label }}</button>
+        </div>
+      </div>
     </nav>
   `,
   styles: [`
