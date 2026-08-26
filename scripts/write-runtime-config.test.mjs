@@ -89,3 +89,26 @@ test('fails fast and emits no runtime artifact when a hosted build lacks Supabas
     await rm(result.cwd, { recursive: true, force: true });
   }
 });
+
+test('Vercel runtime-config rewrite precedes the SPA fallback', async () => {
+  const config = JSON.parse(await readFile(resolve('vercel.json'), 'utf8'));
+  const rewrites = config.rewrites;
+  const runtimeIndex = rewrites.findIndex((rule) => rule.source === '/assets/runtime-config.json');
+  const spaIndex = rewrites.findIndex((rule) => rule.source === '/(.*)' && rule.destination === '/index.html');
+
+  assert.ok(runtimeIndex >= 0, 'runtime-config route must be explicit');
+  assert.ok(spaIndex >= 0, 'SPA fallback must remain present');
+  assert.ok(runtimeIndex < spaIndex, 'runtime-config route must precede SPA fallback');
+  assert.equal(rewrites[runtimeIndex].destination, '/assets/runtime-config.json');
+});
+
+test('API rewrite remains ahead of the SPA fallback', async () => {
+  const config = JSON.parse(await readFile(resolve('vercel.json'), 'utf8'));
+  const rewrites = config.rewrites;
+  const apiIndex = rewrites.findIndex((rule) => rule.source === '/api/(.*)');
+  const spaIndex = rewrites.findIndex((rule) => rule.source === '/(.*)' && rule.destination === '/index.html');
+
+  assert.ok(apiIndex >= 0, 'API route must remain present');
+  assert.ok(spaIndex >= 0, 'SPA fallback must remain present');
+  assert.ok(apiIndex < spaIndex, 'API route must precede SPA fallback');
+});
