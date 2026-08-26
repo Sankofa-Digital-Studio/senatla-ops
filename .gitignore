@@ -76,11 +76,14 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+.vercel
+
+output/playwright/
+supabase/.branches/
+supabase/.temp/
 
 # Local Codex runtime overrides
 /.codex/node-v24.18.0-win-x64/
-.vercel
-supabase/.temp/
 # Native signing and service credentials (never commit)
 *.jks
 *.keystore

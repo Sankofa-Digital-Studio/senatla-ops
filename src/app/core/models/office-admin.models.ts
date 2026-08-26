@@ -10,6 +10,7 @@ import {
   VendorAccount,
   VendorInvoiceRecord,
   ApprovalRequest,
+  AttendanceQueueSubmission,
   Employee,
   EmployeeOnboardingRecord,
   FinancialType,
@@ -45,6 +46,7 @@ export interface OfficeAdminWorkspace {
   vendorAccounts: VendorAccount[];
   vendorInvoices: VendorInvoiceRecord[];
   integrationOutbox: IntegrationOutboxEvent[];
+  attendanceQueue: AttendanceQueueSubmission[];
   activity: AdminActivityEvent[];
   payrollPeriods: PayrollPeriod[];
   payrollExports: PayrollExportRecord[];

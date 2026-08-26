@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, ElementRef, ViewChild, inject, computed } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AttendanceCommentChange, AttendanceReasonChange, AttendanceRowComponent, AttendanceStatusChange } from '../../components/attendance-row.component';
 import { TimesheetSummaryComponent } from '../../components/timesheet-summary.component';
@@ -68,6 +68,7 @@ export class SiteManagerComponent {
   private ctx!: CanvasRenderingContext2D;
   readonly latestSyncRecord = computed(() => this.service.syncHistory()[0] || null);
   readonly recentAttendanceAudit = computed(() => this.service.attendanceAuditTrail().slice(0, 6));
+  readonly deliveryBusy = signal(false);
   readonly siteAssets = computed(() => this.readiness.assetRows());
 
   constructor() {
@@ -366,11 +367,22 @@ export class SiteManagerComponent {
     setTimeout(() => this.setupCanvas(), 100);
   }
 
-  submitSyncWithSignature() {
+  async submitSyncWithSignature() {
     const sig = this.sigCanvas.nativeElement.toDataURL();
-    this.service.performSync(sig, this.rolloverAcknowledged, this.readiness.selectedSiteId());
-    this.showSignatureModal = false;
-    this.rolloverAcknowledged = false;
+    this.deliveryBusy.set(true);
+    try {
+      await this.service.performSync(sig, this.rolloverAcknowledged, this.selectedDateStr);
+      this.showSignatureModal = false;
+      this.rolloverAcknowledged = false;
+    } finally {
+      this.deliveryBusy.set(false);
+    }
+  }
+
+  async retryAttendanceDelivery(submissionId: string) {
+    this.deliveryBusy.set(true);
+    try { await this.service.retryAttendanceDelivery(submissionId); }
+    finally { this.deliveryBusy.set(false); }
   }
 
   private async initializeReadiness() {
@@ -393,4 +405,3 @@ export class SiteManagerComponent {
   }
 
 }
-

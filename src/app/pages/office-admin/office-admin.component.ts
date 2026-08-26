@@ -79,6 +79,11 @@ export class OfficeAdminComponent {
     const completed = records.filter((record) => record.criminalCheckStatus === 'clear' && record.fingerprintCheckStatus === 'clear' && record.medicalStatus === 'fit').length;
     return Math.round((completed / records.length) * 100);
   });
+  readonly attendanceDeliverySummary = computed(() => ({
+    pending: this.service.attendanceQueue().filter((entry) => entry.status === 'pending' || entry.status === 'processing').length,
+    failed: this.service.attendanceQueue().filter((entry) => entry.status === 'failed').length,
+    completed: this.service.attendanceQueue().filter((entry) => entry.status === 'completed').length,
+  }));
   readonly syncProgress = computed(() => {
     const records = this.service.integrationOutbox();
     if (!records.length) return 100;
@@ -432,6 +437,12 @@ export class OfficeAdminComponent {
     });
   }
 
+  async retryAttendanceSubmission(submissionId: string) {
+    await this.runAction(async () => {
+      await this.service.retryAttendanceSubmission(submissionId);
+      this.feedback.set('Attendance delivery retry completed.');
+    });
+  }
   async retryOutboxEvent(eventId: string) {
     await this.runAction(async () => {
       await this.service.retryOutboxEvent(eventId);

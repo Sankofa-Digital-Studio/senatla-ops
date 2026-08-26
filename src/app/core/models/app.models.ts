@@ -38,6 +38,42 @@ export interface SyncRecord {
   };
 }
 
+export type AttendanceDeliveryStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type AttendanceDeliveryOutcome = 'pending' | 'accepted' | 'rejected' | 'retryable';
+
+export interface AttendanceDeliveryRow {
+  employeeId: string;
+  status: DailyLog['status'];
+  reason?: DailyLog['reason'];
+  comment?: string;
+  isFlagged?: boolean;
+}
+
+export interface AttendanceDeliveryPayload {
+  siteId: string;
+  workDate: string;
+  rows: AttendanceDeliveryRow[];
+  summary: NonNullable<SyncRecord['attendanceSummary']>;
+  timingStatus: SyncRecord['status'];
+  acknowledgedWarning: boolean;
+  safetyTopic: string;
+}
+
+export interface AttendanceQueueSubmission {
+  id: string;
+  organizationId: string;
+  submittedBy: string;
+  siteId: string;
+  workDate: string;
+  status: AttendanceDeliveryStatus;
+  outcome: AttendanceDeliveryOutcome;
+  attempts: number;
+  idempotencyKey: string;
+  lastError?: string | null;
+  diagnosticContext?: Record<string, unknown> | null;
+  createdAt: string;
+  processedAt?: string | null;
+}
 export interface Site {
   id: string;
   organizationId?: string;

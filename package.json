@@ -1,6 +1,6 @@
 {
   "name": "senatla-ops",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "author": "Ionic Framework",
   "homepage": "https://ionicframework.com/",
   "scripts": {
@@ -19,6 +19,7 @@
     "test:runtime-config": "node --test scripts/write-runtime-config.test.mjs",
     "test:ocr-device-uat-contract": "node --test scripts/ocr-device-uat-contract.test.mjs",
     "validate:ocr-device-uat": "node scripts/validate-ocr-device-uat.mjs",
+    "test:responsive": "playwright test",
     "test:e2e:cypress": "cypress run",
     "native:sync:android": "cap sync android",
     "native:sync:ios": "cap sync ios && node scripts/normalize-capacitor-spm-paths.mjs"
@@ -63,6 +64,7 @@
     "@angular/language-service": "^22.1.1",
     "@capacitor/cli": "8.5.0",
     "@ionic/angular-toolkit": "^12.0.0",
+    "@playwright/test": "1.62.1",
     "@types/jasmine": "~6.0.0",
     "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.18.0",

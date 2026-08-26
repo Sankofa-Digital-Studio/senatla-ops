@@ -27,23 +27,20 @@ export class SupabaseAuthGateway implements AuthGateway {
   async loadSession(): Promise<AuthSession | null> {
     const { data, error } = await this.supabase.auth.getUser();
     if (error || !data.user) return null;
-    return await this.buildSession(data.user.id, data.user.email ?? '');
+    const { data: sessionData } = await this.supabase.auth.getSession();
+    if (!sessionData.session) return null;
+    return await this.buildSession(data.user.id, data.user.email ?? '', sessionData.session);
   }
 
   async login(username: string, password: string): Promise<AuthSession | null> {
     const email = username.trim().toLowerCase();
     const { data, error } = await this.supabase.auth.signInWithPassword({ email, password: password.trim() });
-    if (error || !data.user) return null;
+    if (error || !data.user || !data.session) return null;
 
-    const session = await this.buildSession(data.user.id, data.user.email ?? email);
+    const session = await this.buildSession(data.user.id, data.user.email ?? email, data.session);
     if (!session) return null;
-    try {
-      await this.recordAuthEvent('login');
-      return session;
-    } catch {
-      await this.supabase.auth.signOut();
-      return null;
-    }
+    void this.recordAuthEvent('login').catch(() => undefined);
+    return session;
   }
 
   async register(request: RegistrationRequest): Promise<RegistrationResult> {
@@ -69,11 +66,8 @@ export class SupabaseAuthGateway implements AuthGateway {
   }
 
   async logout(): Promise<void> {
-    try {
-      await this.recordAuthEvent('logout');
-    } finally {
-      await this.supabase.auth.signOut();
-    }
+    void this.recordAuthEvent('logout').catch(() => undefined);
+    await this.supabase.auth.signOut();
   }
 
   subscribeToSession(listener: (session: AuthSession | null) => void): () => void {
@@ -82,7 +76,7 @@ export class SupabaseAuthGateway implements AuthGateway {
     return () => this.listeners.delete(listener);
   }
 
-  private async buildSession(userId: string, fallbackEmail: string): Promise<AuthSession | null> {
+  private async buildSession(userId: string, fallbackEmail: string, session: Session): Promise<AuthSession | null> {
     const { data: profile, error } = await this.supabase
       .from('profiles')
       .select('id, username, display_name, role, is_active, organization_id')
@@ -90,13 +84,6 @@ export class SupabaseAuthGateway implements AuthGateway {
       .maybeSingle<ProfileRow>();
 
     if (error || !profile?.role || !profile.is_active || !profile.organization_id) {
-      await this.supabase.auth.signOut();
-      return null;
-    }
-
-    const { data: userData, error: userError } = await this.supabase.auth.getUser();
-    const { data: sessionData } = await this.supabase.auth.getSession();
-    if (userError || userData.user?.id !== userId || !sessionData.session) {
       await this.supabase.auth.signOut();
       return null;
     }
@@ -111,7 +98,6 @@ export class SupabaseAuthGateway implements AuthGateway {
       return null;
     }
 
-    const session = sessionData.session;
     return {
       userId,
       username: profile.username || fallbackEmail || userId,
@@ -139,7 +125,7 @@ export class SupabaseAuthGateway implements AuthGateway {
       return;
     }
     if (event !== 'TOKEN_REFRESHED' && event !== 'USER_UPDATED') return;
-    const authSession = await this.buildSession(session.user.id, session.user.email ?? '');
+    const authSession = await this.buildSession(session.user.id, session.user.email ?? '', session);
     this.emit(authSession);
   }
 
