@@ -10,16 +10,13 @@ import { OfficeAdminService } from 'src/app/core/services/office-admin.service';
   standalone: true,
   imports: [CommonModule, DecimalPipe, DatePipe],
 })
-export class DirectorComponent  {
-service = inject(StaffDataService);
- office = inject(OfficeAdminService);
- viewMode = signal<'day' | 'month' | 'year'>('day');
-
-  // --- ANALYTICS LOGIC ---
+export class DirectorComponent {
+  service = inject(StaffDataService);
+  office = inject(OfficeAdminService);
+  viewMode = signal<'day' | 'month' | 'year'>('day');
 
   private readonly periodSyncs = computed(() => this.service.syncHistory().filter((entry) => this.isInSelectedPeriod(entry.syncTime)));
 
-  // 1. Compliance Score - persisted synchronization records only.
   complianceScore = computed(() => {
     const history = this.periodSyncs();
     if (history.length === 0) return 0;
@@ -27,76 +24,42 @@ service = inject(StaffDataService);
     return (onTime / history.length) * 100;
   });
 
-  // 2. Headcount
   presentCount = computed(() => {
     const today = this.toDateKey(this.service.currentTime());
-    return this.service.employees().filter(e => e.logs[today]?.status === 'present').length;
+    return this.service.employees().filter((employee) => employee.logs[today]?.status === 'present').length;
   });
 
   absentCount = computed(() => {
     const today = this.toDateKey(this.service.currentTime());
-    return this.service.employees().filter(e => e.logs[today]?.status === 'absent').length;
+    return this.service.employees().filter((employee) => employee.logs[today]?.status === 'absent').length;
   });
 
-  // 3. Financials
-  // "Actual" is based on who is PRESENT today
-  actualDailyCost = computed(() => {
-    const today = this.toDateKey(this.service.currentTime());
-    return this.service.employees().reduce((acc, emp) => {
-       const isPresent = emp.logs[today]?.status === 'present';
-       return acc + (isPresent ? emp.basicRate : 0);
-    }, 0);
-  });
+  ppeExpense = computed(() => this.office.ppeIssues()
+    .filter((entry) => this.isDateKeyInSelectedPeriod((entry.orderDate || entry.requestedAt).slice(0, 10)))
+    .reduce((total, entry) => total + entry.unitCost, 0));
 
-  // Actual cost from recorded attendance. No synthetic multipliers.
-  displayedCost = computed(() => {
-     return this.service.employees().reduce((total, employee) => total + Object.entries(employee.logs)
-       .filter(([dateKey, log]) => log.status === 'present' && this.isDateKeyInSelectedPeriod(dateKey))
-       .reduce((employeeTotal) => employeeTotal + employee.basicRate, 0), 0);
-  });
+  fuelExpense = computed(() => this.office.assetFuelEntries()
+    .filter((entry) => this.isDateKeyInSelectedPeriod(entry.fuelDate))
+    .reduce((total, entry) => total + entry.totalCost, 0));
 
-  ppeExpense = computed(() => this.office.ppeIssues().filter((entry) => this.isDateKeyInSelectedPeriod((entry.orderDate || entry.requestedAt).slice(0, 10))).reduce((total, entry) => total + entry.unitCost, 0));
-  fuelExpense = computed(() => this.office.assetFuelEntries().filter((entry) => this.isDateKeyInSelectedPeriod(entry.fuelDate)).reduce((total, entry) => total + entry.totalCost, 0));
-  vendorPayables = computed(() => this.office.vendorAccounts().reduce((total, vendor) => total + vendor.totalOwingAmount, 0));
+  vendorPayables = computed(() => this.office.vendorAccounts()
+    .reduce((total, vendor) => total + vendor.totalOwingAmount, 0));
+
   pendingVendorInvoices = computed(() => this.office.vendorInvoices().filter((invoice) => invoice.status === 'pending_director'));
   recentVendorInvoices = computed(() => this.office.vendorInvoices().slice(0, 8));
-  vendorName(vendorId: string) { return this.office.vendorAccounts().find((vendor) => vendor.id === vendorId)?.name || 'Unknown vendor'; }
-  operatingExpense = computed(() => this.displayedCost() + this.ppeExpense() + this.fuelExpense() + this.vendorPayables());
-  // 4. Per-Site Breakdown
-  siteStats = computed(() => {
-     return this.service.sites().map(site => {
-        const staff = this.service.employees().filter(e => e.siteId === site.id);
-        const displayCost = staff.reduce((total, employee) => total + Object.entries(employee.logs)
-          .filter(([dateKey, log]) => log.status === 'present' && this.isDateKeyInSelectedPeriod(dateKey))
-          .reduce((employeeTotal) => employeeTotal + employee.basicRate, 0), 0);
 
-        return {
-           name: site.name,
-           location: site.location,
-           staffCount: staff.length,
-           dailyCost: displayCost
-        };
-     });
-  });
+  vendorName(vendorId: string) {
+    return this.office.vendorAccounts().find((vendor) => vendor.id === vendorId)?.name || 'Unknown vendor';
+  }
 
-  // 5. Recent Activity
+  siteStats = computed(() => this.service.sites().map((site) => ({
+    name: site.name,
+    location: site.location,
+    staffCount: this.service.employees().filter((employee) => employee.siteId === site.id).length,
+  })));
+
   recentSyncs = computed(() => this.service.syncHistory().slice(0, 5));
   highestRiskSync = computed(() => this.service.syncHistory().find((entry) => entry.status !== 'On Time') || null);
-
-  // 6. Persisted attendance cost trend.
-  trendData = computed(() => {
-     const totals = new Map<string, number>();
-     for (const employee of this.service.employees()) {
-       for (const [dateKey, log] of Object.entries(employee.logs)) {
-         if (log.status !== 'present' || !this.isDateKeyInSelectedPeriod(dateKey)) continue;
-         const bucket = this.viewMode() === 'year' ? dateKey.slice(0, 7) : dateKey;
-         totals.set(bucket, (totals.get(bucket) || 0) + employee.basicRate);
-       }
-     }
-     const entries = [...totals.entries()].sort(([left], [right]) => left.localeCompare(right));
-     const max = Math.max(0, ...entries.map(([, value]) => value));
-     return entries.map(([label, value]) => ({ label, value, ratio: max ? (value / max) * 100 : 0 }));
-  });
 
   private isInSelectedPeriod(value: Date) {
     return this.isDateKeyInSelectedPeriod(this.toDateKey(new Date(value)));
