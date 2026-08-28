@@ -27,13 +27,20 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   username = '';
   password = '';
+  recoveryPassword = '';
+  confirmRecoveryPassword = '';
   showPassword = false;
+  showRecoveryPassword = false;
   rememberLogin = false;
   errorMsg = '';
+  recoveryMsg = '';
   requestedRole: AppRole | null = null;
   redirectUrl = '';
   isSubmitting = false;
   isFetchingResources = false;
+  isRecoveringPassword = false;
+  recoveryMode = false;
+  recoveryUsernameHint = '';
   showWizard = false;
   activeStep = 0;
   authenticatedRole: AppRole | null = null;
@@ -74,6 +81,10 @@ export class LoginComponent implements OnInit, OnDestroy {
       this.requestedRole = this.normalizeRole(params.get('role') ?? '');
       this.redirectUrl = this.sanitizeRedirect(query.get('redirect'));
       this.errorMsg = '';
+      this.recoveryMode = this.isRecoveryRoute(query);
+      this.recoveryUsernameHint = query.get('mock_user')?.trim().toLowerCase() || '';
+      this.recoveryMsg = '';
+      if (this.recoveryUsernameHint) this.username = this.recoveryUsernameHint;
 
       if (query.get('onboarding') === '1') {
         void this.openAuthenticatedWizard();
@@ -86,6 +97,10 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   async handleLogin() {
+    if (this.recoveryMode) {
+      await this.handlePasswordUpdate();
+      return;
+    }
     if (this.isSubmitting || this.showWizard) return;
 
     this.errorMsg = '';
@@ -155,6 +170,55 @@ export class LoginComponent implements OnInit, OnDestroy {
 
     localStorage.setItem(LOGIN_PREF_KEY, JSON.stringify({ username: this.username.trim() }));
   }
+
+  async requestPasswordReset() {
+    const email = this.username.trim().toLowerCase();
+    if (!email) {
+      this.errorMsg = 'Enter your work email first, then request recovery.';
+      return;
+    }
+    this.errorMsg = '';
+    this.recoveryMsg = '';
+    this.isSubmitting = true;
+    try {
+      const result = await this.auth.requestPasswordReset(email, `${location.origin}/login?mode=recovery`);
+      this.recoveryMsg = result.resetLink
+        ? `${result.message} One-time link: ${result.resetLink}`
+        : result.message;
+    } catch (error) {
+      this.errorMsg = error instanceof Error ? error.message : 'Password recovery could not be prepared.';
+    } finally {
+      this.isSubmitting = false;
+    }
+  }
+
+  async handlePasswordUpdate() {
+    if (this.isRecoveringPassword || this.showWizard) return;
+    if (this.recoveryPassword.trim().length < 8) {
+      this.errorMsg = 'Choose a password with at least 8 characters.';
+      return;
+    }
+    if (this.recoveryPassword !== this.confirmRecoveryPassword) {
+      this.errorMsg = 'Password confirmation does not match.';
+      return;
+    }
+    this.errorMsg = '';
+    this.recoveryMsg = '';
+    this.isRecoveringPassword = true;
+    try {
+      await this.auth.updatePassword(this.recoveryPassword, this.recoveryUsernameHint || this.username);
+      this.recoveryPassword = '';
+      this.confirmRecoveryPassword = '';
+      this.password = '';
+      this.recoveryMsg = 'Password updated. Sign in with the new password.';
+      this.recoveryMode = false;
+      await this.auth.logout();
+    } catch (error) {
+      this.errorMsg = error instanceof Error ? error.message : 'Password update failed.';
+    } finally {
+      this.isRecoveringPassword = false;
+    }
+  }
   private async openAuthenticatedWizard() {
     await this.auth.ensureReady();
     const session = this.auth.currentSession();
@@ -198,5 +262,12 @@ export class LoginComponent implements OnInit, OnDestroy {
     if (redirect.startsWith('//')) return '';
     if (redirect.startsWith('/login')) return '';
     return redirect;
+  }
+
+  private isRecoveryRoute(query: import('@angular/router').ParamMap) {
+    if (query.get('mode') === 'recovery' || query.get('type') === 'recovery') return true;
+    if (typeof window === 'undefined') return false;
+    const hash = window.location.hash || '';
+    return hash.includes('type=recovery') || hash.includes('access_token=');
   }
 }

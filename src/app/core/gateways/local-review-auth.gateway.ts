@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { AppRole, AuthSession } from '../models/app.models';
 import { cappedSessionExpiry, sessionHasExpired } from '../auth/session-policy';
-import { AuthGateway, RegistrationRequest, RegistrationResult } from './auth.gateway';
+import { AuthGateway, PasswordResetRequestResult, RegistrationRequest, RegistrationResult } from './auth.gateway';
 
 type ReviewAccount = {
   password: string;
@@ -11,6 +11,7 @@ type ReviewAccount = {
 };
 
 const SESSION_KEY = 'senatla_ops_local_review_session_v1';
+const MOCK_RESET_KEY = 'senatla_ops_local_review_reset_v1';
 
 @Injectable()
 export class LocalReviewAuthGateway implements AuthGateway {
@@ -53,6 +54,33 @@ export class LocalReviewAuthGateway implements AuthGateway {
 
   async redeemAdminCode(_code: string): Promise<boolean> {
     return false;
+  }
+
+  async requestPasswordReset(email: string): Promise<PasswordResetRequestResult> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!this.credentials.has(normalizedEmail)) {
+      throw new Error('No demo account matches that email.');
+    }
+    sessionStorage.setItem(MOCK_RESET_KEY, normalizedEmail);
+    return {
+      message: `Demo reset prepared for ${normalizedEmail}. Open the one-time recovery link to choose a new password.`,
+      resetLink: `${location.origin}/login?mode=recovery&mock_user=${encodeURIComponent(normalizedEmail)}`,
+    };
+  }
+
+  async updatePassword(nextPassword: string, usernameHint?: string): Promise<void> {
+    const password = nextPassword.trim();
+    if (password.length < 8) {
+      throw new Error('Choose a password with at least 8 characters.');
+    }
+    const email = (usernameHint || sessionStorage.getItem(MOCK_RESET_KEY) || '').trim().toLowerCase();
+    const account = this.credentials.get(email);
+    if (!account) {
+      throw new Error('Demo recovery session is unavailable. Request a new reset link.');
+    }
+    this.credentials.set(email, { ...account, password });
+    sessionStorage.removeItem(MOCK_RESET_KEY);
+    this.emit(null);
   }
 
   async logout(): Promise<void> {

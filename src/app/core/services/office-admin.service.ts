@@ -206,7 +206,7 @@ type AssetFuelRow = { id: string; organization_id: string; asset_id: string; fue
 type AttendanceQueueRow = { id: string; organization_id: string; submitted_by: string; site_id: string; work_date: string; status: AttendanceQueueSubmission['status']; outcome: AttendanceQueueSubmission['outcome']; attempts: number; idempotency_key: string; last_error: string | null; diagnostic_context: Record<string, unknown> | null; created_at: string; processed_at: string | null };
 type OutboxRow = { id: string; organization_id: string; event_type: string; aggregate_type: string; aggregate_id: string; payload: Record<string, unknown>; status: IntegrationOutboxEvent['status']; idempotency_key: string; attempts: number; last_error: string | null; created_at: string; processed_at: string | null };
 type VendorAccountRow = { id: string; organization_id: string; name: string; description: string; total_owing_amount: number; created_at: string; updated_at: string };
-type VendorInvoiceRow = { id: string; organization_id: string; vendor_id: string; invoice_date: string; order_number: string; items_purchased: string; total: number; responsible_person: string; status: VendorInvoiceRecord['status']; requested_by: string; requested_by_name: string; director_reviewed_by: string | null; director_reviewed_at: string | null; created_at: string; updated_at: string };type OutboxRow = { id: string; organization_id: string; event_type: string; aggregate_type: string; aggregate_id: string; payload: Record<string, unknown>; status: IntegrationOutboxEvent['status']; idempotency_key: string; attempts: number; last_error: string | null; created_at: string; processed_at: string | null };
+type VendorInvoiceRow = { id: string; organization_id: string; vendor_id: string; invoice_date: string; order_number: string; items_purchased: string; total: number; responsible_person: string; status: VendorInvoiceRecord['status']; requested_by: string; requested_by_name: string; director_reviewed_by: string | null; director_reviewed_at: string | null; created_at: string; updated_at: string };
 
 const LOCAL_STORAGE_KEY = 'senatla_office_workspace_v1';
 const SENATLA_TRADING_ORGANIZATION: Organization = {
@@ -357,7 +357,7 @@ export class OfficeAdminService {
     if (!user) throw new Error('User not found.');
 
     if (!this.supabase) {
-      const mockLink = `${location.origin}/reset-password/mock/${user.id}`;
+      const mockLink = `${location.origin}/login?mode=recovery&mock_user=${encodeURIComponent(user.username)}`;
       await this.logActivity('password_reset_requested', 'profile', user.id, { username: user.username });
       return { message: `Mock reset link generated for ${user.username}.`, resetLink: mockLink };
     }
@@ -365,7 +365,7 @@ export class OfficeAdminService {
     const payload = await this.callAdminUserApi('PATCH', {
       action: 'send_reset',
       userId,
-      redirectTo: `${location.origin}/login`,
+      redirectTo: `${location.origin}/login?mode=recovery`,
     });
 
     await this.logActivity('password_reset_requested', 'profile', user.id, { username: user.username });
@@ -1907,6 +1907,7 @@ export class OfficeAdminService {
    }
   private mapVendorAccount(row: VendorAccountRow): VendorAccount {
     return { id: row.id, organizationId: row.organization_id, name: row.name, description: row.description || '', totalOwingAmount: Number(row.total_owing_amount || 0), createdAt: row.created_at, updatedAt: row.updated_at };
+  }
   
    private mapVendorInvoice(row: VendorInvoiceRow): VendorInvoiceRecord {
     return { id: row.id, organizationId: row.organization_id, vendorId: row.vendor_id, invoiceDate: row.invoice_date, orderNumber: row.order_number, itemsPurchased: row.items_purchased, total: Number(row.total || 0), responsiblePerson: row.responsible_person, status: row.status, requestedBy: row.requested_by, requestedByName: row.requested_by_name, directorReviewedBy: row.director_reviewed_by, directorReviewedAt: row.director_reviewed_at, createdAt: row.created_at, updatedAt: row.updated_at };

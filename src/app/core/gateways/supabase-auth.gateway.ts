@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { AppRole, AuthSession } from '../models/app.models';
 import { cappedSessionExpiry } from '../auth/session-policy';
-import { AuthGateway, RegistrationRequest, RegistrationResult } from './auth.gateway';
+import { AuthGateway, PasswordResetRequestResult, RegistrationRequest, RegistrationResult } from './auth.gateway';
 import { injectSupabaseClient } from './supabase.client';
 
 type ProfileRow = {
@@ -63,6 +63,28 @@ export class SupabaseAuthGateway implements AuthGateway {
   async redeemAdminCode(code: string): Promise<boolean> {
     const { data, error } = await this.supabase.rpc('redeem_admin_invitation', { invitation_code: code.trim() });
     return !error && data === true;
+  }
+
+  async requestPasswordReset(email: string, redirectTo?: string): Promise<PasswordResetRequestResult> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      throw new Error('Work email is required.');
+    }
+    const { error } = await this.supabase.auth.resetPasswordForEmail(
+      normalizedEmail,
+      redirectTo ? { redirectTo } : undefined,
+    );
+    if (error) {
+      throw error;
+    }
+    return { message: `Password recovery email requested for ${normalizedEmail}.` };
+  }
+
+  async updatePassword(nextPassword: string): Promise<void> {
+    const { error } = await this.supabase.auth.updateUser({ password: nextPassword });
+    if (error) {
+      throw error;
+    }
   }
 
   async logout(): Promise<void> {

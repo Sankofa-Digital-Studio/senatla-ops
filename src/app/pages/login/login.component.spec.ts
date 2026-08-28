@@ -35,4 +35,27 @@ describe('LoginComponent', () => {
   it('uses the production login hint', () => {
     expect(component.modeHint).toContain('Secure access portal');
   });
+
+  it('requests a password reset for a known demo account', async () => {
+    component.username = 'office.admin@test.invalid';
+
+    await component.requestPasswordReset();
+
+    expect(component.recoveryMsg).toContain('Mock reset prepared');
+  });
+
+  it('updates a password during local recovery mode', async () => {
+    component.username = 'office.admin@test.invalid';
+    await component.requestPasswordReset();
+    component.recoveryMode = true;
+    component.recoveryUsernameHint = 'office.admin@test.invalid';
+    component.recoveryPassword = 'new-password';
+    component.confirmRecoveryPassword = 'new-password';
+
+    await component.handlePasswordUpdate();
+    component.password = 'new-password';
+    await component.handleLogin();
+
+    expect(component.errorMsg).toBe('');
+  });
 });
