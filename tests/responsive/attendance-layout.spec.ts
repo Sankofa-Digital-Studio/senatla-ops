@@ -35,7 +35,7 @@ test('Site Manager delivery status renders without exposing other sites', async 
   await seedAuthenticatedPage(page, 'site');
   await expect(page.getByRole('heading', { name: 'Timesheet Register' })).toBeVisible();
   await expect(page.getByText('Current site')).toBeVisible();
-  await expect(page.locator('input[placeholder="Enter Site Name"]')).toHaveValue(/Senatla Shaft 1/);
+  await expect(page.getByRole('textbox', { name: 'Current authorized site' })).toHaveValue(/Senatla Shaft 1/);
   await expect(page.getByText('Attendance delivery')).toBeVisible();
   await expect(page.getByText('accepted').first()).toBeVisible();
   await expect(page.getByText('Forbidden Test Site')).toHaveCount(0);
