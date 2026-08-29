@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AppRole, AuthSession } from '../models/app.models';
-import { AUTH_GATEWAY, AuthGateway, RegistrationRequest } from '../gateways/auth.gateway';
+import { AUTH_GATEWAY, AuthGateway, PasswordResetRequestResult, RegistrationRequest } from '../gateways/auth.gateway';
 import { SESSION_EXPIRY_SCHEDULER } from '../auth/session-expiry.scheduler';
 import { sessionHasExpired } from '../auth/session-policy';
 
@@ -54,6 +54,14 @@ export class AuthService {
 
   async redeemAdminCode(code: string) {
     return await this.authGateway.redeemAdminCode(code);
+  }
+
+  async requestPasswordReset(email: string, redirectTo?: string): Promise<PasswordResetRequestResult> {
+    return await this.authGateway.requestPasswordReset(email, redirectTo);
+  }
+
+  async updatePassword(nextPassword: string, usernameHint?: string) {
+    await this.authGateway.updatePassword(nextPassword, usernameHint);
   }
 
   async logout() {

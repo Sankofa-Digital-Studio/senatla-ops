@@ -9,6 +9,7 @@ import { AppRole, AuthSession } from './core/models/app.models';
 
 class TestAuthGateway {
   private session: AuthSession | null = null;
+  private pendingResetEmail = '';
   private readonly credentials = new Map<string, { password: string; role: AppRole; displayName: string }>([
     ['site.manager@test.invalid', { password: 'test-password', role: 'site', displayName: 'Site Manager' }],
     ['office.admin@test.invalid', { password: 'test-password', role: 'office', displayName: 'Office Admin' }],
@@ -48,6 +49,27 @@ class TestAuthGateway {
 
   async redeemAdminCode(_code: string): Promise<boolean> {
     return false;
+  }
+
+  async requestPasswordReset(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!this.credentials.has(normalizedEmail)) {
+      throw new Error('No account matches that email.');
+    }
+    this.pendingResetEmail = normalizedEmail;
+    return {
+      message: `Mock reset prepared for ${normalizedEmail}.`,
+      resetLink: `/login?mode=recovery&mock_user=${encodeURIComponent(normalizedEmail)}`,
+    };
+  }
+
+  async updatePassword(nextPassword: string, usernameHint?: string) {
+    const normalizedEmail = (usernameHint || this.pendingResetEmail).trim().toLowerCase();
+    const user = this.credentials.get(normalizedEmail);
+    if (!user) throw new Error('Recovery session unavailable.');
+    this.credentials.set(normalizedEmail, { ...user, password: nextPassword.trim() });
+    this.pendingResetEmail = '';
+    this.session = null;
   }
 
   async logout(): Promise<void> {

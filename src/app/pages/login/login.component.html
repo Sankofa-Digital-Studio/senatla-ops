@@ -68,18 +68,22 @@
 
     <div class="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
       <form (ngSubmit)="handleLogin()" class="space-y-4">
+        <div *ngIf="recoveryMode" class="rounded border border-lime-500/20 bg-lime-500/10 p-3 text-xs text-lime-100">
+          Create a new password for your operational account. The recovery link is single-use.
+        </div>
         <div>
           <label class="mb-1 block text-xs font-bold uppercase text-slate-500">{{ usernameLabel }}</label>
           <input
             type="text"
             [(ngModel)]="username"
             name="username"
+            [readonly]="recoveryMode && !!recoveryUsernameHint"
             [attr.autocomplete]="rememberLogin ? 'username' : 'off'"
             class="w-full rounded border border-slate-700 bg-slate-950 p-3 text-sm transition-colors focus:border-lime-300 focus:outline-none"
             [placeholder]="usernamePlaceholder"
           >
         </div>
-        <div>
+        <div *ngIf="!recoveryMode">
           <label class="mb-1 block text-xs font-bold uppercase text-slate-500">Password</label>
           <input
             [type]="showPassword ? 'text' : 'password'"
@@ -90,19 +94,48 @@
             [placeholder]="passwordPlaceholder"
           >
         </div>
+        <div *ngIf="recoveryMode" class="grid gap-3">
+          <div>
+            <label class="mb-1 block text-xs font-bold uppercase text-slate-500">New password</label>
+            <input
+              [type]="showRecoveryPassword ? 'text' : 'password'"
+              [(ngModel)]="recoveryPassword"
+              name="recoveryPassword"
+              autocomplete="new-password"
+              class="w-full rounded border border-slate-700 bg-slate-950 p-3 text-sm transition-colors focus:border-lime-300 focus:outline-none"
+              placeholder="Choose a new password"
+            >
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-bold uppercase text-slate-500">Confirm password</label>
+            <input
+              [type]="showRecoveryPassword ? 'text' : 'password'"
+              [(ngModel)]="confirmRecoveryPassword"
+              name="confirmRecoveryPassword"
+              autocomplete="new-password"
+              class="w-full rounded border border-slate-700 bg-slate-950 p-3 text-sm transition-colors focus:border-lime-300 focus:outline-none"
+              placeholder="Repeat the new password"
+            >
+          </div>
+        </div>
         <div class="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3 text-xs text-slate-300">
           <label class="flex items-center gap-2"><input type="checkbox" [(ngModel)]="showPassword" name="showPassword" class="accent-lime-300"> Show password</label>
+          <label *ngIf="recoveryMode" class="flex items-center gap-2"><input type="checkbox" [(ngModel)]="showRecoveryPassword" name="showRecoveryPassword" class="accent-lime-300"> Show recovery password</label>
           <label class="flex items-start gap-2"><input type="checkbox" [(ngModel)]="rememberLogin" name="rememberLogin" class="mt-0.5 accent-lime-300"> <span>Save username on this device. Password saving stays with the browser or OS password manager; if unchecked, saved login autofill is cleared.</span></label>
         </div>
         <div *ngIf="errorMsg" class="rounded border border-red-500/20 bg-red-500/10 p-2 text-xs text-red-300">
           {{ errorMsg }}
         </div>
+        <div *ngIf="recoveryMsg" class="rounded border border-lime-500/20 bg-lime-500/10 p-2 text-xs text-lime-100 break-words">
+          {{ recoveryMsg }}
+        </div>
         <button type="submit" [disabled]="isSubmitting" class="mt-4 w-full rounded bg-lime-300 py-3 font-black text-slate-950 shadow-lg transition-colors hover:bg-lime-200 disabled:cursor-wait disabled:opacity-60">
-          {{ isSubmitting ? 'Checking access...' : 'Continue' }}
+          {{ recoveryMode ? (isRecoveringPassword ? 'Updating password...' : 'Save new password') : (isSubmitting ? 'Checking access...' : 'Continue') }}
         </button>
       </form>
 
       <div class="mt-6 border-t border-slate-800 pt-6 text-center">
+        <button *ngIf="!recoveryMode" type="button" (click)="requestPasswordReset()" [disabled]="isSubmitting" class="text-xs text-lime-200 hover:text-lime-100">Forgot password?</button>
         <p class="text-[11px] text-slate-500">
           Use the work email and password provisioned in Supabase Auth. The selected route still determines the required role.
         </p>

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRuntimeConfig, RuntimeConfig } from '../config/runtime-config';
 import { APP_STATE_GATEWAY, AppStateGateway, AppStateSnapshot } from '../gateways/app-state.gateway';
 import { AUTH_GATEWAY } from '../gateways/auth.gateway';
-import { AdminAuditEvent, AttendanceAuditEvent } from '../models/app.models';
+import { AdminAuditEvent, AttendanceAuditEvent, AttendanceDeliveryPayload, AttendanceQueueSubmission } from '../models/app.models';
 import { StaffDataService } from './staff-data.service';
 
 class EmptyRemoteStateGateway implements AppStateGateway {
@@ -13,6 +13,9 @@ class EmptyRemoteStateGateway implements AppStateGateway {
   async loadAttendanceAuditTrail(): Promise<AttendanceAuditEvent[]> { return []; }
   async appendAdminAuditEvent(_event: AdminAuditEvent) {}
   async appendAttendanceAuditEvent(_event: AttendanceAuditEvent) {}
+  async loadAttendanceQueue(): Promise<AttendanceQueueSubmission[]> { return []; }
+  async submitAttendance(_payload: AttendanceDeliveryPayload, _idempotencyKey: string): Promise<AttendanceQueueSubmission> { throw new Error('Not implemented in this test.'); }
+  async retryAttendance(_submissionId: string): Promise<AttendanceQueueSubmission> { throw new Error('Not implemented in this test.'); }
 }
 
 class AnonymousAuthGateway {
