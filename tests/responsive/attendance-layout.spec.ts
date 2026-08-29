@@ -35,7 +35,7 @@ test('Site Manager delivery status renders without exposing other sites', async 
   await seedAuthenticatedPage(page, 'site');
   await expect(page.getByRole('heading', { name: 'Timesheet Register' })).toBeVisible();
   await expect(page.getByText('Current site')).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Current authorized site' })).toHaveValue(/Senatla Shaft 1/);
+  await expect(page.getByRole('textbox', { name: 'Current authorized site' })).toHaveValue('Responsive Test Site');
   await expect(page.getByText('Attendance delivery')).toBeVisible();
   await expect(page.getByText('accepted').first()).toBeVisible();
   await expect(page.getByText('Forbidden Test Site')).toHaveCount(0);
@@ -72,9 +72,15 @@ async function assertResponsiveSurface(page: Page) {
   const primarySurface = page.locator('main, [role="main"], [role="banner"], header').first();
   await expect(primarySurface).toBeVisible();
   const controls = primarySurface.locator('button:visible, a:visible, input:visible, select:visible');
-  for (const box of await controls.evaluateAll((nodes) => nodes.slice(0, 80).map((node) => node.getBoundingClientRect()).map(({ width, height }) => ({ width, height })))) {
-    expect(box.width).toBeGreaterThanOrEqual(11);
-    expect(box.height).toBeGreaterThanOrEqual(20);
+  const controlTargets = await controls.evaluateAll((nodes) => nodes.slice(0, 80).map((node) => {
+    const isCheckControl = node.matches('input[type="checkbox"], input[type="radio"]');
+    const target = isCheckControl ? node.closest('label') || node : node;
+    const { width, height } = target.getBoundingClientRect();
+    return { width, height, control: node.outerHTML.slice(0, 160) };
+  }));
+  for (const target of controlTargets) {
+    expect(target.width, `Narrow control target: ${target.control}`).toBeGreaterThanOrEqual(11);
+    expect(target.height, `Short control target: ${target.control}`).toBeGreaterThanOrEqual(20);
   }
   const clipped = await page.locator('h1:visible, h2:visible, h3:visible, button:visible, a:visible').evaluateAll((nodes) => nodes
     .filter((node) => node.textContent?.trim())
