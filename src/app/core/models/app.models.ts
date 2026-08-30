@@ -94,11 +94,16 @@ export interface Employee {
   firstName: string;
   surname: string;
   idNumber: string;
+  companyNumber?: string;
   role: 'General Worker' | 'Safety Rep' | 'Operator' | 'Driver' | 'Foreman';
+  designation?: string;
   siteId: string;
   groupId?: string;
   startDate: string;
   basicRate: number;
+  payRateUnit?: 'hourly' | 'daily' | 'monthly';
+  safetyQualifications?: string[];
+  additionalFields?: Record<string, string>;
   
   // New fields
   salaryAdvances: number;
