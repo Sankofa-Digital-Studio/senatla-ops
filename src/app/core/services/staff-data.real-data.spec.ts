@@ -14,8 +14,12 @@ class EmptyRemoteStateGateway implements AppStateGateway {
   async appendAdminAuditEvent(_event: AdminAuditEvent) {}
   async appendAttendanceAuditEvent(_event: AttendanceAuditEvent) {}
   async loadAttendanceQueue(): Promise<AttendanceQueueSubmission[]> { return []; }
-  async submitAttendance(_payload: AttendanceDeliveryPayload, _idempotencyKey: string): Promise<AttendanceQueueSubmission> { throw new Error('Not implemented in this test.'); }
-  async retryAttendance(_submissionId: string): Promise<AttendanceQueueSubmission> { throw new Error('Not implemented in this test.'); }
+  async submitAttendance(_payload: AttendanceDeliveryPayload, _idempotencyKey: string): Promise<AttendanceQueueSubmission> {
+    throw new Error('submitAttendance should not be called in this test.');
+  }
+  async retryAttendance(_submissionId: string): Promise<AttendanceQueueSubmission> {
+    throw new Error('retryAttendance should not be called in this test.');
+  }
 }
 
 class AnonymousAuthGateway {
