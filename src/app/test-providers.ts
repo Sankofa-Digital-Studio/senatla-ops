@@ -59,7 +59,7 @@ class TestAuthGateway {
     this.pendingResetEmail = normalizedEmail;
     return {
       message: `Mock reset prepared for ${normalizedEmail}.`,
-      resetLink: `/login?mode=recovery&mock_user=${encodeURIComponent(normalizedEmail)}`,
+      resetLink: `/login/recovery?mock_user=${encodeURIComponent(normalizedEmail)}`,
     };
   }
 

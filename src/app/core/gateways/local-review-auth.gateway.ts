@@ -12,6 +12,7 @@ type ReviewAccount = {
 
 const SESSION_KEY = 'senatla_ops_local_review_session_v1';
 const MOCK_RESET_KEY = 'senatla_ops_local_review_reset_v1';
+const LOCAL_REVIEW_RECOVERY_PATH = '/login/recovery';
 
 @Injectable()
 export class LocalReviewAuthGateway implements AuthGateway {
@@ -64,7 +65,7 @@ export class LocalReviewAuthGateway implements AuthGateway {
     sessionStorage.setItem(MOCK_RESET_KEY, normalizedEmail);
     return {
       message: `Demo reset prepared for ${normalizedEmail}. Open the one-time recovery link to choose a new password.`,
-      resetLink: `${location.origin}/login?mode=recovery&mock_user=${encodeURIComponent(normalizedEmail)}`,
+      resetLink: `${location.origin}${LOCAL_REVIEW_RECOVERY_PATH}?mock_user=${encodeURIComponent(normalizedEmail)}`,
     };
   }
 

@@ -20,6 +20,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent),
   },
   {
+    path: 'login/recovery',
+    loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent),
+  },
+  {
     path: 'login/:role',
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent),
   },

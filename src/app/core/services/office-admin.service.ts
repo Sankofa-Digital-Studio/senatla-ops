@@ -362,7 +362,7 @@ export class OfficeAdminService {
     if (!user) throw new Error('User not found.');
 
     if (!this.supabase) {
-      const mockLink = `${location.origin}/login?mode=recovery&mock_user=${encodeURIComponent(user.username)}`;
+      const mockLink = `${location.origin}/login/recovery?mock_user=${encodeURIComponent(user.username)}`;
       await this.logActivity('password_reset_requested', 'profile', user.id, { username: user.username });
       return { message: `Mock reset link generated for ${user.username}.`, resetLink: mockLink };
     }
@@ -370,7 +370,7 @@ export class OfficeAdminService {
     const payload = await this.callAdminUserApi('PATCH', {
       action: 'send_reset',
       userId,
-      redirectTo: `${location.origin}/login?mode=recovery`,
+      redirectTo: `${location.origin}/login/recovery`,
     });
 
     await this.logActivity('password_reset_requested', 'profile', user.id, { username: user.username });

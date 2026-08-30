@@ -42,6 +42,7 @@ describe('LoginComponent', () => {
     await component.requestPasswordReset();
 
     expect(component.recoveryMsg).toContain('Mock reset prepared');
+    expect(component.recoveryMsg).toContain('/login/recovery?mock_user=office.admin%40test.invalid');
   });
 
   it('updates a password during local recovery mode', async () => {
