@@ -72,6 +72,7 @@ testem.log
 /src/assets/runtime-config.json
 /output/credentials/
 /output/uat-private/
+/output/reference-archive/
 
 # System files
 .DS_Store
