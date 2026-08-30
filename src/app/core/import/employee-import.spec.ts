@@ -31,4 +31,26 @@ describe('stageEmployeeCsv', () => {
     expect(rows[0].errors.join(' ')).toContain('duplicates');
     expect(rows[0].errors.join(' ')).toContain('Select a site');
   });
+
+  it('treats company numbers case-insensitively when checking duplicates', () => {
+    const rows = stageEmployeeCsv(csv, 'site-1', [{
+      id: 'existing', firstName: 'Existing', surname: 'Worker', idNumber: '8001015009087', companyNumber: 'emp-001',
+      role: 'Operator', siteId: 'site-1', startDate: '2026-01-01', basicRate: 500, salaryAdvances: 0,
+      financials: {}, logs: {}, adjustments: {},
+    }]);
+
+    expect(rows[0].status).toBe('error');
+    expect(rows[0].errors).toContain('Company number duplicates an existing or staged employee.');
+  });
+
+  it('accepts formatted existing ID numbers when checking duplicates', () => {
+    const rows = stageEmployeeCsv(csv, 'site-1', [{
+      id: 'existing', firstName: 'Existing', surname: 'Worker', idNumber: '900101-5009-087', companyNumber: 'EMP-777',
+      role: 'Operator', siteId: 'site-1', startDate: '2026-01-01', basicRate: 500, salaryAdvances: 0,
+      financials: {}, logs: {}, adjustments: {},
+    }]);
+
+    expect(rows[0].status).toBe('error');
+    expect(rows[0].errors).toContain('ID number duplicates an existing or staged employee.');
+  });
 });

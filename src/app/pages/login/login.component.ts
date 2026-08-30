@@ -9,6 +9,7 @@ import { AuthService } from 'src/app/core/services/auth.service';
 import { OnboardingFeature, OnboardingService } from 'src/app/core/services/onboarding.service';
 
 const LOGIN_PREF_KEY = 'senatla_ops_login_pref_v1';
+const RECOVERY_ROUTE = '/login/recovery';
 
 @Component({
   selector: 'app-login',
@@ -181,7 +182,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.recoveryMsg = '';
     this.isSubmitting = true;
     try {
-      const result = await this.auth.requestPasswordReset(email, `${location.origin}/login?mode=recovery`);
+      const result = await this.auth.requestPasswordReset(email, `${location.origin}${RECOVERY_ROUTE}`);
       this.recoveryMsg = result.resetLink
         ? `${result.message} One-time link: ${result.resetLink}`
         : result.message;
@@ -265,7 +266,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   private isRecoveryRoute(query: import('@angular/router').ParamMap) {
-    if (query.get('mode') === 'recovery' || query.get('type') === 'recovery') return true;
+    if (this.router.url.split('?')[0] === RECOVERY_ROUTE) return true;
+    if (query.get('type') === 'recovery') return true;
     if (typeof window === 'undefined') return false;
     const hash = window.location.hash || '';
     return hash.includes('type=recovery') || hash.includes('access_token=');
