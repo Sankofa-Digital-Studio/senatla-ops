@@ -89,6 +89,69 @@ describe('OfficeAdminComponent', () => {
     expect(component.feedback()).toContain('requires escalation');
   });
 
+  it('keeps a realistic synthetic employee as a draft until explicit approval, then records POST audit evidence', async () => {
+    await TestBed.inject(AuthService).login('office.admin@test.invalid', 'test-password');
+    component.service.sites.set([{ id: 'site-1', name: 'North Shaft', location: 'Rustenburg', isActive: true }]);
+    component.selectedSiteId.set('site-1');
+
+    component.loadSyntheticEmployeeCandidate();
+    expect(component.personForm.designation).toBe('Excavator Operator');
+    expect(component.service.employees().length).toBe(0);
+
+    await component.submitEmployee();
+    expect(component.pendingEmployeeCandidate()).not.toBeNull();
+    expect(component.service.employees().length).toBe(0);
+
+    await component.approveEmployeeCandidate();
+    expect(component.service.employees().length).toBe(1);
+    expect(component.service.employees()[0].companyNumber).toBe('SEN-DEMO-014');
+    expect(component.service.activity()[0].action).toBe('employee_created');
+    expect(component.service.activity()[0].details?.['httpMethod']).toBe('POST');
+    expect(component.service.activity()[0].details?.['friendlyAction']).toBe('Employee profile created');
+    expect(component.service.activity()[0].occurredAt).toBeTruthy();
+  });
+
+  it('requires deletion approval and records the approving user, DELETE action, and timestamp', async () => {
+    await TestBed.inject(AuthService).login('office.admin@test.invalid', 'test-password');
+    const employee = {
+      id: 'employee-delete', firstName: 'Synthetic', surname: 'Worker', idNumber: '9001015009087',
+      companyNumber: 'SEN-DEL-001', role: 'Operator' as const, siteId: 'site-1', startDate: '2026-08-01',
+      basicRate: 600, salaryAdvances: 0, financials: {}, logs: {}, adjustments: {},
+    };
+    component.service.employees.set([employee]);
+
+    component.stageEmployeeDeletion(employee);
+    expect(component.service.employees().length).toBe(1);
+    await component.approveEmployeeDeletion();
+
+    expect(component.service.employees().length).toBe(1);
+    expect(component.service.employees()[0].employmentStatus).toBe('inactive');
+    expect(component.service.activity()[0].actorName).toBe('Office Admin');
+    expect(component.service.activity()[0].details?.['httpMethod']).toBe('DELETE');
+    expect(component.service.activity()[0].details?.['friendlyAction']).toBe('Employee profile archived');
+    expect(component.service.activity()[0].occurredAt).toBeTruthy();
+  });
+
+  it('keeps bulk rows staged until import approval and then records a bulk POST action', async () => {
+    await TestBed.inject(AuthService).login('office.admin@test.invalid', 'test-password');
+    component.employeeImportRows.set([{
+      sourceRow: 4, status: 'ready', errors: [], warnings: [], employee: {
+        id: '', firstName: 'Kagiso', surname: 'Dlamini', idNumber: '8001015009087', companyNumber: 'SEN-BULK-001',
+        role: 'Foreman', designation: 'Crew Supervisor', siteId: 'site-1', startDate: '2026-07-15',
+        basicRate: 720, payRateUnit: 'daily', safetyQualifications: ['HIRA'], additionalFields: {},
+        salaryAdvances: 0, financials: {}, logs: {}, adjustments: {}, employmentStatus: 'active',
+      },
+    }]);
+    expect(component.service.employees().length).toBe(0);
+
+    await component.commitEmployeeImport();
+
+    expect(component.service.employees().length).toBe(1);
+    expect(component.service.activity()[0].action).toBe('employee_bulk_created');
+    expect(component.service.activity()[0].details?.['httpMethod']).toBe('POST');
+    expect(component.service.activity()[0].details?.['importedCount']).toBe(1);
+  });
+
 });
 
 function outbox(status: 'pending' | 'processing' | 'completed' | 'failed', hour: number) {

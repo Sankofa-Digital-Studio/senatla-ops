@@ -66,12 +66,17 @@ type EmployeeRow = {
   first_name: string;
   surname: string;
   id_number: string;
+  company_number: string | null;
   role: Employee['role'];
+  designation: string | null;
   site_id: string;
   group_id: string | null;
   employment_status: EmploymentStatus;
   start_date: string;
   basic_rate: number;
+  pay_rate_unit: Employee['payRateUnit'] | null;
+  safety_qualifications: string[] | null;
+  additional_fields: Record<string, string> | null;
   salary_advances: number;
   financials: Record<string, number>;
   logs: Employee['logs'];
@@ -665,6 +670,7 @@ export class OfficeAdminService {
   }
 
   async saveEmployee(employee: Employee & { employmentStatus?: EmploymentStatus }) {
+    const operation = employee.id ? 'employee_updated' : 'employee_created';
     const normalized = this.normalizeEmployee(employee);
     if (!normalized.firstName || !normalized.surname || !/^\d{13}$/.test(normalized.idNumber)) {
       throw new Error('Employee details are incomplete.');
@@ -677,12 +683,17 @@ export class OfficeAdminService {
         first_name: normalized.firstName,
         surname: normalized.surname,
         id_number: normalized.idNumber,
+        company_number: normalized.companyNumber ?? null,
         role: normalized.role,
+        designation: normalized.designation ?? null,
         site_id: normalized.siteId,
         group_id: normalized.groupId ?? null,
         employment_status: normalized.employmentStatus ?? 'active',
         start_date: normalized.startDate,
         basic_rate: normalized.basicRate,
+        pay_rate_unit: normalized.payRateUnit ?? 'daily',
+        safety_qualifications: normalized.safetyQualifications ?? [],
+        additional_fields: normalized.additionalFields ?? {},
         salary_advances: normalized.salaryAdvances,
         financials: normalized.financials,
         logs: normalized.logs,
@@ -694,10 +705,49 @@ export class OfficeAdminService {
 
     this.employees.update((employees) => [normalized, ...employees.filter((entry) => entry.id !== normalized.id)]);
     await this.persistLocalWorkspace();
-    await this.logActivity('employee_saved', 'employee', normalized.id, {
+    await this.logActivity(operation, 'employee', normalized.id, {
+      httpMethod: employee.id ? 'PUT' : 'POST',
+      friendlyAction: employee.id ? 'Employee profile updated' : 'Employee profile created',
       siteId: normalized.siteId,
       role: normalized.role,
       employmentStatus: normalized.employmentStatus ?? 'active',
+    });
+  }
+
+  async saveEmployees(employees: Employee[]) {
+    const normalized = employees.map((employee) => this.normalizeEmployee(employee));
+    if (normalized.some((employee) => !employee.firstName || !employee.surname || !/^\d{13}$/.test(employee.idNumber))) throw new Error('Employee import contains invalid rows.');
+    if (this.supabase) {
+      const { error } = await this.supabase.from('employees').upsert(normalized.map((employee) => ({
+        id: employee.id, organization_id: employee.organizationId, first_name: employee.firstName, surname: employee.surname,
+        id_number: employee.idNumber, company_number: employee.companyNumber ?? null, role: employee.role, designation: employee.designation ?? null,
+        site_id: employee.siteId, group_id: employee.groupId ?? null, employment_status: employee.employmentStatus ?? 'active',
+        start_date: employee.startDate, basic_rate: employee.basicRate, pay_rate_unit: employee.payRateUnit ?? 'daily',
+        safety_qualifications: employee.safetyQualifications ?? [], additional_fields: employee.additionalFields ?? {},
+        salary_advances: employee.salaryAdvances, financials: employee.financials, logs: employee.logs,
+        adjustments: employee.adjustments, tax_ref_number: employee.taxRefNumber ?? null,
+      })));
+      if (error) throw error;
+    }
+    const importedIds = new Set(normalized.map((employee) => employee.id));
+    this.employees.update((current) => [...normalized, ...current.filter((employee) => !importedIds.has(employee.id))]);
+    await this.persistLocalWorkspace();
+    await this.logActivity('employee_bulk_created', 'employee_import', this.createId(), {
+      httpMethod: 'POST', friendlyAction: 'Employee bulk import approved', importedCount: normalized.length,
+    });
+  }
+
+  async deleteEmployee(employeeId: string) {
+    const employee = this.employees().find((entry) => entry.id === employeeId);
+    if (!employee) throw new Error('Employee record was not found.');
+    if (this.supabase) {
+      const { error } = await this.supabase.from('employees').update({ employment_status: 'inactive' }).eq('id', employeeId);
+      if (error) throw error;
+    }
+    this.employees.update((employees) => employees.map((entry) => entry.id === employeeId ? { ...entry, employmentStatus: 'inactive' } : entry));
+    await this.persistLocalWorkspace();
+    await this.logActivity('employee_archived', 'employee', employeeId, {
+      httpMethod: 'DELETE', friendlyAction: 'Employee profile archived', companyNumber: employee.companyNumber ?? null,
     });
   }
 
@@ -1413,7 +1463,7 @@ export class OfficeAdminService {
       this.supabase!.from('profiles').select('id, username, display_name, role, is_active, created_at').order('created_at', { ascending: false }),
       this.supabase!.from('sites').select('id, organization_id, name, location, manager_profile_id, team_name, job_number, estimated_duration, compliance_checklist, is_active').order('name'),
       this.supabase!.from('employee_groups').select('id, name, is_active').order('name'),
-      this.supabase!.from('employees').select('id, organization_id, first_name, surname, id_number, role, site_id, group_id, employment_status, start_date, basic_rate, salary_advances, financials, logs, adjustments, tax_ref_number').order('surname'),
+      this.supabase!.from('employees').select('id, organization_id, first_name, surname, id_number, company_number, role, designation, site_id, group_id, employment_status, start_date, basic_rate, pay_rate_unit, safety_qualifications, additional_fields, salary_advances, financials, logs, adjustments, tax_ref_number').order('surname'),
       this.supabase!.from('employee_onboarding_records').select('id, organization_id, employee_id, criminal_check_status, fingerprint_check_status, medical_status, red_ticket_number, red_ticket_issued_at, red_ticket_expires_at, notes, updated_at').order('updated_at', { ascending: false }),
       this.supabase!.from('ppe_issue_records').select('id, organization_id, employee_id, item_type, brand, size, unit_cost, order_date, collection_date, status, requested_at, office_confirmed_at, office_confirmed_by, employee_confirmed_at, employee_confirmed_by').order('requested_at', { ascending: false }),
       this.supabase!.from('financial_types').select('id, name, category, is_active, is_system').order('name'),
@@ -1708,6 +1758,7 @@ export class OfficeAdminService {
         entity_type: event.entityType,
         entity_id: event.entityId,
         details: event.details,
+        occurred_at: event.occurredAt,
       });
       if (error) throw error;
     }
@@ -1732,10 +1783,15 @@ export class OfficeAdminService {
       firstName: employee.firstName.trim(),
       surname: employee.surname.trim(),
       idNumber: employee.idNumber.trim(),
+      companyNumber: employee.companyNumber?.trim() || undefined,
+      designation: employee.designation?.trim() || undefined,
       siteId: employee.siteId.trim(),
       groupId: employee.groupId?.trim() || undefined,
       startDate: employee.startDate,
       basicRate: Number(employee.basicRate),
+      payRateUnit: employee.payRateUnit ?? 'daily',
+      safetyQualifications: [...(employee.safetyQualifications || [])],
+      additionalFields: { ...(employee.additionalFields || {}) },
       salaryAdvances: Number(employee.salaryAdvances || 0),
       financials: { ...(employee.financials || {}) },
       logs: { ...(employee.logs || {}) },
@@ -1812,11 +1868,16 @@ export class OfficeAdminService {
       firstName: row.first_name,
       surname: row.surname,
       idNumber: row.id_number,
+      companyNumber: row.company_number || undefined,
       role: row.role,
+      designation: row.designation || row.role,
       siteId: row.site_id,
       groupId: row.group_id || undefined,
       startDate: row.start_date,
       basicRate: Number(row.basic_rate || 0),
+      payRateUnit: row.pay_rate_unit || 'daily',
+      safetyQualifications: row.safety_qualifications || [],
+      additionalFields: row.additional_fields || {},
       salaryAdvances: Number(row.salary_advances || 0),
       financials: row.financials || {},
       logs: row.logs || {},

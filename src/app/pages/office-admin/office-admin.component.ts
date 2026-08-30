@@ -26,6 +26,7 @@ import { AssignmentDecision, AssignmentReview } from '../../core/assignment/assi
 import { OfficeAdminService } from '../../core/services/office-admin.service';
 import { TimesheetRegisterService } from '../../core/services/timesheet-register.service';
 import { downloadTextFile } from '../../core/utils/browser-file.util';
+import { EmployeeImportRow, stageEmployeeCsv } from '../../core/import/employee-import';
 
 type AdminTab = 'overview' | 'users' | 'people' | 'workforce' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'payroll' | 'vendors' | 'approvals' | 'recovery' | 'activity' | 'settings' | 'account';
 
@@ -72,6 +73,14 @@ export class OfficeAdminComponent {
   readonly includeFullIds = signal(false);
   readonly busy = signal(false);
   readonly feedback = signal('');
+  readonly employeeImportRows = signal<EmployeeImportRow[]>([]);
+  readonly pendingEmployeeCandidate = signal<Employee | null>(null);
+  readonly pendingEmployeeDeletion = signal<Employee | null>(null);
+  readonly employeeImportSummary = computed(() => ({
+    ready: this.employeeImportRows().filter((row) => row.status === 'ready').length,
+    warning: this.employeeImportRows().filter((row) => row.status === 'warning').length,
+    error: this.employeeImportRows().filter((row) => row.status === 'error').length,
+  }));
   readonly resetLink = signal('');
   readonly onboardingProgress = computed(() => {
     const records = this.service.employeeOnboarding();
@@ -112,10 +121,15 @@ export class OfficeAdminComponent {
     firstName: '',
     surname: '',
     idNumber: '',
+    companyNumber: '',
     role: 'General Worker',
+    designation: '',
     siteId: '',
     startDate: new Date().toISOString().slice(0, 10),
     basicRate: 0,
+    payRateUnit: 'daily',
+    safetyQualifications: [],
+    additionalFields: {},
     salaryAdvances: 0,
     financials: { travel: 0, housing: 0, advance: 0 },
     logs: {},
@@ -200,30 +214,29 @@ export class OfficeAdminComponent {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    this.busy.set(true); this.feedback.set('');
+    this.busy.set(true); this.feedback.set(''); this.employeeImportRows.set([]);
     try {
-      const rows = this.parseCsv(await file.text());
-      let imported = 0;
-      for (const row of rows) {
-        await this.service.saveEmployee({ id: '', firstName: row['first_name'] || row['firstname'] || '', surname: row['surname'] || '', idNumber: row['id_number'] || row['idnumber'] || '', role: (row['role'] as Employee['role']) || 'General Worker', siteId: row['site_id'] || '', startDate: row['start_date'] || new Date().toISOString().slice(0, 10), basicRate: Number(row['basic_rate'] || 0), salaryAdvances: 0, financials: { travel: 0, housing: 0, advance: 0 }, logs: {}, adjustments: {}, employmentStatus: 'active' });
-        imported += 1;
-      }
-      this.feedback.set(`${imported} employee(s) imported from CSV.`);
+      const rows = stageEmployeeCsv(await file.text(), this.selectedSiteId(), this.service.employees());
+      this.employeeImportRows.set(rows);
+      this.feedback.set(`Preview ready: ${rows.length} row(s). Review warnings and errors before import.`);
     } catch (error) { this.feedback.set(error instanceof Error ? error.message : 'Employee import failed.'); }
     finally { this.busy.set(false); input.value = ''; }
+  }
+
+  async commitEmployeeImport() {
+    const accepted = this.employeeImportRows().filter((row) => row.status !== 'error').map((row) => row.employee);
+    if (!accepted.length) { this.feedback.set('No valid employee rows are available to import.'); return; }
+    await this.runAction(async () => {
+      await this.service.saveEmployees(accepted);
+      this.feedback.set(`${accepted.length} employee(s) imported. Error rows were not changed.`);
+      this.employeeImportRows.set([]);
+    });
   }
 
   async submitOnboarding() { await this.runAction(async () => { await this.service.saveEmployeeOnboarding(this.onboardingForm); this.feedback.set('New-hire checks saved.'); }); }
   async submitPpe() { await this.runAction(async () => { await this.service.savePpeIssue(this.ppeForm); this.feedback.set('PPE record saved.'); }); }
   async confirmPpe(id: string, party: 'office' | 'employee') { await this.runAction(async () => { await this.service.confirmPpeIssue(id, party); this.feedback.set(party === 'office' ? 'Office confirmation recorded.' : 'Employee confirmation recorded.'); }); }
 
-  private parseCsv(text: string) {
-    const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.trim());
-    if (lines.length < 2) throw new Error('CSV must contain a header and at least one employee row.');
-    const split = (line: string) => { const values: string[] = []; let value = ''; let quoted = false; for (let index = 0; index < line.length; index += 1) { const char = line[index]; if (char === '"' && line[index + 1] === '"') { value += '"'; index += 1; } else if (char === '"') quoted = !quoted; else if (char === ',' && !quoted) { values.push(value.trim()); value = ''; } else value += char; } values.push(value.trim()); return values; };
-    const headers = split(lines[0]).map((header) => header.toLowerCase().replace(/\s+/g, '_'));
-    return lines.slice(1).map((line) => { const row: Record<string, string> = {}; split(line).forEach((value, index) => { if (headers[index]) row[headers[index]] = value; }); return row; });
-  }
   readonly payrollPeriod = computed(() => {
     const key = `${this.year()}-${`${this.month() + 1}`.padStart(2, '0')}`;
     return this.service.payrollPeriods().find((entry) => entry.periodKey === key) || null;
@@ -263,12 +276,60 @@ export class OfficeAdminComponent {
   }
 
   async submitEmployee() {
+    this.pendingEmployeeCandidate.set({
+      ...this.personForm,
+      safetyQualifications: [...(this.personForm.safetyQualifications || [])],
+      additionalFields: { ...(this.personForm.additionalFields || {}) },
+    });
+    this.feedback.set('Employee candidate staged. Review and approve before saving.');
+  }
+
+  async approveEmployeeCandidate() {
+    const candidate = this.pendingEmployeeCandidate();
+    if (!candidate) return;
     await this.runAction(async () => {
-      await this.service.saveEmployee(this.personForm);
-      this.feedback.set('Employee saved.');
+      await this.service.saveEmployee(candidate);
+      this.feedback.set(candidate.id ? 'Employee update approved and saved.' : 'Employee creation approved and saved.');
+      this.pendingEmployeeCandidate.set(null);
       this.resetEmployeeForm();
       this.showEmployeeForm.set(false);
     });
+  }
+
+  cancelEmployeeCandidate() {
+    this.pendingEmployeeCandidate.set(null);
+    this.feedback.set('Staged employee change discarded. No record was written.');
+  }
+
+  stageEmployeeDeletion(employee: Employee) {
+    this.pendingEmployeeDeletion.set(employee);
+    this.feedback.set('Employee removal staged. Approve the deletion to continue.');
+  }
+
+  async approveEmployeeDeletion() {
+    const employee = this.pendingEmployeeDeletion();
+    if (!employee) return;
+    await this.runAction(async () => {
+      await this.service.deleteEmployee(employee.id);
+      this.pendingEmployeeDeletion.set(null);
+      this.selectedEmployeeId.set('');
+      this.feedback.set('Employee archive approved and recorded.');
+    });
+  }
+
+  loadSyntheticEmployeeCandidate() {
+    const siteId = this.selectedSiteId() || this.service.activeSites()[0]?.id || '';
+    this.personForm = {
+      id: '', firstName: 'Lerato', surname: 'Mokoena', idNumber: '9001015009087', companyNumber: 'SEN-DEMO-014',
+      role: 'Operator', designation: 'Excavator Operator', siteId, startDate: '2026-08-01', basicRate: 680,
+      payRateUnit: 'daily', safetyQualifications: ['First Aid Level 1', 'HIRA', 'Excavator Operator'],
+      additionalFields: { source: 'Synthetic approval test candidate' }, salaryAdvances: 0,
+      financials: { travel: 0, housing: 0, advance: 0 }, logs: {}, adjustments: {}, employmentStatus: 'active',
+    };
+    this.pendingEmployeeCandidate.set(null);
+    this.showEmployeeForm.set(true);
+    this.activeTab.set('people');
+    this.feedback.set('Synthetic candidate loaded for review. Nothing has been saved.');
   }
 
   async submitIssue() {
@@ -490,6 +551,17 @@ export class OfficeAdminComponent {
     this.showEmployeeForm.set(false);
   }
 
+  activityLabel(action: string, details?: Record<string, unknown> | null) {
+    const friendly = details?.['friendlyAction'];
+    if (typeof friendly === 'string') return friendly;
+    return action.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  }
+
+  activityMethod(details?: Record<string, unknown> | null) {
+    const method = details?.['httpMethod'];
+    return typeof method === 'string' ? method : 'EVENT';
+  }
+
   createEmployeeProfile() {
     this.resetEmployeeForm();
     this.showEmployeeForm.set(true);
@@ -542,10 +614,15 @@ export class OfficeAdminComponent {
       firstName: '',
       surname: '',
       idNumber: '',
+      companyNumber: '',
       role: 'General Worker',
+      designation: '',
       siteId: this.service.activeSites()[0]?.id || '',
       startDate: new Date().toISOString().slice(0, 10),
       basicRate: 0,
+      payRateUnit: 'daily',
+      safetyQualifications: [],
+      additionalFields: {},
       salaryAdvances: 0,
       financials: { travel: 0, housing: 0, advance: 0 },
       logs: {},
