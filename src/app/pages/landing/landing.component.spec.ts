@@ -31,6 +31,11 @@ describe('LandingComponent', () => {
     expect(page.querySelector('#assurance')).not.toBeNull();
   });
 
+  it('links both navigation menus to the current unsigned dev APK', () => {
+    const page = fixture.nativeElement as HTMLElement;
+    const href = 'https://github.com/Sankofa-Digital-Studio/senatla-ops/releases/download/dev-latest/senatla-ops-dev.apk';
+    expect(page.querySelectorAll('a[href="' + href + '"]').length).toBe(2);
+  });
   it('shows the cornerstone welcome gate while the landing page is preparing', () => {
     const page = fixture.nativeElement as HTMLElement;
     expect(page.querySelector('.cornerstone-loader')).not.toBeNull();
