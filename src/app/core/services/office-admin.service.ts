@@ -672,7 +672,7 @@ export class OfficeAdminService {
   async saveEmployee(employee: Employee & { employmentStatus?: EmploymentStatus }) {
     const operation = employee.id ? 'employee_updated' : 'employee_created';
     const normalized = this.normalizeEmployee(employee);
-    if (!normalized.firstName || !normalized.surname || !/^\d{13}$/.test(normalized.idNumber)) {
+    if (!normalized.firstName || !normalized.surname || !/^(?:\d{13}|UAT-EMP-\d{4,})$/i.test(normalized.idNumber)) {
       throw new Error('Employee details are incomplete.');
     }
 
@@ -716,7 +716,7 @@ export class OfficeAdminService {
 
   async saveEmployees(employees: Employee[]) {
     const normalized = employees.map((employee) => this.normalizeEmployee(employee));
-    if (normalized.some((employee) => !employee.firstName || !employee.surname || !/^\d{13}$/.test(employee.idNumber))) throw new Error('Employee import contains invalid rows.');
+    if (normalized.some((employee) => !employee.firstName || !employee.surname || !/^(?:\d{13}|UAT-EMP-\d{4,})$/i.test(employee.idNumber))) throw new Error('Employee import contains invalid rows.');
     if (this.supabase) {
       const { error } = await this.supabase.from('employees').upsert(normalized.map((employee) => ({
         id: employee.id, organization_id: employee.organizationId, first_name: employee.firstName, surname: employee.surname,
@@ -1397,6 +1397,7 @@ export class OfficeAdminService {
 
   maskIdNumber(idNumber: string) {
     const trimmed = idNumber.trim();
+    if (/^UAT-EMP-\d{4,}$/i.test(trimmed)) return trimmed;
     if (trimmed.length <= 4) return trimmed;
     return `${trimmed.slice(0, 2)}${'*'.repeat(Math.max(trimmed.length - 4, 0))}${trimmed.slice(-2)}`;
   }

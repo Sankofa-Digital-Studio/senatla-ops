@@ -136,9 +136,9 @@ describe('OfficeAdminComponent', () => {
     await TestBed.inject(AuthService).login('office.admin@test.invalid', 'test-password');
     component.employeeImportRows.set([{
       sourceRow: 4, status: 'ready', errors: [], warnings: [], employee: {
-        id: '', firstName: 'Kagiso', surname: 'Dlamini', idNumber: '8001015009087', companyNumber: 'SEN-BULK-001',
+        id: '', firstName: 'Kagiso', surname: 'Dlamini', idNumber: 'UAT-EMP-0001', companyNumber: 'SEN-BULK-001',
         role: 'Foreman', designation: 'Crew Supervisor', siteId: 'site-1', startDate: '2026-07-15',
-        basicRate: 720, payRateUnit: 'daily', safetyQualifications: ['HIRA'], additionalFields: {},
+        basicRate: 0, payRateUnit: 'daily', safetyQualifications: ['HIRA'], additionalFields: {},
         salaryAdvances: 0, financials: {}, logs: {}, adjustments: {}, employmentStatus: 'active',
       },
     }]);
