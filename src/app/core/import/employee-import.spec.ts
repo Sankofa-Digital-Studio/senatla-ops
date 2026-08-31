@@ -2,55 +2,39 @@ import { stageEmployeeCsv } from './employee-import';
 
 describe('stageEmployeeCsv', () => {
   const csv = [
-    'SENATLA EMPLOYEES,,,,,,,',
-    'TARGET,,,,,,,',
-    'Names,ID No,Company No,Designation,Emp.Start Date,Rate P/D,Xtream Safety,Shirt Size',
-    'Anele Zulu,9001015009087,EMP-001,Excavator Op,01/08/2026,R 650.00,"First Aid Level 1, HIRA",L',
-    'Names,ID No,Company No,Designation,Emp.Start Date,Rate P/D,Xtream Safety,Shirt Size',
+    'Names,ID No,Company No,Designation,Emp.Start Date,Rate P/D,Xtream Safety,Source Reference',
+    'Anele Zulu,9001015009087,EMP-001,Excavator Op,2026-08-01,650,"First Aid Level 1; HIRA",Workforce PDF p.4',
   ].join('\n');
 
-  it('maps every supplied Senatla field and preserves future columns', () => {
+  it('creates a generated UAT reference and never retains source ID or rate data', () => {
     const rows = stageEmployeeCsv(csv, 'site-1');
     expect(rows.length).toBe(1);
     expect(rows[0].status).toBe('ready');
     expect(rows[0].employee).toEqual(jasmine.objectContaining({
-      firstName: 'Anele', surname: 'Zulu', idNumber: '9001015009087', companyNumber: 'EMP-001',
-      designation: 'Excavator Op', role: 'Operator', startDate: '2026-08-01', basicRate: 650, payRateUnit: 'daily',
+      firstName: 'Anele', surname: 'Zulu', idNumber: 'UAT-EMP-0001', companyNumber: 'EMP-001',
+      designation: 'Excavator Op', role: 'Operator', startDate: '2026-08-01', basicRate: 0, payRateUnit: 'daily',
     }));
     expect(rows[0].employee.safetyQualifications).toEqual(['First Aid Level 1', 'HIRA']);
-    expect(rows[0].employee.additionalFields).toEqual({ shirt_size: 'L' });
+    expect(rows[0].employee.additionalFields).toEqual({ source_reference: 'Workforce PDF p.4' });
+    expect(JSON.stringify(rows)).not.toContain('9001015009087');
+    expect(JSON.stringify(rows)).not.toContain('650');
   });
 
-  it('blocks duplicates and requires explicit site assignment', () => {
-    const rows = stageEmployeeCsv(csv, '', [{
-      id: 'existing', firstName: 'Existing', surname: 'Worker', idNumber: '9001015009087', companyNumber: 'EMP-001',
-      role: 'Operator', siteId: 'site-1', startDate: '2026-01-01', basicRate: 500, salaryAdvances: 0,
-      financials: {}, logs: {}, adjustments: {},
-    }]);
-    expect(rows[0].status).toBe('error');
-    expect(rows[0].errors.join(' ')).toContain('duplicates');
-    expect(rows[0].errors.join(' ')).toContain('Select a site');
+  it('increments generated references from existing UAT records', () => {
+    const existing = [{ id: 'existing', firstName: 'Existing', surname: 'Worker', idNumber: 'UAT-EMP-0041', role: 'Operator' as const, siteId: 'site-1', startDate: '2026-01-01', basicRate: 0, salaryAdvances: 0, financials: {}, logs: {}, adjustments: {} }];
+    expect(stageEmployeeCsv(csv, 'site-1', existing)[0].employee.idNumber).toBe('UAT-EMP-0042');
   });
 
-  it('treats company numbers case-insensitively when checking duplicates', () => {
-    const rows = stageEmployeeCsv(csv, 'site-1', [{
-      id: 'existing', firstName: 'Existing', surname: 'Worker', idNumber: '8001015009087', companyNumber: 'emp-001',
-      role: 'Operator', siteId: 'site-1', startDate: '2026-01-01', basicRate: 500, salaryAdvances: 0,
-      financials: {}, logs: {}, adjustments: {},
-    }]);
-
-    expect(rows[0].status).toBe('error');
-    expect(rows[0].errors).toContain('Company number duplicates an existing or staged employee.');
+  it('detects duplicate source IDs without disclosing them and requires a site', () => {
+    const rows = stageEmployeeCsv(`${csv}\nBongi Ndlovu,9001015009087,EMP-002,Driver,2026-08-02,700,,`, '');
+    expect(rows[0].errors).toContain('Select a site before importing.');
+    expect(rows[1].errors).toContain('Source identifier duplicates another staged employee.');
+    expect(JSON.stringify(rows[1].errors)).not.toContain('9001015009087');
   });
 
-  it('accepts formatted existing ID numbers when checking duplicates', () => {
-    const rows = stageEmployeeCsv(csv, 'site-1', [{
-      id: 'existing', firstName: 'Existing', surname: 'Worker', idNumber: '900101-5009-087', companyNumber: 'EMP-777',
-      role: 'Operator', siteId: 'site-1', startDate: '2026-01-01', basicRate: 500, salaryAdvances: 0,
-      financials: {}, logs: {}, adjustments: {},
-    }]);
-
-    expect(rows[0].status).toBe('error');
-    expect(rows[0].errors).toContain('ID number duplicates an existing or staged employee.');
+  it('detects duplicate company numbers and rejects sensitive columns', () => {
+    const existing = [{ id: 'existing', firstName: 'Existing', surname: 'Worker', idNumber: 'UAT-EMP-0001', companyNumber: 'emp-001', role: 'Operator' as const, siteId: 'site-1', startDate: '2026-01-01', basicRate: 0, salaryAdvances: 0, financials: {}, logs: {}, adjustments: {} }];
+    expect(stageEmployeeCsv(csv, 'site-1', existing)[0].errors).toContain('Company number duplicates an existing or staged employee.');
+    expect(() => stageEmployeeCsv('Names,Tax Number\nAnele Zulu,123', 'site-1')).toThrowError(/disallowed sensitive column/i);
   });
 });

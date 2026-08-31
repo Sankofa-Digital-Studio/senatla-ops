@@ -5,7 +5,7 @@
       <div class="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 class="text-2xl font-bold">Control Centre</h1>
-          <p class="mt-1 text-sm text-gray-400">People, access, assets, payroll, issues, and audit in one workspace.</p>
+          <p class="mt-1 text-sm text-gray-400">People, access, assets, issues, and audit in one workspace.</p>
         </div>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div *ngFor="let item of service.attentionItems()" class="rounded-lg border border-gray-800 bg-gray-950 px-3 py-2">
@@ -187,7 +187,7 @@
               <div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-[10px] uppercase tracking-wider text-gray-500">Designation</dt><dd class="mt-1 font-semibold">{{ employee.designation || employee.role }}</dd></div>
               <div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-[10px] uppercase tracking-wider text-gray-500">Employment start</dt><dd class="mt-1 font-semibold">{{ employee.startDate | date:'mediumDate' }}</dd></div>
               <div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-[10px] uppercase tracking-wider text-gray-500">Status</dt><dd class="mt-1 font-semibold">{{ employee.employmentStatus || 'active' }}</dd></div>
-              <div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-[10px] uppercase tracking-wider text-gray-500">Pay rate</dt><dd class="mt-1 font-semibold">R {{ employee.basicRate | number:'1.2-2' }} / {{ employee.payRateUnit || 'daily' }}</dd></div>
+
             </dl>
             <article class="mt-4 rounded-xl border border-gray-800 bg-gray-950 p-3"><h3 class="text-xs font-bold uppercase tracking-wider text-gray-400">Safety qualifications</h3><div class="mt-2 flex flex-wrap gap-2"><span *ngFor="let qualification of employee.safetyQualifications" class="rounded-full bg-emerald-950 px-2 py-1 text-xs text-emerald-200">{{ qualification }}</span><span *ngIf="!employee.safetyQualifications?.length" class="text-xs text-gray-500">None captured</span></div><dl *ngIf="employee.additionalFields | keyvalue as fields" class="mt-3 grid gap-2 sm:grid-cols-2"><div *ngFor="let field of fields"><dt class="text-[10px] uppercase text-gray-500">{{ field.key }}</dt><dd class="text-xs text-gray-300">{{ field.value }}</dd></div></dl></article>
             <div class="mt-4 grid gap-3 md:grid-cols-2">
@@ -201,21 +201,21 @@
             <div class="mt-4 grid gap-3 md:grid-cols-2">
               <input [(ngModel)]="personForm.firstName" placeholder="First name" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
               <input [(ngModel)]="personForm.surname" placeholder="Surname" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-              <input [(ngModel)]="personForm.idNumber" placeholder="13-digit ID number" maxlength="13" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
+              <input [(ngModel)]="personForm.idNumber" placeholder="UAT employee reference" maxlength="12" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
               <input [(ngModel)]="personForm.companyNumber" placeholder="Company employee number" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
               <input [(ngModel)]="personForm.designation" placeholder="Actual designation" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-              <input [(ngModel)]="personForm.basicRate" type="number" placeholder="Basic rate" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-              <select [(ngModel)]="personForm.payRateUnit" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="hourly">Hourly rate</option><option value="daily">Daily rate</option><option value="monthly">Monthly rate</option></select>
+
+
               <select [(ngModel)]="personForm.role" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="General Worker">General Worker</option><option value="Driver">Driver</option><option value="Safety Rep">SHE Rep</option><option value="Operator">Heavy Machinery Operator</option><option value="Foreman">Foreman</option></select>
               <select [(ngModel)]="personForm.siteId" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="">Select site</option><option *ngFor="let site of service.activeSites()" [value]="site.id">{{ site.name }}</option></select>
               <select [(ngModel)]="personForm.employmentStatus" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="active">Active</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option></select>
               <button type="button" (click)="loadSyntheticEmployeeCandidate()" class="rounded-lg border border-emerald-700 px-4 py-3 text-sm font-bold text-emerald-200 md:col-span-2">Load synthetic test candidate</button>
-              <button type="button" (click)="submitEmployee()" [disabled]="busy() || !personForm.firstName.trim() || !personForm.surname.trim() || !personForm.siteId || !personForm.idNumber.match('^[0-9]{13}$')" class="rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50 md:col-span-2">Review employee change</button>
+              <button type="button" (click)="submitEmployee()" [disabled]="busy() || !personForm.firstName.trim() || !personForm.surname.trim() || !personForm.siteId || !personForm.idNumber.match('^UAT-EMP-[0-9]{4,}$')" class="rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50 md:col-span-2">Review employee change</button>
             </div>
             <section *ngIf="pendingEmployeeCandidate() as candidate" class="mt-4 rounded-xl border border-amber-700 bg-amber-950/30 p-4" aria-live="polite">
               <p class="text-[10px] font-bold uppercase tracking-wider text-amber-300">Approval required - no database write yet</p>
               <h3 class="mt-2 font-semibold text-white">{{ candidate.firstName }} {{ candidate.surname }}</h3>
-              <p class="mt-1 text-xs text-gray-300">{{ candidate.companyNumber || 'No company number' }} / {{ candidate.designation || candidate.role }} / R {{ candidate.basicRate | number:'1.2-2' }} per {{ candidate.payRateUnit || 'daily' }}</p>
+              <p class="mt-1 text-xs text-gray-300">{{ candidate.companyNumber || 'No company number' }} / {{ candidate.designation || candidate.role }} / {{ candidate.idNumber }}</p>
               <p class="mt-1 text-xs text-gray-400">{{ service.getSiteName(candidate.siteId) }} / {{ candidate.startDate | date:'mediumDate' }} / {{ candidate.safetyQualifications?.join(', ') || 'No qualifications captured' }}</p>
               <div class="mt-3 flex flex-wrap gap-2"><button type="button" (click)="approveEmployeeCandidate()" [disabled]="busy()" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold uppercase text-black">Approve and save</button><button type="button" (click)="cancelEmployeeCandidate()" [disabled]="busy()" class="rounded-lg border border-gray-600 px-4 py-2 text-xs font-bold uppercase text-gray-200">Discard staged change</button></div>
             </section>
@@ -226,7 +226,7 @@
         <div class="grid gap-4 xl:grid-cols-2">
           <article class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
             <h2 class="text-sm font-bold uppercase tracking-wider text-gray-300">Employee bulk load</h2>
-            <p class="mt-2 text-xs text-gray-400">Staged CSV import supports: Names, ID No, Company No, Designation, Emp.Start Date, Rate P/D, Xtream Safety. New columns are retained as additional fields.</p>
+            <p class="mt-2 text-xs text-gray-400">Staged CSV import supports: Names, optional source ID for duplicate detection only, Company No, Designation, Emp.Start Date, Xtream Safety, Employment Status, and Source Reference. Each accepted row receives a generated UAT employee reference; source IDs and rates are never retained.</p>
             <label class="mt-4 block text-xs text-gray-400">Assign imported employees to site<select [ngModel]="selectedSiteId()" (ngModelChange)="selectedSiteId.set($event); employeeImportRows.set([])" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><option value="">Select site before staging</option><option *ngFor="let site of service.activeSites()" [value]="site.id">{{ site.name }}</option></select></label>
             <label class="mt-4 block cursor-pointer rounded-xl border border-dashed border-gray-700 bg-gray-950 p-5 text-center text-sm text-gray-300">Choose employee CSV<input type="file" accept=".csv,text/csv" (change)="importEmployees($event)" class="sr-only"></label>
             <section *ngIf="employeeImportRows().length" class="mt-4 space-y-3" aria-live="polite">
@@ -234,7 +234,7 @@
               <div class="max-h-80 space-y-2 overflow-y-auto">
                 <article *ngFor="let row of employeeImportRows()" class="rounded-lg border border-gray-800 bg-gray-950 p-3">
                   <div class="flex justify-between gap-2"><strong class="text-sm text-white">{{ row.employee.surname }}, {{ row.employee.firstName }}</strong><span class="text-[10px] font-bold uppercase" [class.text-red-300]="row.status === 'error'" [class.text-amber-300]="row.status === 'warning'" [class.text-emerald-300]="row.status === 'ready'">Row {{ row.sourceRow }} / {{ row.status }}</span></div>
-                  <p class="mt-1 text-xs text-gray-400">{{ row.employee.companyNumber || 'No company number' }} / {{ row.employee.designation || 'No designation' }} / R {{ row.employee.basicRate | number:'1.2-2' }} per day</p>
+                  <p class="mt-1 text-xs text-gray-400">{{ row.employee.companyNumber || 'No company number' }} / {{ row.employee.designation || 'No designation' }} / {{ row.employee.idNumber }}</p>
                   <p *ngFor="let error of row.errors" class="mt-1 text-xs text-red-300">{{ error }}</p><p *ngFor="let warning of row.warnings" class="mt-1 text-xs text-amber-300">{{ warning }}</p>
                 </article>
               </div>
@@ -359,7 +359,7 @@
         <div class="flex flex-col gap-3 border-b border-gray-800 pb-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 class="text-base font-bold">Timesheet Register</h2>
-            <p class="mt-1 text-xs text-gray-400">Review daily site attendance before payroll processing.</p>
+            <p class="mt-1 text-xs text-gray-400">Review daily site attendance for operational reconciliation.</p>
           </div>
           <div class="grid gap-2 sm:grid-cols-3 lg:min-w-[640px]">
             <label class="text-xs text-gray-400">Work date
@@ -402,70 +402,7 @@
           <app-ui-button variant="primary" size="sm" [disabled]="!timesheetRows().length" (pressed)="exportTimesheetRegister()">Export CSV</app-ui-button>
         </div>
       </section>
-
-      <section *ngIf="activeTab() === 'payroll'" class="space-y-4">
-        <div class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div class="grid grid-cols-2 gap-3">
-              <label class="text-xs text-gray-400">Month
-                <select [ngModel]="month()" (ngModelChange)="month.set(+$event)" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-                  <option *ngFor="let m of [0,1,2,3,4,5,6,7,8,9,10,11]" [ngValue]="m">{{ m + 1 }}</option>
-                </select>
-              </label>
-              <label class="text-xs text-gray-400">Year
-                <input [ngModel]="year()" (ngModelChange)="year.set(+$event)" type="number" class="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-              </label>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <label class="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300"><input type="checkbox" [ngModel]="includeFullIds()" (ngModelChange)="includeFullIds.set($event)" class="accent-yellow-500">Include full IDs</label>
-              <button type="button" (click)="lockPayroll()" [disabled]="busy()" class="rounded-lg border border-gray-700 px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-200">Lock</button>
-              <button type="button" (click)="exportPayroll()" [disabled]="busy()" class="rounded-lg bg-yellow-500 px-4 py-2 text-xs font-bold uppercase tracking-wider text-black disabled:opacity-50">Export CSV</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <div class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-            <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Pay Run</h2>
-            <div class="mt-4 space-y-3">
-              <div *ngFor="let employee of service.activeEmployees()" class="rounded-xl border border-gray-800 bg-gray-950 px-3 py-3">
-                <ng-container *ngIf="getPayroll(employee.id) as pay">
-                  <div class="flex items-center justify-between gap-3">
-                    <div><p class="font-semibold">{{ employee.surname }}, {{ employee.firstName }}</p><p class="text-xs text-gray-500">{{ service.maskIdNumber(employee.idNumber) }} · {{ service.getSiteName(employee.siteId) }}</p></div>
-                    <div class="text-right"><p class="text-sm font-bold text-yellow-400">R {{ pay.netPay | number:'1.2-2' }}</p><p class="text-xs text-gray-500">{{ pay.daysWorked }} days</p></div>
-                  </div>
-                </ng-container>
-              </div>
-            </div>
-          </div>
-
-          <div class="space-y-4">
-            <div class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-              <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Export History</h2>
-              <div class="mt-4 space-y-3">
-                <div *ngFor="let exportRecord of service.payrollExports().slice(0, 8)" class="rounded-xl border border-gray-800 bg-gray-950 px-3 py-3">
-                  <p class="font-semibold">{{ exportRecord.fileName }}</p>
-                  <p class="text-xs text-gray-500">{{ exportRecord.createdAt | date:'short' }} · {{ exportRecord.requestedBy }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
-              <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Financial Types</h2>
-              <div class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto_auto]">
-                <input [(ngModel)]="financialTypeForm.id" placeholder="Code" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-                <input [(ngModel)]="financialTypeForm.name" placeholder="Name" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-                <select [(ngModel)]="financialTypeForm.category" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white">
-                  <option value="Allowance">Allowance</option><option value="Deduction">Deduction</option>
-                </select>
-                <button type="button" (click)="submitFinancialType()" [disabled]="busy()" class="rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-200">Save</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section *ngIf="activeTab() === 'vendors'" class="space-y-4">
+<section *ngIf="activeTab() === 'vendors'" class="space-y-4">
         <div class="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
           <article class="rounded-2xl border border-gray-800 bg-gray-900 p-4"><h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Supplier / vendor account</h2><p class="mt-1 text-xs text-gray-500">Create the vendor first, then submit invoice details to Director approval.</p><div class="mt-4 space-y-3"><input [(ngModel)]="vendorForm.name" placeholder="Vendor name" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><textarea [(ngModel)]="vendorForm.description" rows="3" placeholder="General description" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"></textarea><input [(ngModel)]="vendorForm.totalOwingAmount" type="number" min="0" placeholder="Opening amount owing" class="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><button type="button" (click)="submitVendorAccount()" [disabled]="busy() || !vendorForm.name.trim()" class="w-full rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50">Save Vendor</button></div></article>
           <article class="rounded-2xl border border-gray-800 bg-gray-900 p-4"><h2 class="text-sm font-bold uppercase tracking-wider text-gray-400">Invoice to Director</h2><div class="mt-4 grid gap-3 md:grid-cols-2"><select [(ngModel)]="vendorInvoiceForm.vendorId" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white md:col-span-2"><option value="">Select vendor</option><option *ngFor="let vendor of service.vendorAccounts()" [value]="vendor.id">{{ vendor.name }}</option></select><input [(ngModel)]="vendorInvoiceForm.invoiceDate" type="date" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><input [(ngModel)]="vendorInvoiceForm.orderNumber" placeholder="Order number" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><textarea [(ngModel)]="vendorInvoiceForm.itemsPurchased" rows="3" placeholder="Items purchased" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white md:col-span-2"></textarea><input [(ngModel)]="vendorInvoiceForm.total" type="number" min="0" placeholder="Invoice total" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><input [(ngModel)]="vendorInvoiceForm.responsiblePerson" placeholder="Responsible person" class="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"><button type="button" (click)="submitVendorInvoice()" [disabled]="busy() || !vendorInvoiceForm.vendorId || !vendorInvoiceForm.invoiceDate || !vendorInvoiceForm.orderNumber.trim() || !vendorInvoiceForm.itemsPurchased.trim() || !vendorInvoiceForm.responsiblePerson.trim() || vendorInvoiceForm.total <= 0" class="rounded-lg bg-yellow-500 px-4 py-3 text-sm font-bold text-black disabled:opacity-50 md:col-span-2">Submit invoice for Director approval</button></div></article>
@@ -535,7 +472,7 @@
       <section *ngIf="activeTab() === 'settings'" class="grid gap-4 lg:grid-cols-2">
         <article class="rounded-2xl border border-gray-800 bg-gray-900 p-5">
           <h2 class="text-sm font-bold uppercase tracking-wider text-gray-300">Workspace settings</h2>
-          <p class="mt-2 text-sm leading-6 text-gray-400">Review operational readiness before payroll, asset and workforce work is released.</p>
+          <p class="mt-2 text-sm leading-6 text-gray-400">Review operational readiness before asset and workforce work is released.</p>
           <div class="mt-5 space-y-5">
             <div><div class="flex justify-between text-xs"><span class="text-gray-300">New-hire readiness</span><strong class="text-yellow-400">{{ onboardingProgress() }}%</strong></div><div class="mt-2 h-2 overflow-hidden rounded-full bg-gray-800"><div class="h-full bg-yellow-500" [style.width.%]="onboardingProgress()"></div></div></div>
             <div><div class="flex justify-between text-xs"><span class="text-gray-300">Integration sync health</span><strong class="text-emerald-400">{{ syncProgress() }}%</strong></div><div class="mt-2 h-2 overflow-hidden rounded-full bg-gray-800"><div class="h-full bg-emerald-500" [style.width.%]="syncProgress()"></div></div></div>
@@ -543,7 +480,7 @@
         </article>
         <article class="rounded-2xl border border-gray-800 bg-gray-900 p-5">
           <h2 class="text-sm font-bold uppercase tracking-wider text-gray-300">Administration defaults</h2>
-          <dl class="mt-4 space-y-3 text-sm"><div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-gray-500">Default access</dt><dd class="mt-1 font-semibold">Least privilege / Site</dd></div><div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-gray-500">Payroll identifiers</dt><dd class="mt-1 font-semibold">Masked unless explicitly approved</dd></div><div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-gray-500">Audit retention</dt><dd class="mt-1 font-semibold">Immutable activity history</dd></div></dl>
+          <dl class="mt-4 space-y-3 text-sm"><div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-gray-500">Default access</dt><dd class="mt-1 font-semibold">Least privilege / Site</dd></div><div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-gray-500">Workforce identifiers</dt><dd class="mt-1 font-semibold">Generated UAT references only</dd></div><div class="rounded-xl border border-gray-800 bg-gray-950 p-3"><dt class="text-gray-500">Audit retention</dt><dd class="mt-1 font-semibold">Immutable activity history</dd></div></dl>
         </article>
       </section>
 

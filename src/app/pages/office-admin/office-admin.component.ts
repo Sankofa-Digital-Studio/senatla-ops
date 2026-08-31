@@ -28,7 +28,7 @@ import { TimesheetRegisterService } from '../../core/services/timesheet-register
 import { downloadTextFile } from '../../core/utils/browser-file.util';
 import { EmployeeImportRow, stageEmployeeCsv } from '../../core/import/employee-import';
 
-type AdminTab = 'overview' | 'users' | 'people' | 'workforce' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'payroll' | 'vendors' | 'approvals' | 'recovery' | 'activity' | 'settings' | 'account';
+type AdminTab = 'overview' | 'users' | 'people' | 'workforce' | 'timesheets' | 'sites' | 'issues' | 'assets' | 'vendors' | 'approvals' | 'recovery' | 'activity' | 'settings' | 'account';
 
 @Component({
   selector: 'app-office-admin',
@@ -45,12 +45,11 @@ export class OfficeAdminComponent {
     { id: 'overview', label: 'Overview', group: 'Workspace' },
     { id: 'people', label: 'Current', group: 'Workforce' },
     { id: 'workforce', label: 'New Hires & PPE', group: 'Workforce' },
-    { id: 'timesheets', label: 'Timesheets & Payroll', group: 'Workforce' },
+    { id: 'timesheets', label: 'Timesheets', group: 'Workforce' },
     { id: 'users', label: 'Access Control', group: 'Administration' },
     { id: 'sites', label: 'Sites', group: 'Operations' },
     { id: 'assets', label: 'Assets', group: 'Operations' },
     { id: 'issues', label: 'Issues', group: 'Operations' },
-    { id: 'payroll', label: 'Payroll', group: 'Finance' },
     { id: 'vendors', label: 'Vendors', group: 'Finance' },
     { id: 'approvals', label: 'Approvals', group: 'Finance' },
     { id: 'recovery', label: 'Recovery', group: 'System' },
@@ -320,8 +319,8 @@ export class OfficeAdminComponent {
   loadSyntheticEmployeeCandidate() {
     const siteId = this.selectedSiteId() || this.service.activeSites()[0]?.id || '';
     this.personForm = {
-      id: '', firstName: 'Lerato', surname: 'Mokoena', idNumber: '9001015009087', companyNumber: 'SEN-DEMO-014',
-      role: 'Operator', designation: 'Excavator Operator', siteId, startDate: '2026-08-01', basicRate: 680,
+      id: '', firstName: 'Lerato', surname: 'Mokoena', idNumber: 'UAT-EMP-0001', companyNumber: 'SEN-DEMO-014',
+      role: 'Operator', designation: 'Excavator Operator', siteId, startDate: '2026-08-01', basicRate: 0,
       payRateUnit: 'daily', safetyQualifications: ['First Aid Level 1', 'HIRA', 'Excavator Operator'],
       additionalFields: { source: 'Synthetic approval test candidate' }, salaryAdvances: 0,
       financials: { travel: 0, housing: 0, advance: 0 }, logs: {}, adjustments: {}, employmentStatus: 'active',
