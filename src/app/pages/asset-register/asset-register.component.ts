@@ -137,16 +137,15 @@ export class AssetRegisterComponent {
     try {
       const draft = this.activeDraft();
       const savedDraft = draft ? await this.registration.saveDraft({ ...draft, asset: { ...this.assetForm } }) : null;
-      const savedId = this.assetForm.id;
-      await this.service.saveAsset(this.assetForm);
+      const savedAsset = await this.service.saveAsset(this.assetForm);
       if (savedDraft) {
-        await this.registration.completeDraft(savedDraft, this.assetForm.id);
+        await this.registration.completeDraft(savedDraft, savedAsset.id);
         const reminderResult = await this.registration.scheduleReminders(this.assetForm);
         this.registrationMessage.set(reminderResult.native
           ? `${reminderResult.scheduled} device reminders scheduled.`
           : 'Registration completed. Reminder dates are recorded; device scheduling activates in the installed mobile app.');
       }
-      this.selectedAssetId.set(savedId || this.service.assets()[0]?.id || '');
+      this.selectedAssetId.set(savedAsset.id);
       this.overlayMode.set(null);
       this.activeDraft.set(null);
       this.assetForm = this.newAsset(this.activeWorkspace());

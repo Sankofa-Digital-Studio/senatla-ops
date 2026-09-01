@@ -1029,6 +1029,7 @@ export class OfficeAdminService {
       status: normalized.status,
       assignedSiteId: normalized.assignedSiteId ?? null,
     });
+    return normalized;
   }
 
   previewAssetCsv(csv: string): AssetImportPreview {

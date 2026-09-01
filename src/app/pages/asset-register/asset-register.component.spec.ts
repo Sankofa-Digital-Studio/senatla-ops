@@ -90,7 +90,10 @@ describe('AssetRegisterComponent', () => {
     component.detailsVerified.set(true);
     await component.saveAsset();
 
-    expect(component.service.assets().some((asset) => asset.serialNumber === 'OCR-SERIAL-001')).toBeTrue();
+    const registered = component.service.assets().find((asset) => asset.serialNumber === 'OCR-SERIAL-001');
+    expect(registered).toBeTruthy();
+    const completedDraft = component.registration.drafts().find((draft) => draft.completedAssetId === registered?.id);
+    expect(completedDraft?.state).toBe('completed');
   });
   it('records validation messages and inspect logs when a registration draft is saved', async () => {
     component.openRegister();
