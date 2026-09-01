@@ -1,81 +1,52 @@
-import { CommonModule, DecimalPipe, DatePipe } from '@angular/common';
-import { Component, inject, computed, signal } from '@angular/core';
+import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
 import { StaffDataService } from 'src/app/core/services/staff-data.service';
 import { OfficeAdminService } from 'src/app/core/services/office-admin.service';
 
 @Component({
-  selector: 'app-director',
-  templateUrl: './director.component.html',
-  styleUrls: ['./director.component.scss'],
-  standalone: true,
+  selector: 'app-director', templateUrl: './director.component.html', styleUrls: ['./director.component.scss'], standalone: true,
   imports: [CommonModule, DecimalPipe, DatePipe],
 })
 export class DirectorComponent {
-  service = inject(StaffDataService);
-  office = inject(OfficeAdminService);
-  viewMode = signal<'day' | 'month' | 'year'>('day');
-
-  private readonly periodSyncs = computed(() => this.service.syncHistory().filter((entry) => this.isInSelectedPeriod(entry.syncTime)));
-
-  complianceScore = computed(() => {
-    const history = this.periodSyncs();
-    if (history.length === 0) return 0;
-    const onTime = history.filter((entry) => entry.status === 'On Time').length;
-    return (onTime / history.length) * 100;
+  readonly service = inject(StaffDataService);
+  readonly office = inject(OfficeAdminService);
+  readonly viewMode = signal<'day' | 'month' | 'year'>('day');
+  readonly staff = computed(() => this.office.employees());
+  readonly sites = computed(() => this.office.sites());
+  readonly presentCount = computed(() => this.attendance('present'));
+  readonly absentCount = computed(() => this.attendance('absent'));
+  readonly pendingInvoices = computed(() => this.office.vendorInvoices().filter((invoice) => invoice.status === 'pending_director'));
+  readonly pendingInvoiceAmount = computed(() => this.pendingInvoices().reduce((total, invoice) => total + invoice.total, 0));
+  readonly periodInvoiceAmount = computed(() => this.office.vendorInvoices().filter((invoice) => this.inPeriod(invoice.invoiceDate)).reduce((total, invoice) => total + invoice.total, 0));
+  readonly pendingApprovals = computed(() => this.office.approvals().filter((request) => request.status === 'pending' && request.requestType !== 'full_id_payroll_export'));
+  readonly assetSummary = computed(() => {
+    const assets = this.office.assets();
+    const blocked = assets.filter((asset) => this.assetState(asset) === 'blocked').length;
+    const attention = assets.filter((asset) => this.assetState(asset) === 'attention').length;
+    return { total: assets.length, ready: Math.max(0, assets.length - blocked - attention), attention, blocked };
   });
-
-  presentCount = computed(() => {
-    const today = this.toDateKey(this.service.currentTime());
-    return this.service.employees().filter((employee) => employee.logs[today]?.status === 'present').length;
+  readonly siteStats = computed(() => this.sites().filter((site) => site.isActive).map((site) => {
+    const people = this.staff().filter((employee) => employee.siteId === site.id);
+    return { name: site.name, location: site.location, staffCount: people.length, present: people.filter((employee) => employee.logs[this.today()]?.status === 'present').length };
+  }));
+  readonly risks = computed(() => [
+    ...this.office.assets().filter((asset) => this.assetState(asset) !== 'ready').map((asset) => ({ label: `${asset.make} ${asset.model}`, detail: this.assetState(asset) === 'blocked' ? 'Out of service' : 'Needs attention', severity: this.assetState(asset) })),
+    ...this.office.integrationOutbox().filter((event) => event.status === 'failed').map((event) => ({ label: 'Integration delivery', detail: `${event.eventType} failed`, severity: 'blocked' })),
+  ].slice(0, 6));
+  readonly dataAsOf = computed(() => {
+    const dates = [this.service.currentTime(), ...this.office.activity().map((item) => new Date(item.occurredAt)), ...this.office.vendorInvoices().map((item) => new Date(item.updatedAt))]
+      .filter((date) => !Number.isNaN(date.getTime()));
+    return new Date(Math.max(...dates.map((date) => date.getTime())));
   });
-
-  absentCount = computed(() => {
-    const today = this.toDateKey(this.service.currentTime());
-    return this.service.employees().filter((employee) => employee.logs[today]?.status === 'absent').length;
-  });
-
-  ppeExpense = computed(() => this.office.ppeIssues()
-    .filter((entry) => this.isDateKeyInSelectedPeriod((entry.orderDate || entry.requestedAt).slice(0, 10)))
-    .reduce((total, entry) => total + entry.unitCost, 0));
-
-  fuelExpense = computed(() => this.office.assetFuelEntries()
-    .filter((entry) => this.isDateKeyInSelectedPeriod(entry.fuelDate))
-    .reduce((total, entry) => total + entry.totalCost, 0));
-
-  vendorPayables = computed(() => this.office.vendorAccounts()
-    .reduce((total, vendor) => total + vendor.totalOwingAmount, 0));
-
-  pendingVendorInvoices = computed(() => this.office.vendorInvoices().filter((invoice) => invoice.status === 'pending_director'));
-  recentVendorInvoices = computed(() => this.office.vendorInvoices().slice(0, 8));
-
-  vendorName(vendorId: string) {
-    return this.office.vendorAccounts().find((vendor) => vendor.id === vendorId)?.name || 'Unknown vendor';
+  vendorName(vendorId: string) { return this.office.vendorAccounts().find((vendor) => vendor.id === vendorId)?.name || 'Unknown vendor'; }
+  private attendance(status: 'present' | 'absent') { return this.staff().filter((employee) => employee.logs[this.today()]?.status === status).length; }
+  private assetState(asset: { id: string; status: string; lifecycleState?: string; licenseExpiry: string }) {
+    if (asset.status === 'Expired' || ['retired', 'disposed'].includes(asset.lifecycleState || '')) return 'blocked';
+    const work = this.office.assetWorkOrders().some((item) => item.assetId === asset.id && !['completed', 'cancelled'].includes(item.status) && ['critical', 'high'].includes(item.priority));
+    if (work) return 'blocked';
+    const compliance = this.office.assetComplianceRecords().some((item) => item.assetId === asset.id && ['due', 'expired'].includes(item.status));
+    return asset.status === 'Maintenance' || compliance || new Date(`${asset.licenseExpiry}T23:59:59`).getTime() < Date.now() ? 'attention' : 'ready';
   }
-
-  siteStats = computed(() => this.service.sites().map((site) => ({
-    name: site.name,
-    location: site.location,
-    staffCount: this.service.employees().filter((employee) => employee.siteId === site.id).length,
-  })));
-
-  recentSyncs = computed(() => this.service.syncHistory().slice(0, 5));
-  highestRiskSync = computed(() => this.service.syncHistory().find((entry) => entry.status !== 'On Time') || null);
-
-  private isInSelectedPeriod(value: Date) {
-    return this.isDateKeyInSelectedPeriod(this.toDateKey(new Date(value)));
-  }
-
-  private isDateKeyInSelectedPeriod(dateKey: string) {
-    const currentKey = this.toDateKey(this.service.currentTime());
-    if (this.viewMode() === 'day') return dateKey === currentKey;
-    if (this.viewMode() === 'month') return dateKey.startsWith(currentKey.slice(0, 7));
-    return dateKey.startsWith(currentKey.slice(0, 4));
-  }
-
-  private toDateKey(value: Date): string {
-    const year = value.getFullYear();
-    const month = `${value.getMonth() + 1}`.padStart(2, '0');
-    const day = `${value.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
+  private inPeriod(value: string) { const today = this.today(); return this.viewMode() === 'day' ? value === today : this.viewMode() === 'month' ? value.startsWith(today.slice(0, 7)) : value.startsWith(today.slice(0, 4)); }
+  private today() { const now = this.service.currentTime(); return `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, '0')}-${`${now.getDate()}`.padStart(2, '0')}`; }
 }
