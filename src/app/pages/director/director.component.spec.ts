@@ -22,6 +22,14 @@ describe('DirectorComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('presents source-backed executive operational sections with a data-as-of state', () => {
+    const text = fixture.nativeElement.textContent.toLowerCase();
+    expect(text).toContain('data as of');
+    expect(text).toContain('asset readiness');
+    expect(text).toContain('pending invoices');
+    expect(text).toContain('pending approvals');
+    expect(text).toContain('invoice traceability');
+  });
   it('does not expose payroll or wage-derived Director metrics in UAT v1', () => {
     const text = fixture.nativeElement.textContent.toLowerCase();
     for (const forbidden of ['payroll', 'salary', 'basic rate', 'tax', 'actual daily cost', 'actual month cost', 'actual ytd cost', 'cost contribution']) {
