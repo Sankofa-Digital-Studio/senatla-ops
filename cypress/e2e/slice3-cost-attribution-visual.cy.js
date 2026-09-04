@@ -1,6 +1,7 @@
 const organizationId = '00000000-0000-4000-8000-000000000001';
 const northSiteId = '72000000-0000-4000-8000-000000000001';
 const southSiteId = '72000000-0000-4000-8000-000000000002';
+const nowIso = new Date().toISOString();
 const expiresAt = Math.floor(Date.now() / 1000) + 3600;
 
 const costRows = [
@@ -39,6 +40,17 @@ function stubSupabase(role) {
   const email = `${role}.cost.visual@example.test`;
   const accessToken = `${btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }))}.${btoa(JSON.stringify({ sub: userId, role: 'authenticated', exp: expiresAt }))}.test-signature`;
 
+  cy.intercept('GET', '**/assets/runtime-config.json', {
+    statusCode: 200,
+    body: {
+      api: {
+        mode: 'supabase',
+        baseUrl: '',
+        supabaseUrl: 'https://slice3-visual.supabase.co',
+        supabaseAnonKey: accessToken,
+      },
+    },
+  });
   cy.intercept('GET', '**/rest/v1/**', { statusCode: 200, body: [] });
   cy.intercept('POST', '**/rest/v1/**', { statusCode: 201, body: [] });
   cy.intercept('PATCH', '**/rest/v1/**', { statusCode: 200, body: [] });
@@ -50,12 +62,12 @@ function stubSupabase(role) {
       expires_in: 3600,
       expires_at: expiresAt,
       refresh_token: 'slice3-visual-refresh-token',
-      user: { id: userId, email, created_at: '2026-08-01T08:00:00.000Z', last_sign_in_at: '2026-08-23T08:00:00.000Z', app_metadata: {}, user_metadata: {}, aud: 'authenticated' },
+      user: { id: userId, email, created_at: nowIso, last_sign_in_at: nowIso, app_metadata: {}, user_metadata: {}, aud: 'authenticated' },
     },
   }).as(`${role}Login`);
   cy.intercept('GET', '**/auth/v1/user', {
     statusCode: 200,
-    body: { id: userId, email, created_at: '2026-08-01T08:00:00.000Z', last_sign_in_at: '2026-08-23T08:00:00.000Z', app_metadata: {}, user_metadata: {}, aud: 'authenticated' },
+    body: { id: userId, email, created_at: nowIso, last_sign_in_at: nowIso, app_metadata: {}, user_metadata: {}, aud: 'authenticated' },
   });
   cy.intercept('GET', '**/rest/v1/profiles*', {
     statusCode: 200,
@@ -108,7 +120,9 @@ describe('Slice 3 site and job cost-attribution visual contract', () => {
   ]) {
     it(`reconciles the Office Admin cost workbench at ${viewport.name}`, () => {
       login('office', viewport.width, viewport.height);
-      cy.contains('button', 'Cost Attribution').click();
+      cy.get('app-ui-tab-nav', { timeout: 30000 }).should('exist').within(() => {
+        cy.contains('button', 'Cost Attribution').scrollIntoView().click({ force: true });
+      });
       cy.wait('@officeCosts');
       cy.get('[data-testid="cost-source-total"]').should('contain.text', '2,700');
       cy.get('[data-testid="cost-recognized-total"]').should('contain.text', '1,500');

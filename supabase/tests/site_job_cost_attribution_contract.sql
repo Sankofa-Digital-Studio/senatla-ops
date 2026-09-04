@@ -10,6 +10,30 @@ select ok(not has_function_privilege('authenticated','private.prepare_fuel_cost_
 select ok(not has_function_privilege('authenticated','private.prepare_work_order_cost_snapshot()','EXECUTE'),'authenticated cannot execute private work-order helper');
 select ok(not has_function_privilege('authenticated','private.normalize_vendor_site_allocations(uuid,jsonb)','EXECUTE'),'authenticated cannot execute private allocation helper');
 select ok(not has_function_privilege('authenticated','private.guard_vendor_invoice_cost_state()','EXECUTE'),'authenticated cannot execute private invoice helper');
+set local session_replication_role = replica;
+insert into auth.users (
+  instance_id, id, aud, role, email, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, email_change, email_change_token_new, recovery_token
+)
+values
+  ('00000000-0000-0000-0000-000000000000','51000000-0000-4000-8000-000000000001','authenticated','authenticated','cost.director@senatla.test',timezone('utc',now()),'{"provider":"email","providers":["email"]}','{}',timezone('utc',now()),timezone('utc',now()),'','','',''),
+  ('00000000-0000-0000-0000-000000000000','51000000-0000-4000-8000-000000000002','authenticated','authenticated','cost.office@senatla.test',timezone('utc',now()),'{"provider":"email","providers":["email"]}','{}',timezone('utc',now()),timezone('utc',now()),'','','',''),
+  ('00000000-0000-0000-0000-000000000000','51000000-0000-4000-8000-000000000004','authenticated','authenticated','cost.site@senatla.test',timezone('utc',now()),'{"provider":"email","providers":["email"]}','{}',timezone('utc',now()),timezone('utc',now()),'','','','');
+insert into public.profiles (id,username,display_name,role,is_active,organization_id)
+values
+  ('51000000-0000-4000-8000-000000000001','cost.director','Cost Director','director',true,'00000000-0000-4000-8000-000000000001'),
+  ('51000000-0000-4000-8000-000000000002','cost.office','Cost Office','office',true,'00000000-0000-4000-8000-000000000001'),
+  ('51000000-0000-4000-8000-000000000004','cost.site','Cost Site','site',true,'00000000-0000-4000-8000-000000000001');
+insert into public.sites (id,name,location,is_active,organization_id,team_name,job_number,estimated_duration,compliance_checklist)
+values
+  ('52000000-0000-4000-8000-000000000001','Cost North Site','North',true,'00000000-0000-4000-8000-000000000001','North Team','AUDIT-JOB-NORTH','Test fixture only',array[]::text[]),
+  ('52000000-0000-4000-8000-000000000002','Cost South Site','South',true,'00000000-0000-4000-8000-000000000001','South Team','AUDIT-JOB-SOUTH','Test fixture only',array[]::text[]);
+insert into public.employees (id,first_name,surname,id_number,role,site_id,employment_status,start_date,organization_id)
+values ('53000000-0000-4000-8000-000000000001','Cost','Worker','COST-EMP-001','Operator','52000000-0000-4000-8000-000000000001','active',date '2026-01-01','00000000-0000-4000-8000-000000000001');
+insert into public.assets (id,registration_number,serial_number,make,model,type,license_expiry,status,assigned_site_id,organization_id,lifecycle_state,asset_class,notes)
+values ('55000000-0000-4000-8000-000000000001','COST-ASSET-001','COST-SERIAL-001','Synthetic','Cost Unit','Light Vehicle',date '2099-12-31','Active','52000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','active','light_vehicle','Cost attribution fixture');
+set local session_replication_role = origin;
 
 set local role authenticated;
 set local "request.jwt.claims" = '{"sub":"51000000-0000-4000-8000-000000000002","role":"authenticated","exp":4102444800}';
@@ -51,7 +75,8 @@ select throws_ok($$ select * from public.reconcile_site_job_costs(date '2026-08-
 set local "request.jwt.claims" = '{"sub":"51000000-0000-4000-8000-000000000002","role":"authenticated","exp":1}';
 select throws_ok($$ select * from public.reconcile_site_job_costs(date '2026-08-01',date '2026-09-01',null) $$,'42501','Active authenticated session required','expired JWT rejected');
 
-reset role;
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub":"51000000-0000-4000-8000-000000000002","role":"authenticated","exp":4102444800}';
 select ok((select not exists(select 1 from public.reconcile_site_job_costs(date '2026-08-01',date '2026-09-01',null) where source_type='labour_provisional' and recognized_amount<>0)),'provisional labour is never recognized');
 select ok((select not exists(select 1 from public.reconcile_site_job_costs(date '2026-08-01',date '2026-09-01',null) where source_type='labour_provisional' and not (quality_reasons @> array['LABOUR_SOURCE_UNSTRUCTURED','LABOUR_RATE_UNIT_UNDEFINED']::text[]))),'provisional labour carries both quality reasons');
 select is((select count(*) from public.reconcile_site_job_costs(date '2026-08-01',date '2026-09-01',null) where source_id='71000000-0000-4000-8000-000000000005'),1::bigint,'source-level invoice appears once without allocation double count');

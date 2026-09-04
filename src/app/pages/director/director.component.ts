@@ -70,7 +70,8 @@ export class DirectorComponent {
   private costPeriodBounds(now: Date, mode: 'day' | 'month' | 'year') {
     const start = mode === 'day' ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : mode === 'month' ? new Date(now.getFullYear(), now.getMonth(), 1) : new Date(now.getFullYear(), 0, 1);
     const end = mode === 'day' ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) : mode === 'month' ? new Date(now.getFullYear(), now.getMonth() + 1, 1) : new Date(now.getFullYear() + 1, 0, 1);
-    return { start: this.toDateKey(start), endExclusive: this.toDateKey(end) };
+    const key = (value: Date) => `${value.getFullYear()}-${`${value.getMonth() + 1}`.padStart(2, '0')}-${`${value.getDate()}`.padStart(2, '0')}`;
+    return { start: key(start), endExclusive: key(end) };
   }
   vendorName(vendorId: string) { return this.office.vendorAccounts().find((vendor) => vendor.id === vendorId)?.name || 'Unknown vendor'; }
   private attendance(status: 'present' | 'absent') { return this.staff().filter((employee) => employee.logs[this.today()]?.status === status).length; }
