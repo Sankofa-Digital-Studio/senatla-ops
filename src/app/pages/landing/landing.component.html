@@ -29,7 +29,13 @@
       <nav class="desktop-menu" aria-label="Primary navigation">
         <a href="#capabilities">Capabilities</a>
         <a href="#assurance">Assurance</a>
-        <a href="https://github.com/Sankofa-Digital-Studio/senatla-ops/releases/download/dev-latest/senatla-ops-dev.apk" download>Android APK</a>
+        @if (devicePlatform() === 'android') {
+          <a href="https://github.com/Sankofa-Digital-Studio/senatla-ops/releases/download/dev-latest/senatla-ops-dev.apk" download>Download Android</a>
+        } @else if (devicePlatform() === 'ios') {
+          <a href="#mobile-app">iPhone / iPad</a>
+        } @else {
+          <a href="#mobile-app">Get the app</a>
+        }
         <a routerLink="/register" class="nav-register">Register</a>
         <a routerLink="/login" class="nav-login">Login</a>
       </nav>
@@ -39,7 +45,13 @@
         <nav aria-label="Mobile navigation">
           <a href="#capabilities">Capabilities</a>
           <a href="#assurance">Assurance</a>
-          <a href="https://github.com/Sankofa-Digital-Studio/senatla-ops/releases/download/dev-latest/senatla-ops-dev.apk" download>Android APK</a>
+          @if (devicePlatform() === 'android') {
+            <a href="https://github.com/Sankofa-Digital-Studio/senatla-ops/releases/download/dev-latest/senatla-ops-dev.apk" download>Download Android</a>
+          } @else if (devicePlatform() === 'ios') {
+            <a href="#mobile-app">iPhone / iPad</a>
+          } @else {
+            <a href="#mobile-app">Get the app</a>
+          }
           <a routerLink="/register">Register</a>
           <a routerLink="/login">Login</a>
         </nav>
@@ -81,6 +93,30 @@
       </div>
     </section>
 
+    <section id="mobile-app" class="landing-section mobile-app-section" tabindex="-1" aria-labelledby="mobile-app-heading">
+      <div class="landing-section__heading">
+        <p class="section-kicker">Mobile access · v0.5.1</p>
+        <h2 id="mobile-app-heading">Take Senatla Ops to the worksite.</h2>
+        <p class="mobile-app-intro">Choose the supported option for your device. Android installs the current UAT APK; iPhone and iPad use the secure web app from Safari.</p>
+      </div>
+      <div class="mobile-app-grid">
+        <article class="mobile-app-card" [class.mobile-app-card--recommended]="devicePlatform() === 'ios'">
+          @if (devicePlatform() === 'ios') { <span class="device-badge">Recommended for this device</span> }
+          <p class="mobile-app-card__platform">Apple</p>
+          <h3>iPhone / iPad web app</h3>
+          <p>Open Senatla Ops in Safari, tap Share, then choose <strong>Add to Home Screen</strong>. It launches from your home screen like an app.</p>
+          <a routerLink="/login" class="mobile-app-action">Open iOS web app</a>
+        </article>
+        <article class="mobile-app-card" [class.mobile-app-card--recommended]="devicePlatform() === 'android'">
+          @if (devicePlatform() === 'android') { <span class="device-badge">Recommended for this device</span> }
+          <p class="mobile-app-card__platform">Android</p>
+          <h3>Android UAT app</h3>
+          <p>Download the current v0.5.1 development APK. Android may ask you to approve installation from your browser.</p>
+          <a href="https://github.com/Sankofa-Digital-Studio/senatla-ops/releases/download/dev-latest/senatla-ops-dev.apk" download class="mobile-app-action">Download Android APK</a>
+        </article>
+      </div>
+      <p class="mobile-app-note">The iOS native build is simulator-verified but is not presented as an installable IPA until Apple signing and TestFlight distribution are configured.</p>
+    </section>
     <section id="assurance" class="landing-section landing-section--assurance" tabindex="-1" aria-labelledby="assurance-heading">
       <div class="landing-section__heading"><p class="section-kicker">Assurance</p><h2 id="assurance-heading">Trust is designed into the workflow.</h2></div>
       <div class="assurance-list">

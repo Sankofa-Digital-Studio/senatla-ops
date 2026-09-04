@@ -345,3 +345,15 @@
 @keyframes loading-rock { from { transform: translateX(-35%); } to { transform: translateX(170%); } }
 @media (min-width: 768px) { .section-grid { grid-template-columns: repeat(3, 1fr); } .landing-section { padding: 2rem; } }
 @media (prefers-reduced-motion: reduce) { .cornerstone-loader__progress span { animation: none; width: 100%; } }
+.mobile-app-intro { margin: .8rem 0 0; max-width: 46rem; color: rgba(255,255,255,.66); font-size: .9rem; line-height: 1.6; }
+.mobile-app-grid { display: grid; gap: 1rem; margin-top: 1.5rem; }
+.mobile-app-card { position: relative; display: flex; min-height: 15rem; flex-direction: column; align-items: flex-start; border: 1px solid rgba(255,255,255,.12); border-radius: 1.2rem; background: rgba(255,255,255,.05); padding: 1.25rem; }
+.mobile-app-card--recommended { border-color: rgba(190,242,100,.65); box-shadow: 0 0 0 1px rgba(190,242,100,.12), 0 1.25rem 3rem rgba(0,0,0,.2); }
+.device-badge { align-self: flex-end; margin-bottom: .5rem; border-radius: 999px; background: rgba(190,242,100,.14); padding: .35rem .65rem; color: #d9f99d; font-size: .62rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.mobile-app-card__platform { margin: 0; color: #bef264; font-size: .68rem; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+.mobile-app-card h3 { margin: .35rem 0 0; font-size: 1.2rem; }
+.mobile-app-card > p:not(.mobile-app-card__platform) { margin: .75rem 0 1.25rem; color: rgba(255,255,255,.64); font-size: .82rem; line-height: 1.55; }
+.mobile-app-action { margin-top: auto; border-radius: 999px; background: #bef264; padding: .75rem 1rem; color: #0f172a; font-size: .72rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.mobile-app-action:hover { background: #d9f99d; color: #0f172a; }
+.mobile-app-note { margin: 1rem 0 0; color: rgba(255,255,255,.46); font-size: .7rem; line-height: 1.45; }
+@media (min-width: 768px) { .mobile-app-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
