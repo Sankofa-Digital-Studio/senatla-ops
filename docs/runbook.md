@@ -2,6 +2,8 @@
 
 ## Release
 
+`dev` is the default integration and demo branch. `main` is the reviewed production release branch connected to Vercel production. Feature pull requests target `dev`; release pull requests target `main`. Record the exact approved source commit and require independent CODEOWNER review without self-merge. A ready preview does not constitute production acceptance. Issue #7 holds environment, desktop/390 px QA, approved-deployment mapping and rollback evidence.
+
 1. Confirm the issue and approved pull request contain acceptance evidence.
 2. Back up the production database and record the recovery point.
 3. Apply migrations in preview and run role-negative tests.
