@@ -3,7 +3,7 @@ name: Senatla Ops quality gates
 on:
   pull_request:
   push:
-    branches: [dev]
+    branches: [dev, main]
 
 permissions:
   contents: read
