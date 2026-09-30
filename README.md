@@ -51,4 +51,4 @@ npm run verify
 
 ## Delivery workflow
 
-GitHub Issues authorize work. Pull requests target `dev`, the repository integration and demo branch, and contain acceptance evidence. CI, database validation, desktop/mobile browser proof and rollback notes are required before release. See [CONTRIBUTING.md](CONTRIBUTING.md).
+GitHub Issues authorize work. Feature and fix pull requests target `dev`, the repository's integration and demo branch. Reviewed production release pull requests promote a validated `dev` commit to `main` after independent CODEOWNER review and passing CI; authors do not self-merge. Production branch configuration, authorized environment access, desktop and 390 px QA, approved-commit mapping and rollback evidence are tracked in [issue #7](https://github.com/Sankofa-Digital-Studio/senatla-ops-internal-automation-solution/issues/7). CI, database validation, browser proof and rollback notes are required before release. See [CONTRIBUTING.md](CONTRIBUTING.md).
